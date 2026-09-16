@@ -1,0 +1,705 @@
+PHASE 1 VERIFICATION REPORT (SECOND AUDIT)
+==========================================
+SPECTA Extension Foundation
+Generated: 2026-09-16 · Operator: second audit pass
+
+This report supersedes the earlier PHASE_1_REPORT.txt. The earlier version was
+written before the Phase 1 unit tests existed, and several of its statements
+were wrong by the time it was read (it claimed Phase 1 tests were missing, and
+it described two non-problems as known issues). Everything below was produced
+by commands actually run against the current source on 2026-09-16, or by
+reading the current files. Nothing is carried over on trust.
+
+Environment (as actually used):
+  Flutter SDK   H:\flutter\bin\flutter.bat   (3.47.4 stable, Dart 3.13.3)
+  Project       C:\Users\PORTCR\Music\SPECTA APK\SPECTA
+  Pub cache     C:\Users\PORTCR\AppData\Local\Pub\Cache  (the default location;
+                the setup log's claim that PUB_CACHE moved to H:\pub-cache does
+                not match the resolved package paths)
+  Git           NOT AVAILABLE - the project directory is not a Git repository.
+
+
+================================================================
+1. SUMMARY
+================================================================
+
+Phase 1 (Extension Foundation) is IMPLEMENTED, ANALYZED CLEAN, UNIT TESTED and
+BUILDABLE. Five genuine defects were found by this audit and fixed. The phase is
+NOT declared PASS, because three of its own claims cannot be verified from this
+repository (real JS engine boundary, positive Ed25519 trust path, enforced
+capability declarations). Those are listed as PENDING in section 12, not hidden.
+
+Command results (this audit, current source):
+
+  Command                                   Result
+  ----------------------------------------  ------------------------------------
+  flutter analyze                           PASS - No issues found
+  flutter test                              PASS - 138/138 passed
+  build_runner build                        PASS - 73 outputs, .g.dart unchanged
+  dart format --set-exit-if-changed .       PASS - 52 files, 0 changed
+  flutter build apk --debug                 PASS - app-debug.apk, 233,844,311 B
+  aapt2 dump badging                        PASS - net.specta.app, launcher OK
+  Kotlin/Java bytecode inspection           PASS - Java 17 (major 61)
+
+Important scope fact discovered by this audit: NOTHING outside
+lib/core/extensions/ imports the extension manager, runtime, verifier, manifest
+parser or registry. The only link from the app's reachable graph into that
+folder is the three Drift table classes imported by specta_database.dart.
+Consequently the extension runtime code is not reachable from lib/main.dart and
+Dart's front-end drops it from the built kernel: probing the APK's
+kernel_blob.bin finds the table names (extension_versions, trust_level, ...) but
+finds neither "specta_request" nor "SpectaExtension". This also explains why the
+APK is byte-for-byte the same size across three builds made from different
+extension source.
+
+Consequence for evidence: the debug APK proves the Android/Gradle configuration
+and the schema, and it does NOT exercise the Phase 1 runtime code. That code is
+covered only by the unit suite. Recording that distinction is the point of this
+section.
+
+
+================================================================
+2. TEST NUMBERS - RECONCILED
+================================================================
+
+The earlier notes reported "93 new tests", "99 total", "28 total" and
+"28 Phase 0 + 71 Phase 1". These are now measured by running each file
+separately and the whole suite.
+
+  Total tests:                              138
+  Phase 0 tests:                             28
+  Phase 1 tests:                            110
+  New tests added during this audit:          39
+  Passed:                                   138
+  Failed:                                     0
+  Skipped:                                    0
+
+Per file (each count from running that file alone):
+
+  test/widget_test.dart                                 1   (Phase 0)
+  test/app/platform/form_factor_test.dart              6   (Phase 0)
+  test/core/database/specta_database_test.dart         4   (Phase 0)
+  test/core/errors/specta_failure_test.dart            9   (Phase 0)
+  test/features/home/home_page_test.dart               3   (Phase 0)
+  test/features/settings/download_concurrency_test.dart 5  (Phase 0)
+  test/core/extensions/manifest_test.dart             13   (Phase 1)
+  test/core/extensions/contract/extension_source_test.dart 7 (Phase 1, new)
+  test/core/extensions/verification/signature_verifier_test.dart 13 (Phase 1)
+  test/core/extensions/runtime/extension_runtime_test.dart 25 (Phase 1)
+  test/core/extensions/manager/extension_manager_test.dart 38 (Phase 1)
+  test/core/extensions/manager/drift_extension_registry_test.dart 14 (Phase 1, new)
+
+Note on the Phase 0 total: 28 is the current count across the six Phase 0 test
+files. docs/PHASE_0_REPORT.md records 27, which was correct when it was written;
+one test was added to test/features/home/home_page_test.dart during Phase 1, so
+the same file set now yields 28. Neither figure is wrong - they are dated.
+
+Earlier numbers explained:
+  * "99 total / 28 Phase 0 + 71 Phase 1" was correct at the time it was measured
+    (before this audit added tests). 28 + 71 = 99.
+  * "93 new tests" was never right. The per-file counts in that note
+    (12+8+12+14 = 46) do not even sum to 93.
+  * "28/28 passed" in the previous report was the Phase 0 suite only; 28 is the
+    correct Phase 0 total. The file-by-file list printed under it omitted
+    download_concurrency_test.dart (5) and undercounted home_page_test.dart
+    (2 instead of 3), which is why that list appeared to sum to 22.
+
+
+================================================================
+3. GENUINE DEFECTS FOUND AND FIXED
+================================================================
+
+--- Defect 1: DriftExtensionRegistry.uninstall violated its own foreign key ---
+
+File: lib/core/extensions/manager/drift_extension_registry.dart
+
+Root cause: uninstall deleted the `extensions` parent row first, then the
+`extension_versions` and `extension_failure_logs` rows. Both child tables
+declare REFERENCES extensions(id) with no ON DELETE action, and
+specta_database.dart enables PRAGMA foreign_keys. SQLite therefore aborted the
+parent delete:
+
+  SqliteException(787): FOREIGN KEY constraint failed, constraint failed
+
+Effect: uninstalling any extension that had a rollback version or a recorded
+failure threw instead of uninstalling. ExtensionManager.uninstall and
+rollback-adjacent flows would surface that failure to the caller. Nothing in the
+Phase 1 suite caught it, because every test used InMemoryExtensionRegistry,
+which has no constraints.
+
+Fix: delete children first, inside one transaction so the three deletes are
+atomic.
+
+Evidence: the new Drift registry suite reproduces the exception before the fix
+("uninstall removes the extension, its versions and its failures [E]") and
+passes after it. The same suite also proves PRAGMA foreign_keys really is
+enforced (a failure row for a non-existent extension is rejected).
+
+--- Defect 2: every manager failure was attributed to extension id "import" ---
+
+File: lib/core/extensions/manager/extension_manager.dart
+
+Root cause: the private _buildFailure helper hard-coded extensionId: 'import'.
+Every ExtensionFailure returned by loadRuntime and callOperation therefore
+carried the wrong identity: loading a disabled extension, loading a missing
+extension, or calling an operation on an unloaded runtime all reported
+extensionId 'import'.
+
+Effect: ExtensionFailure.extensionId is the field diagnostics are keyed on
+(and toDiagnostics() is the structured record). Misattributing it makes
+per-extension health reporting and failure correlation wrong.
+
+Fix: _buildFailure now requires the caller's extension id. Call sites pass the
+real id, or ExtensionManager.unidentifiedExtension ('<unidentified>') for the
+one case where no id is known yet (source file could not be read).
+
+Evidence: reverting only this change makes the new tests fail with
+"Expected: 'com.example.absent'  Actual: 'import'".
+
+--- Defect 3: non-JS sandbox failures escaped loadExtension ---
+
+File: lib/core/extensions/runtime/extension_runtime.dart
+
+Root cause: the two steps that evaluate the extension code caught only
+`on JsEvalException`. The ExtensionJsSandbox contract allows any Dart exception
+out of a native JS engine (FFI errors, platform errors). Anything that was not a
+JsEvalException propagated out of ExtensionRuntime.loadExtension, out of
+ExtensionManager.loadRuntime, and into the caller.
+
+Effect: this breaks the phase's stated invariant that a failing extension never
+takes SPECTA down with it, and it is the exact failure mode the runtime exists to
+prevent.
+
+Fix: both steps now catch Object and convert to a controlled ExtensionFailure.
+Timing out during load() is additionally classified as ExtensionFailureType
+.timeout rather than a generic runtime error.
+
+Evidence: reverting only this change makes the new test fail with an uncaught
+"Bad state: native engine failure" thrown from the test body at
+extension_runtime.dart:112.
+
+--- Defect 4: a failed load leaked a live JS engine ---
+
+Files: lib/core/extensions/runtime/extension_runtime.dart,
+       lib/core/extensions/manager/extension_manager.dart
+
+Root cause: ExtensionRuntime.shutdown() began with `if (!_loaded) return;`, so a
+runtime whose extension code never loaded could never dispose its sandbox. The
+manager builds the runtime (and therefore the sandbox, which owns a QuickJS
+context) before calling loadExtension, and on failure returned Err without ever
+shutting it down. Nothing else held a reference.
+
+Effect: each failed load leaked a JS engine for the process lifetime.
+
+Fix: shutdown() always calls dispose() (it still runs the extension's shutdown()
+only when loaded); the manager shuts the runtime down on the failure path.
+
+Evidence: the new test "shutdown disposes the sandbox even when nothing was
+loaded" fails (Expected: true, Actual: false) when the early return is restored.
+
+--- Defect 5: a host request failure produced an unhandled error ---
+
+File: lib/core/extensions/runtime/extension_runtime.dart (_onRequest)
+
+Root cause: the try/catch only covered decoding the extension's payload. The
+`_api.request(...).then(...)` chain was outside it, so an exception from the
+host's ExtensionRuntimeApi.request implementation rejected the returned future
+instead of producing the structured error object that the same method already
+returns for a malformed payload.
+
+Fix: _onRequest is now async with a single try covering decode, dispatch and
+encode; any failure yields the structured
+{status: null, ok: false, headers: {}, body: null, json: null, latency: 0,
+error: ...} payload.
+
+--- Hardening applied with Defect 3 ---
+
+load() had no timeout, unlike every other operation. The sandbox factory also
+creates the sandbox before the first evaluate, so an extension whose load()
+never settles would hang the load indefinitely. It now uses
+.timeout(defaultOperationTimeout), the same 30 s policy the operation path
+already declared.
+
+--- Code comments corrected: claims the implementation did not support ---
+
+These are documentation-of-code fixes, not behaviour changes. The previous
+comments overclaimed enforcement, which is exactly what makes a security
+boundary untrustworthy.
+
+  * runtime_api.dart (ExtensionRequest): said SPECTA "enforces timeouts, method
+    restrictions, and headers". It does not: the runtime transports whatever
+    URL, method and headers the extension asks for. The comment now states that
+    scheme/method/header policy belongs to the concrete ExtensionRuntimeApi
+    implementation, which does not exist yet.
+  * runtime_api.dart (ExtensionRuntimeApi): now says these are the capabilities
+    SPECTA exposes, that this is a restricted API surface rather than an
+    OS-level sandbox, and that no CPU/memory ceiling is applied.
+  * flutter_js_sandbox.dart: replaced the generic "Security boundary" list with
+    what is actually enforced (verified against flutter_js 0.8.7) and an
+    explicit "What this does NOT provide" section.
+  * extension_runtime.dart (sandboxBootstrap): dropped the claim that no network
+    is reachable (request() is the network path) and recorded the contract fact
+    that the runtime instantiates a class literally named `Extension`.
+
+
+================================================================
+4. PHASE 1 CLAIMS CHECKED AGAINST THE ACTUAL SOURCE
+================================================================
+
+Claim: "Removed kotlin.jvm.target.validation.mode=warning from
+gradle.properties".
+  TRUE. The line is absent; the file states that no suppression is needed.
+
+Claim: "Java = VERSION_17, Kotlin = JVM_17, handling both kotlin-android and
+org.jetbrains.kotlin.android".
+  TRUE, with one correction. android/build.gradle.kts does contain an
+  afterEvaluate block matching both plugin ids, configuring
+  KotlinAndroidProjectExtension with JvmTarget.JVM_17, and a
+  plugins.withId("com.android.library") block setting Java 17. The correction:
+  "Java 17 for Android library modules" is not universal. Modules that declare
+  their own compileOptions override it (measured: media_kit libraries compile to
+  Java 8, jni to Java 11). Those modules do not apply KGP, so no JVM-target
+  validation fires for them.
+
+Claim: the app module is aligned at JVM 17.
+  TRUE. android/app/build.gradle.kts sets Java 17 and Kotlin JVM_17.
+
+Claim: extension_manager.dart API fixes (failureOrNull, isRetryable, valueOrNull,
+null assertions, unawaited futures, prefer_initializing_formals).
+  PRESENT and correct as written. Specifically, `loadResult.failureOrNull!` was
+  re-examined rather than trusted: SpectaResult is sealed, `isErr` is
+  `this is Err<T>`, and failureOrNull returns non-null exactly in that case, so
+  the invariant is guaranteed for a local, non-mutated result. The `!` is safe
+  and was left in place.
+
+Claim: the manager and runtime constructors cannot be used from other libraries
+because `dart fix` made their named parameters private (listed as known issues
+2 and 3 in the previous report).
+  FALSE - verified experimentally. The suite constructs
+  ExtensionManager(registry: ..., runtimeApi: ..., sandboxFactory: ...) and
+  ExtensionRuntime(sandbox: ..., api: ...) from other libraries, `flutter
+  analyze` is clean and all 138 tests run. This is not a known issue and has
+  been removed from the documentation.
+
+Claim: 82 build_runner outputs.
+  Now 73 outputs on a clean run of the same generator set. The generated
+  specta_database.g.dart is byte-identical before and after the run
+  (md5 f5997ed8e958a830ad0ba0552decc58d), so codegen is reproducible. Also note
+  build_runner 2.16.1 reports that --delete-conflicting-outputs has been removed
+  and is ignored, so the README/STATE instruction to pass it is stale.
+
+Claim: the extension foundation is part of the shipped app.
+  FALSE as of now, and worth stating explicitly: the runtime/manager/verifier
+  libraries are unreachable from main.dart (see section 1). This is expected at
+  this point in the project - nothing wires an extension manager into the app
+  yet - but the documentation must not imply the APK contains a working
+  extension runtime.
+
+
+================================================================
+5. FILES CHANGED BY THIS AUDIT
+================================================================
+
+Source:
+  lib/core/extensions/manager/drift_extension_registry.dart   (Defect 1)
+  lib/core/extensions/manager/extension_manager.dart          (Defect 2, 4)
+  lib/core/extensions/manager/in_memory_extension_registry.dart (Defect 6 below)
+  lib/core/extensions/runtime/extension_runtime.dart          (Defect 3, 4, 5, hardening)
+  lib/core/extensions/runtime/runtime_api.dart                (comments)
+  lib/core/extensions/runtime/flutter_js_sandbox.dart         (comments)
+
+Tests:
+  test/core/extensions/manager/drift_extension_registry_test.dart  (new, 14 tests)
+  test/core/extensions/contract/extension_source_test.dart         (new, 7 tests)
+  test/core/extensions/manager/extension_manager_test.dart         (+7 tests)
+  test/core/extensions/runtime/extension_runtime_test.dart         (+11 tests)
+  test/support/fake_js_sandbox.dart                                (setEvalThrow)
+
+Documentation:
+  docs/PHASE_1_REPORT.txt, PROJECT_STATE.txt, docs/PROJECT_STATE.txt,
+  README.md, docs/README.md, docs/PHASE_0_REPORT.md (closure note)
+
+One further defect fixed in the same pass:
+
+--- Defect 6: InMemoryExtensionRegistry.getFailures ignored `limit` ---
+
+File: lib/core/extensions/manager/in_memory_extension_registry.dart
+
+  return _failures.where(...).toList()
+    ..sort(...)
+    ..take(limit)
+    ..toList();
+
+A cascade discards the intermediate iterable and returns the receiver, so
+`..take(limit)..toList()` did nothing: limit was silently ignored. The test
+double therefore behaved differently from the shipping Drift implementation,
+which honours limit. Fixed to `return matching.take(limit).toList();` and
+covered by a regression test that returns 5 rows without the fix.
+
+
+================================================================
+6. TESTS - WHAT THEY ACTUALLY EXERCISE
+================================================================
+
+Every test file was read, not counted by filename.
+
+Manifest (13): parses valid/minimal headers, rejects missing/invalid/zero
+apiVersion, rejects unknown content type, accepts movies_series and
+comma-separated forms, rejects a missing header block, and asserts
+toSignedContent() is stable across field ordering and independent of the
+signature field.
+
+Signature verification (13): 8 decodeSignature cases (valid, no scheme, wrong
+scheme, bad base64, wrong length, empty, no separator, too many parts) and 4
+verify cases (null, empty, malformed, signature from a different key pair,
+tampered message). These are REAL Ed25519 sign/verify operations through the
+cryptography package - but they are all negative. See section 7.
+
+Runtime (25): bootstrap injection, sandbox init failure, bootstrap failure,
+extension parse failure, load() failure, load() timeout, a non-JsEvalException
+sandbox failure, capabilities, search, details (including seasons/episodes),
+details with a malformed payload, getSources with MP4+HLS+headers, DASH refusal,
+healthCheck, operation on an unloaded runtime, JS error mapping, operation
+timeout, shutdown, shutdown without load, that exactly two message channels are
+registered and an unregistered channel has no handler, that specta_request is
+dispatched to the host API with the payload it was given, and that a throwing or
+malformed request degrades to a structured error.
+
+Manager (38): the full InMemoryExtensionRegistry contract, plus the manager's
+own paths - import success/failure/unsupported API/invalid type/unsigned trust
+classification, enable, loadRuntime for missing/disabled/no-API/no-sandbox
+cases, operation dispatch without a runtime, rollback success/failure, health
+check, uninstall, failure attribution, and sandbox disposal after a failed load.
+
+Drift registry (14, new): install/getById/getAll/getEnabled/setEnabled,
+rollback version selection (newest rollback point, current excluded, none),
+failure ordering and limit, failure count window, clearFailures isolation,
+uninstall removing children, uninstall leaving others alone, uninstall of an
+unknown id, and foreign-key enforcement.
+
+Source model (7, new): SourceType declares exactly mp4 and hls, case-insensitive
+lookup, optional-field tolerance, DASH rejected, unknown type rejected,
+toJson/fromJson round trip.
+
+Security-honesty check: no test in the suite claims a boundary the runtime does
+not enforce. The closest is "only the two controlled channels are registered",
+which asserts a factual property (handler count and missing-handler behaviour)
+rather than OS-level isolation. There is no test asserting filesystem, database,
+contact, SMS or device-identifier blocking - because the runtime cannot
+demonstrate that; it can only demonstrate absence of a binding.
+
+Not covered (see sections 7 and 12):
+  * FlutterJsSandbox - zero tests. Every runtime test uses FakeJsSandbox.
+    FlutterJsSandbox needs a real QuickJS engine, so it cannot run under
+    `flutter test`; it requires on-device verification.
+  * TrustLevel.official is never produced by any test - only `unverified` is.
+  * ExtensionDetails/getSources/refreshSource/latest are exercised through the
+    fake sandbox, never against a real JS engine.
+
+
+================================================================
+7. SECURITY AUDIT - WHAT IS AND IS NOT ENFORCED
+================================================================
+
+Prompted by the brief's rule: do not claim a boundary merely because the
+documentation asserts it.
+
+Architecture as implemented:
+
+  ExtensionManager -> ExtensionRuntime -> ExtensionJsSandbox (abstract)
+                                        -> FlutterJsSandbox (flutter_js)
+
+What IS enforced today (each verified in source or against the package):
+
+  1. No network primitive in the engine. flutter_js only wires fetch/XHR when
+     the host calls enableFetch() (lib/extensions/fetch.dart) or asks for
+     getJavascriptRuntime(xhr: true). SPECTA calls neither, and grep confirms
+     enableFetch appears only in comments.
+  2. Two bridge channels, no more. ExtensionRuntime registers exactly
+     `specta_request` and `specta_log` via sandbox.onMessage. A message on any
+     other channel has no handler and is dropped (tested).
+  3. No native bindings registered. The runtime is created as a bare
+     QuickJsRuntime2 with a stack size; no module handler, no filesystem, DOM,
+     process or platform object is injected.
+  4. Host-side file reads are performed by Dart, not JavaScript. The manager
+     reads the .js file itself; nothing exposes a file API to the engine.
+  5. Failures are contained. Every sandbox exception on the load path and the
+     operation path becomes a controlled ExtensionFailure (defect 3 fixed).
+
+What is NOT enforced, and must not be claimed:
+
+  a. This is not an OS-level sandbox. Extension JavaScript executes inside the
+     SPECTA process. The boundary is the absence of bindings, not isolation.
+  b. No CPU or memory ceiling. QuickJsRuntime2 accepts `timeout` and
+     `memoryLimit`, and this build sets neither. Their precise semantics were
+     not verified here, so enabling them was deliberately NOT done. The only
+     guard is the Dart-side Future.timeout in ExtensionRuntime, which cannot
+     interrupt a synchronous CPU-bound JavaScript loop - a runaway `while(true)`
+     in an extension is not currently stopped by anything.
+  c. No request policy. There is no URL-scheme allow-list, no method
+     restriction and no header filtering. _onRequest forwards whatever the
+     extension sends. ExtensionRuntimeApi has no concrete implementation in
+     Phase 1 - it is an interface, so no policy can exist yet. This is the main
+     reason "controlled extension APIs" is PENDING rather than PASS.
+  d. Declared capabilities are not enforced. ExtensionCapabilities and
+     CapabilityFailure are modelled, but the runtime calls
+     _spectaInstance.search(...) etc. regardless of what the extension declared.
+     Nothing in the manager ever reads a declaration before an operation. The
+     "capabilities must be declared explicitly" statement in PROJECT_STATE
+     describes intent, not current behaviour.
+  e. No health-state model. The brief's Healthy / Degraded / Temporarily
+     unavailable / Disabled by user / Incompatible vocabulary is not
+     implemented. What exists is: an `enabled` flag, a failure log with a
+     retryable flag, and healthCheck(). Usefully, the code does NOT implement
+     the "disable after three failures" rule that appears in the earlier
+     reasoning document - the brief forbids it and the code correctly omits it.
+
+Verified in the repository: no private key material of any kind (.pem, .jks,
+.keystore, base64 "PRIVATE KEY") exists anywhere in the project. Only the public
+key is present, in lib/core/extensions/verification/trusted_keys.dart.
+
+
+================================================================
+8. ED25519 TRUST MODEL - WHAT IS FROZEN AND WHAT IS NOT
+================================================================
+
+The primitive is real and the public key is present. The complete signing
+protocol is NOT frozen, and this section records that rather than inventing one.
+
+What is verified:
+  * SignatureVerifier uses cryptography's Ed25519 against the trusted public
+    key, and rejects null/empty/malformed signatures, signatures from another
+    key pair, and a tampered message.
+  * decodeSignature enforces the `ed25519:BASE64` shape and a 64-byte payload.
+  * Valid -> TrustLevel.official; missing/invalid -> TrustLevel.unverified, as
+    the brief's table specifies.
+  * The private signing key is absent from the repository.
+
+What is NOT verified, and cannot be from here:
+  * No test proves a positive result. TrustLevel.official is never produced by
+    the suite, because producing it needs the private key, which is deliberately
+    kept off-repo. A test that merely calls the verifier with invented values
+    would not be evidence of correctness, so none was added.
+
+Protocol questions that are undefined, quoted from the code as it stands:
+  1. The signed payload is manifest.toSignedContent() - canonical JSON of
+     apiVersion, author, id, name, type, version and any present
+     description/language/icon/website. It does NOT cover the extension's
+     JavaScript body. A valid signature can therefore be attached to modified
+     code; the signature authenticates metadata, not the executable content.
+     Whether that is the intended protocol is a product decision, not something
+     this audit may decide.
+  2. The payload is passed as String.codeUnits, i.e. UTF-16 code units, not
+     UTF-8 bytes. For any non-ASCII metadata the bytes to sign differ depending
+     on the encoding convention; the signing side must agree with the verifier.
+  3. Adding or removing an optional manifest field changes the signed payload,
+     so re-signing is required whenever optional metadata is edited.
+  4. There is no signing tool, no key rotation path and no revocation story in
+     the repository.
+
+Until items 1-4 are agreed, "the extension trust protocol" is a working
+primitive plus a provisional payload definition. It should be frozen before any
+signing tool or extension catalogue is built on top of it.
+
+
+================================================================
+9. KGP / GRADLE STATUS
+================================================================
+
+The question the previous note left open was whether the JVM-target mismatch was
+actually fixed and whether the remaining warning is the same problem. They are
+two different things, and the first one is genuinely fixed.
+
+  1. Original Java/Kotlin JVM target mismatch: FIXED, with evidence.
+     - android/gradle.properties no longer suppresses validation
+       (kotlin.jvm.target.validation.mode is absent).
+     - android/build.gradle.kts aligns Kotlin to JvmTarget.JVM_17 for
+       subprojects applying either 'kotlin-android' or
+       'org.jetbrains.kotlin.android', and sets Java 17 for com.android.library.
+     - Bytecode was inspected directly (class-file major version):
+         build/app                        -> major 61 (Java 17)
+         build/cryptography_flutter       -> major 61 (Java 17)
+         build/flutter_js                 -> major 61 (Java 17)
+         build/package_info_plus          -> major 61 (Java 17)
+         build/wakelock_plus              -> major 61 (Java 17)
+         build/jni, build/jni_flutter     -> major 55 (Java 11)
+         build/media_kit_*                -> major 52 (Java 8)
+       The two plugins that previously failed validation now compile to Java 17.
+       The modules still at 8/11 do not apply KGP, and they keep their own
+       compileOptions because a module's own build script overrides the
+       subprojects block.
+     - Decisive point: the build now succeeds with Kotlin's strict JVM-target
+       validation ENABLED. If any Kotlin module disagreed with its Java target,
+       the build would fail. It does not.
+     - The Java 8 "source/target value 8 is obsolete" javac warnings present in
+       the earlier apk_build.log no longer appear.
+
+  2. Remaining KGP warning: NOT the same problem, NOT resolved, NOT suppressed.
+     Flutter reports:
+       WARNING: Your app uses the following plugins that apply Kotlin Gradle
+       Plugin (KGP): cryptography_flutter, flutter_js
+     Cause: cryptography_flutter 2.3.4 and flutter_js 0.8.7 both apply the
+     Kotlin Android plugin themselves, which Flutter's move to Built-in Kotlin
+     is deprecating. Flutter states future versions will fail to build for apps
+     using such plugins.
+  3. Can it be fixed safely inside Phase 1? No. It requires either upgrading
+     both plugins to Built-in-Kotlin-compatible releases or replacing them.
+     Neither is available in the pinned baseline, and both changes are
+     dependency/architecture decisions the brief forbids making silently.
+     Recorded as a deferred upstream limitation. Nothing was suppressed to hide
+     it - specifically, kotlin.jvm.target.validation.mode was NOT re-added.
+
+  4. Two undocumented Gradle settings exist and were left alone:
+     android.newDsl=false and android.builtInKotlin=false, both marked as
+     added by the Flutter template. android.builtInKotlin=false is why the
+     plugins' KGP application still matters on this toolchain.
+     kotlin.incremental=false is set deliberately, with the reason recorded in
+     the file (the project path contains a space, "SPECTA APK", which has
+     corrupted Kotlin incremental caches).
+
+
+================================================================
+10. BUILD ARTIFACT
+================================================================
+
+  Command:  H:\flutter\bin\flutter.bat build apk --debug
+  Result:   SUCCESS
+  Path:     build\app\outputs\flutter-apk\app-debug.apk
+  Size:     233,844,311 bytes  (from the filesystem, not estimated)
+  Built:    2026-09-16 12:39:00 +0300
+  Gradle:   "Running Gradle task 'assembleDebug'... 6.1s" (incremental; the
+            first full build in this environment took ~102 s)
+
+  Verified inside the APK (aapt2 dump badging, build-tools 37.0.0):
+    package:            net.specta.app
+    versionName:        0.0.1     versionCode: 1
+    minSdkVersion:      24        targetSdkVersion: 36   compileSdk: 36
+    application-label:  SPECTA
+    launchable-activity: net.specta.app.MainActivity
+    native-code:        arm64-v8a, armeabi-v7a, x86_64
+  Verified by source:   touchscreen required=false, leanback required=false,
+                        LEANBACK_LAUNCHER category, android:banner present.
+
+  Caveat repeated from section 1: the Phase 1 extension libraries are not
+  reachable from main.dart, so this APK does not contain the extension runtime.
+  The three builds run during this audit (before, between and after the source
+  fixes) produced byte-identical APKs, which is itself the evidence for that.
+
+
+================================================================
+11. DOCUMENTATION
+================================================================
+
+Updated: docs/PHASE_1_REPORT.txt (this file), PROJECT_STATE.txt,
+docs/PROJECT_STATE.txt, README.md, docs/README.md, and a closure note in
+docs/PHASE_0_REPORT.md.
+
+Corrections made because they were factually wrong:
+  * "No unit tests exist for Phase 1 extension components" - they exist; 110
+    Phase 1 tests pass. The stale scaffolding-only claim is removed.
+  * "ExtensionManager/ExtensionRuntime private constructor parameters cannot be
+    used from other libraries" - false; removed.
+  * "JVM target incompatibility fixed via
+    kotlin.jvm.target.validation.mode=warning" - wrong mechanism. The
+    suppression was removed and the alignment is a real fix.
+  * "82 build_runner outputs" - 73 on a clean run.
+  * README's "Phase 0 - 27 tests" status block was three phases of work out of
+    date; README now describes the actual Phase 1 state, the extension layout
+    that now exists, and what is deliberately absent.
+  * README's advice to run build_runner with --delete-conflicting-outputs is
+    stale for build_runner 2.16.1 (the flag is ignored).
+  * The setup log's claim that PUB_CACHE moved to H:\pub-cache does not match
+    the resolved packages (they resolve under
+    C:\Users\PORTCR\AppData\Local\Pub\Cache). Noted, not silently rewritten.
+
+Duplication noted: README.md and docs/README.md are byte-identical, as are
+PROJECT_STATE.txt and docs/PROJECT_STATE.txt. Both copies were updated so they
+agree; collapsing them into one location is a cleanup decision left to the
+project owner.
+
+No AGENTS.md exists for SPECTA. The only AGENTS.md on this machine
+(C:\Users\PORTCR\Music\AGENTS.md) belongs to an unrelated project (RoutePay;
+zero occurrences of "SPECTA") and was not applied. The rules in the audit brief
+governing evidence and phase boundaries were followed instead.
+
+
+================================================================
+12. PHASE 1 VERDICT - ITEM BY ITEM
+================================================================
+
+  [PASS]    Manifest parsing/validation
+  [PASS]    Extension identity/content types
+  [PASS]    Extension registry/storage (Drift uninstall defect fixed and covered)
+  [PASS]    Extension manager (failure attribution defect fixed)
+  [PASS]    Extension runtime lifecycle
+  [PENDING] JS execution boundary - limited API surface is real and tested via
+            the fake, but FlutterJsSandbox itself has no test, no CPU/memory
+            ceiling is set, and it is not OS-level isolation
+  [PENDING] Controlled extension APIs - request()/log() exist and are tested
+            through the fake, but ExtensionRuntimeApi has no implementation and
+            no request policy (scheme/method/headers) is enforced
+  [PENDING] Ed25519 verification - primitive verified negatively; the signed
+            payload (metadata only, UTF-16 code units) is not frozen and the
+            positive path cannot be tested without the private key
+  [PASS]    Extension result/contract models
+  [PASS]    Failure handling (escape path and engine leak fixed)
+  [PASS]    Phase 1 behavioural tests
+  [PASS]    Android/Gradle configuration
+  [PASS]    Static analysis (No issues found)
+  [PASS]    Formatting (52 files, 0 changed)
+  [PASS]    Full test suite (138/138)
+  [PASS]    Debug APK build (with the reachability caveat in section 10)
+  [PASS]    Documentation consistency
+
+OVERALL: PENDING
+
+Rationale: every Phase 1 defect found by this audit has been fixed and covered
+by a test that was shown to fail without the fix. The code analyzes clean, the
+suite is green, the Android configuration is genuinely repaired, and the APK
+builds. What prevents PASS is that three Phase 1 claims are still unverified in
+this repository rather than merely untested by accident: the real JS sandbox has
+never been executed, the Ed25519 trust path has never produced an `official`
+classification, and declared capabilities are modelled but not enforced. Calling
+Phase 1 PASS would mean claiming a security and trust boundary that no evidence
+in this repository supports.
+
+Missing, not implemented (explicitly, not defects):
+  * No concrete ExtensionRuntimeApi implementation (no HTTP client, in or out of
+    the extension layer).
+  * No URL scheme/method/header policy.
+  * No capability enforcement.
+  * No Healthy/Degraded/Temporarily-unavailable/Incompatible health model.
+  * No signing tool, key rotation or revocation path.
+  * No wiring of any extension component into lib/main.dart.
+
+
+================================================================
+13. PENDING WORK / RECOMMENDED NEXT STEPS
+================================================================
+
+  1. Verify FlutterJsSandbox on a real device or emulator: evaluate a script
+     that calls request() and log(), confirm only the two channels are live,
+     and confirm an unregistered channel is a no-op on the real engine. This is
+     the single most valuable missing verification in Phase 1.
+  2. Decide the freeze points before building on them: the exact signed payload
+     (in particular whether the JavaScript body is covered) and its encoding
+     convention. Do not build a signing tool or catalogue on a provisional
+     payload.
+  3. Verify QuickJsRuntime2's `timeout` and `memoryLimit` semantics, then decide
+     whether to set them. Until then, treat a CPU-bound extension loop as
+     unstoppable.
+  4. Decide how declared capabilities are enforced, and whether
+     CapabilityFailure should be wired into the operation path.
+  5. Add a health-state model if the product still wants the five-state
+     vocabulary; today only enabled/disabled plus a failure log exists.
+  6. Wire the extension manager into the application graph (provider) so the
+     Phase 1 code becomes reachable from main.dart and is actually shipped.
+  7. Android cmdline-tools are still absent, so flutter doctor warns and
+     licences are unsigned. Not build-blocking for debug builds.
+  8. Form factor TV detection remains a viewport approximation.
+  9. Disk discipline: keep the SDK, pub cache and Gradle home off C:.
+ 10. The deprecated build_runner flag in the README should be dropped.
+
+PHASE 2 is not started. No scraper, provider, catalogue, player, download
+manager, metadata provider or Phase 2 architecture work was performed, and none
+should begin without explicit authorization.

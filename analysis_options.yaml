@@ -1,0 +1,14 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # Drift / build_runner output is generated, never hand-edited.
+    - "**/*.g.dart"
+    - build/**
+    - android/**
+
+linter:
+  rules:
+    # Keep the codebase internally consistent from the first commit.
+    - prefer_single_quotes
+    - unawaited_futures

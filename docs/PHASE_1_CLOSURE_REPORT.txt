@@ -1,0 +1,799 @@
+================================================================================
+SPECTA — PHASE 1 CLOSURE REPORT
+================================================================================
+
+Report date/time (local) : 2026-09-16 13:37 EAST (UTC+03:00)
+Report file              : docs/PHASE_1_CLOSURE_REPORT.txt
+Phase                    : Phase 1 — Extension Foundation (closure of the audit)
+Predecessor document     : docs/PHASE_1_REPORT.txt (the audit report)
+
+This document records the CLOSURE session: the work done to fix the issues the
+audit left open. It does not replace the audit report; where the two disagree,
+THIS document is the more recent measurement. docs/PHASE_1_REPORT.txt carries a
+pointer to this file.
+
+--------------------------------------------------------------------------------
+1. STARTING BASELINE (measured, not assumed)
+--------------------------------------------------------------------------------
+
+Before any change in this session:
+
+  flutter analyze                  clean
+  dart format --set-exit-if-changed   clean
+  flutter test (no JS bridge)      265 passed, 9 skipped   = 274 total
+  flutter test (bridge on PATH)    274 passed, 0 skipped
+  flutter build apk --debug        SUCCESS, 233,844,311 bytes
+
+The brief stated a baseline of "138/138 tests". That figure counts the
+non-real-engine tests only. The measured total at the start of this session was
+274, of which 9 are the real-engine sandbox tests that require the QuickJS
+bridge on the loader path. Both numbers are reported here so the discrepancy is
+on the record rather than repeated.
+
+GIT:  `git status` -> "fatal: not a git repository".
+      Git status is NOT AVAILABLE. The project directory is not a Git
+      repository, so changed-file lists below come from the filesystem, not
+      from version control.
+
+--------------------------------------------------------------------------------
+2. WHAT WAS CLOSED
+--------------------------------------------------------------------------------
+
+  2.1  Ed25519 signing protocol             FROZEN, DOCUMENTED, VERIFIED
+  2.2  Capability enforcement               IMPLEMENTED, ENFORCED, TESTED
+  2.3  Controlled request API               IMPLEMENTED, TESTED
+  2.4  Real JS sandbox execution            AUTOMATED TESTED (not device-verified)
+  2.5  Runtime limit semantics              MEASURED AND DOCUMENTED
+  2.6  Manager -> app integration           WIRED, REACHABILITY VERIFIED
+  2.7  Database + registry                  PRESERVED (real Drift paths kept)
+  2.8  Failure isolation                    PRESERVED + regression tests
+  2.9  Health model                         IMPLEMENTED (descriptive only)
+  2.10 Documentation                        UPDATED, see section 12
+
+--------------------------------------------------------------------------------
+3. THE FROZEN SIGNING PROTOCOL (v1)
+--------------------------------------------------------------------------------
+
+Identifier : SPECTA-EXT-SIG-V1
+Scheme     : ed25519
+Status     : FROZEN. Changing any byte of this definition invalidates every
+             existing signature, which is the reason it is pinned by tests.
+
+3.1  THE EXACT SIGNED BYTES
+
+The signed payload is the concatenation, as UTF-8 bytes, of exactly five parts:
+
+    "SPECTA-EXT-SIG-V1"  LF
+    <decimal byte length of the metadata part>  LF
+    <metadata part bytes>
+    <decimal byte length of the body part>  LF
+    <body part bytes>
+
+  * No other bytes are added. The protocol appends no trailing newline, no
+    terminator and no padding.
+  * The two length prefixes are decimal ASCII with no leading zeros and no sign.
+  * LF is a single 0x0A byte. It is a protocol delimiter, so the count of
+    delimiters cannot depend on the host platform's line endings.
+  * The length prefixes exist so the metadata/body boundary is part of the
+    signed data. Without them, swapping bytes across the boundary would produce
+    the same payload.
+
+3.2  THE METADATA PART
+
+  * Compact JSON: no whitespace between tokens.
+  * Object keys sorted ascending by code unit.
+  * Encoded as UTF-8. It is NOT String.codeUnits / UTF-16. This is
+    load-bearing: for a non-ASCII author name the two encodings differ, and the
+    audit found the earlier implementation using code units.
+  * Fields included, in canonical order:
+      apiVersion, author, capabilities, description, icon, id, lang, name,
+      type, version, website
+  * `capabilities` is included, rendered by ExtensionCapability.encodeDeclaration
+    as the sorted, comma-joined capability codes. An extension therefore cannot
+    widen its own permissions and keep a valid signature.
+  * Fields omitted: `signature` (a signature cannot sign itself) and any field
+    that is absent, null or an empty string.
+  * Field names in the payload are the contract names above, not the manifest
+    `@field` spellings (`lang`, not `@lang`).
+
+3.3  THE BODY PART
+
+  * The extension's JavaScript body: everything after the header's closing
+    `// ==/SpectaExtension==` line, verbatim, including its own line endings.
+  * The body IS covered. Signing metadata without the executable code would let
+    anyone replace the code while keeping the signature, which is precisely the
+    attack the protocol exists to prevent.
+  * Body extraction is deterministic and independent of the header: editing a
+    header field changes the metadata part only.
+
+3.4  MANIFEST AND SIGNATURE ENCODING
+
+  * Manifest field:      `// @signature ed25519:<base64>`
+  * Signature bytes:     raw Ed25519, 64 bytes, standard base64 (with padding)
+  * Public key:          raw 32 bytes, base64, in
+                         lib/core/extensions/verification/trusted_keys.dart
+  * `SignatureVerifier.decodeSignature` requires exactly the two-part form
+    `ed25519:<base64>` producing exactly 64 bytes; anything else is rejected.
+
+3.5  VERIFICATION PROCEDURE
+
+    1. Parse the header; extract `@signature`.
+    2. Rebuild the payload exactly as in 3.1 from the parsed manifest and the
+       body of the file being imported.
+    3. Ed25519-verify the payload against the published public key.
+    4. Valid  -> TrustLevel.official
+       Missing, malformed, wrong-key, or any change to the signed bytes
+              -> TrustLevel.unverified
+    5. Import never rejects on trust. Trust is data a later policy layer acts
+       on; classification is not enforcement.
+
+3.6  DETERMINISM AND EXTERNAL REPRODUCIBILITY
+
+  * Ed25519 signing is deterministic for a given key and message, so a signing
+    tool reproduces byte-identical signatures. Pinned by a test.
+  * As independent evidence that the written definition is sufficient, the
+    payload for the closure probe below was ALSO rebuilt from this document by a
+    separate implementation (Python) and matched the Dart bytes exactly:
+    same 367-byte length, same magic, same 193/148 length prefixes, same
+    SHA-256.
+
+3.7  PRODUCTION TRUST ANCHOR — MEASURED
+
+A one-off, explicitly approved probe exercised the REAL production key. Rules
+observed: the private key was never copied, moved, persisted, printed, hashed,
+logged or committed; it was read into memory by an external process only, and
+the temporary payload/signature were deleted afterwards. The private key remains
+outside the repository at H:\specta_signing\specta_ed25519_private.pem.
+
+  Probe extension : com.example.closure-probe (throwaway, never a release)
+  Payload bytes   : 367
+  Metadata part   : 193 bytes
+  Body part       : 148 bytes
+  Payload SHA-256 : 30c134cadd7df05bd4d1c51d0059632e483286312827056a74abe16da996ade7
+  Metadata SHA-256: 61f91b2c974a35cacdb37179a41f716a94f96a89ef7525386f74d6654f65a5fb
+  Body SHA-256    : 4c8fb5ad2370b22d5b8fab80159768f91d0e440f9497861677ab00bd41b08a95
+  Signature bytes : 64
+  Sig SHA-256     : 42ff1c7a58a515add5a474a7d26736354174ab1925ff34be41cccbfcf3ad0383
+
+  Public key (as published in the repo, this is public data):
+     base64    : uDm0fWmDu0dQ/32eXEw7O78VhqEA72YYcEpXPECxAYc=
+     length    : 32 bytes
+     SHA-256   : 66656d3e6240ddff7dda430c83ee2609e7e43b1b466690097dfd108d714c8175
+
+  RESULTS
+     Private key derived public key == published public key .... TRUE
+     SignatureVerifier.instance.verify(payload, signature) ..... TRUE
+     Same signature over a 1-bit-changed payload ............... FALSE
+     Same signature with the JavaScript body modified .......... FALSE
+     Manager import via the DEFAULT (production) verifier ...... TrustLevel.official
+     Same probe without a signature ............................ TrustLevel.unverified
+
+  This closes the largest gap the audit left open: the production trust anchor
+  is now demonstrated to work end to end, not merely modelled. A signature made
+  by the real private key is classified `official` by the shipping verifier.
+
+  KEY-FORMAT FINDING (blocks future signing-tool work unless addressed):
+  the private key file is a `-----BEGIN PRIVATE KEY-----` PEM whose body is the
+  raw 32-byte seed, not DER. OpenSSL 3.5.6 rejects it ("Could not find private
+  key ... unsupported"). Any future signing tool must either wrap the seed in
+  PKCS#8 (0x302e020100300506032b657004220420 || seed) or the key must be
+  re-emitted in a standard PKCS#8 PEM. This is recorded, not fixed: no
+  production signing configuration was modified.
+
+--------------------------------------------------------------------------------
+4. CAPABILITY POLICY (implemented and enforced)
+--------------------------------------------------------------------------------
+
+4.1  VOCABULARY — closed, and deliberately short
+
+     network   the controlled host `request()` channel
+     logging   the controlled host `log()` channel
+     search    the `search(query, page)` contract operation
+     latest    the `latest(page)` contract operation
+     details   the `details(url)` contract operation
+     sources   the `getSources(reference)` / `refreshSource(reference)` ops
+
+  There is no filesystem, contacts, SMS, photo, device-identifier, database,
+  native-code or application-control capability, and none may be added without
+  an explicit product decision. No Android permission is created for an
+  extension.
+
+4.2  DECLARATION
+
+  * Manifest field: `// @capabilities network,search`
+  * Parsed at import; whitespace and case are tolerated.
+  * An unrecognised token REJECTS the manifest rather than being dropped. A
+    silently narrowed declaration would leave an extension appearing to hold
+    permissions it was never granted, and the rejection is the correct side to
+    fail on.
+  * Absence is the default: an extension that declares nothing gets nothing.
+  * The declaration is part of the signed payload, so capabilities cannot be
+    escalated without invalidating the signature (proved by test).
+
+4.3  ENFORCEMENT POINTS
+
+  * Contract operations: `ExtensionRuntime._callOperation` refuses an operation
+    whose capability was not declared, before any JavaScript is evaluated, and
+    returns a structured CapabilityFailure (type CAPABILITY_ERROR, the name of
+    the missing capability, the extension id, not retryable).
+  * `request()` channel: `_onRequest` checks `network` FIRST, before parsing the
+    payload, so an undeclared capability is not reachable by sending something
+    the parser chokes on. Refusal is a structured error object returned to
+    JavaScript, not an exception.
+  * `log()` channel: `_onLog` drops messages when `logging` is undeclared. Logging
+    has no host side effect, so a silent no-op is the correct refusal and the
+    message never reaches the host sink.
+  * `capabilities()` and `healthCheck()` are deliberately NOT gated: gating
+    capability discovery would make the contract unreachable, and gating liveness
+    probing would make a failing extension indistinguishable from a forbidden one.
+
+4.4  EVIDENCE
+
+  Disabling the gate (`isGranted` forced to true) makes 9 tests fail, including
+  every denial test and the request/log channel tests. The enforcement is real,
+  not decorative.
+
+--------------------------------------------------------------------------------
+5. REQUEST POLICY (the controlled request boundary)
+--------------------------------------------------------------------------------
+
+The audit found the concrete request policy missing: the runtime forwarded
+whatever an extension asked for. It is now an explicit, injectable value object.
+
+  Schemes          https, http. file/ftp/data/javascript/content/blob/ws/wss
+                   refused. `file:` matters most: it would expose the
+                   filesystem through the ordinary URL parser.
+  Methods          GET, POST, HEAD. DELETE/PUT/PATCH/TRACE/CONNECT refused.
+  URL length       2048 characters
+  Request body     64 KiB
+  Response body    8 MiB, enforced by aborting the transfer rather than
+                   buffering it
+  Redirects        5
+  Timeout          default 15 s; a requested timeout is CLAMPED to 60 s, not
+                   refused
+  Credentials      URLs carrying user:password@ are refused
+  Order            scheme is evaluated BEFORE host, so file:///etc/passwd is
+                   reported as SCHEME_NOT_ALLOWED rather than as a malformed URL.
+                   A blank URL is INVALID_URL, not NOT_ABSOLUTE.
+
+Structured outcomes: the API never throws. It always returns an ExtensionResponse
+with ok=false and a canonical ExtensionFailureType (NETWORK_ERROR, TIMEOUT,
+HTTP_ERROR, INVALID_RESULT, UNSUPPORTED, RUNTIME_ERROR). Denials are counted
+separately from dispatched requests (`deniedCount` vs `requestCount`).
+
+Logging: method, scheme and host only. The full URL is never logged, because
+extension URLs routinely embed tokens and signing parameters. Verified by test.
+
+Scope, stated plainly: this is a transport policy. It contains no provider
+logic and implements no anti-bot, authentication, paywall or DRM bypass.
+
+Transport: `DartIoHttpTransport` on dart:io HttpClient. NO NEW DEPENDENCY was
+added; dart:io is already available on every target SPECTA builds for.
+
+--------------------------------------------------------------------------------
+6. JS SANDBOX EXECUTION VERIFICATION
+--------------------------------------------------------------------------------
+
+  AUTOMATED TESTED      : 9 tests execute REAL JavaScript through the shipping
+                          FlutterJsSandbox (flutter_js -> QuickJS).
+                          test/core/extensions/runtime/flutter_js_sandbox_test.dart
+  REAL DEVICE/EMULATOR  : PENDING. See section 11.
+
+Covered by the real engine: initialise and evaluate; a minimal extension loading
+through ExtensionRuntime; `log()` reaching the host sink; the controlled
+`request()` path reaching a host transport; malformed JavaScript failing as a
+controlled failure; a runtime exception becoming a failed result; shutdown
+disposal; repeated load/shutdown; and a failed load cleaning up.
+
+How the environment gap was closed for automation
+  * On Windows, flutter_js loads `quickjs_c_bridge.dll`, which ships inside the
+    pub cache at flutter_js-<version>/windows/shared but is only found on the
+    process loader path. `tool/run_tests_real_js.sh` puts it there.
+  * Running the suite through that script makes all 9 execute and pass.
+  * Running `flutter test` without it SKIPS the group with a printed reason.
+    Skipped is reported as skipped and is never reported as passing.
+
+Three REAL defects were exposed by executing the engine, none of which a fake
+sandbox could reveal:
+  1. The engine delivers an already-JSON-decoded payload to message handlers,
+     while the handler assumed a String. Every `request()` and `log()` from real
+     JavaScript failed before reaching the host.
+  2. QuickJS rejects top-level `await` in script mode, so loading an extension
+     could never succeed on the real engine.
+  3. A closed QuickJS runtime cannot be reopened, so a second load on the same
+     sandbox silently failed.
+
+--------------------------------------------------------------------------------
+7. RUNTIME LIMIT FINDINGS (measured against the shipped engine)
+--------------------------------------------------------------------------------
+
+Probed directly against flutter_js 0.8.7 / QuickJS on this machine:
+
+  memoryLimit   `QuickJsRuntime2(memoryLimit: n)` does NOT apply a limit. The
+                bundled bridge does not export `jsSetMemoryLimit`; the option is
+                accepted and ignored. NOT ENFORCED.
+
+  timeout       `QuickJsRuntime2(timeout: n)` does NOT interrupt a synchronous
+                runaway loop: `while (true) {}` ran past the timeout and had to
+                be killed. It also mis-fires on `await`-driven code, aborting
+                promises that were still progressing. NOT RELIABLE.
+
+  Consequently this build sets neither option. The only limit that exists is the
+  Dart-side `Future.timeout` in ExtensionRuntime, which bounds awaited operations
+  but CANNOT interrupt synchronous CPU-bound JavaScript.
+
+  What this means: a buggy or malicious extension can occupy the Dart isolate
+  until its script finishes. Budgeting CPU time would require either
+  platform-level isolation or a bridge that supports interrupting evaluation.
+  This is a KNOWN LIMITATION of Phase 1, not a solved problem.
+
+SECURITY MODEL — accurate statement
+
+  The SPECTA JS runtime is a RESTRICTED-API IN-PROCESS RUNTIME BOUNDARY.
+  It is NOT an OS sandbox, NOT a process boundary, and NOT resource-safe.
+
+  What it does enforce: no native bindings are registered (no DOM, no
+  filesystem, no process, no platform objects); `enableFetch()` is never called,
+  so extension code cannot reach the network except through the controlled
+  `request()` channel; only two host channels exist (`specta_request`,
+  `specta_log`); declared capabilities are checked on every operation and every
+  channel call; and every evaluation is wrapped so a JS exception never crashes
+  the host.
+
+  What it does NOT enforce: process isolation, CPU-time limits, memory limits,
+  and any protection against an extension that simply spins.
+
+--------------------------------------------------------------------------------
+8. EXTENSION MANAGER -> APPLICATION INTEGRATION
+--------------------------------------------------------------------------------
+
+The audit found the extension subsystem unreachable from lib/main.dart. It is now
+part of the running application's dependency graph.
+
+  lib/core/extensions/manager/extension_providers.dart
+      extensionRegistryProvider      -> DriftExtensionRegistry over the EXISTING
+                                        SpectaDatabase. No second database.
+      extensionRuntimeApiProvider    -> ControlledExtensionRuntimeApi with a
+                                        debug-only log sink
+      extensionManagerProvider       -> ExtensionManager with FlutterJsSandbox
+                                        and the production verifier
+  lib/main.dart
+      A `SpectaStartup` ConsumerWidget watches extensionManagerProvider above
+      SpectaApp and then renders the existing app unchanged.
+
+Deliberately NOT done: no extension UI, no catalogue, no discovery screen, no
+real extensions, no provider integrations. The extension subsystem stays
+independent of Flutter UI (the only Flutter import in the providers file is
+`foundation`, for debugPrint).
+
+REACHABILITY EVIDENCE (previously absent)
+  The built APK's kernel_blob.bin was searched for the subsystem's symbols.
+  Found: ExtensionManager, ControlledExtensionRuntimeApi, SpectaSigningProtocol,
+  ExtensionRequestPolicy, DriftExtensionRegistry, extensionManagerProvider,
+  ExtensionCapability, ExtensionHealth.
+  The code is genuinely in the shipped artifact.
+
+APK SIZE IMPACT
+  before (audit session) : 233,844,311 bytes
+  after  (this session)  : 234,266,367 bytes
+  delta                  : +422,056 bytes (~412 KiB) in a debug build that also
+                           contains the new tests' targets. No bloat concern and
+                           no circular dependency was introduced.
+
+--------------------------------------------------------------------------------
+9. DATABASE + REGISTRY
+--------------------------------------------------------------------------------
+
+Preserved, not replaced. Extensions live in the same SQLite file as the rest of
+SPECTA's data via the existing Drift `SpectaDatabase`; no second database was
+created. `PRAGMA foreign_keys = ON` is still applied at open, and the tests that
+exercise install / enable / disable / version tracking / failure tracking /
+uninstall / rollback metadata run against the REAL Drift path, not only the
+in-memory double.
+
+--------------------------------------------------------------------------------
+10. FAILURE ISOLATION (preserved and extended)
+--------------------------------------------------------------------------------
+
+  * JS errors are contained: a JS exception becomes an Err result.
+  * Non-JsEvalException failures from the native engine are also contained.
+  * Host request failures become a structured error payload, never an unhandled
+    exception or an unhelpful promise rejection.
+  * A failed load disposes its sandbox instead of leaking a live JS engine.
+  * shutdown() always disposes, even for a runtime that never loaded.
+  * Failure attribution uses the real extension id. A load/call failure used to
+    be recorded against the literal id 'import'; it now carries the actual id.
+  * Failures raised before a manifest is parsed use the documented sentinel
+    ExtensionManager.unidentifiedExtension ('<unidentified>'), and never a real
+    extension id.
+  * No global catch was added that would hide diagnostics.
+
+--------------------------------------------------------------------------------
+11. HEALTH MODEL
+--------------------------------------------------------------------------------
+
+An explicit, minimal model now exists (lib/core/extensions/identity/extension_health.dart),
+because the agreed design needs a vocabulary for "which source/extension should
+be preferred" without inventing ranking.
+
+  States       healthy, degraded, temporarily_unavailable, disabled, incompatible
+  Precedence   incompatible > disabled > recent-failure count
+  Thresholds   degraded at 2 recent failures; temporarily unavailable at 3
+  Window       24 hours
+  API           ExtensionHealthRules.evaluate(...) is a pure function
+
+DELIBERATELY NOT IMPLEMENTED: automatic disable-after-N-failures, and any smart
+source ranking. Classification is descriptive only and mutates nothing: an
+extension with 10 recent failures stays enabled and installed, and still appears
+in the enabled list. Choosing among sources is a later-phase decision that this
+model prepares for; it does not make it.
+
+--------------------------------------------------------------------------------
+12. FILES CHANGED AND CREATED
+--------------------------------------------------------------------------------
+
+CREATED — library
+  lib/core/extensions/verification/signing_protocol.dart
+  lib/core/extensions/contract/extension_capability.dart
+  lib/core/extensions/identity/extension_health.dart
+  lib/core/extensions/runtime/request_policy.dart
+  lib/core/extensions/runtime/controlled_runtime_api.dart
+  lib/core/extensions/manager/extension_providers.dart
+
+CREATED — tests
+  test/core/extensions/verification/signing_protocol_test.dart
+  test/core/extensions/contract/extension_capability_test.dart
+  test/core/extensions/identity/extension_health_test.dart
+  test/core/extensions/manager/extension_manager_signing_test.dart
+  test/core/extensions/manager/extension_manager_health_test.dart
+  test/core/extensions/runtime/request_policy_test.dart
+  test/core/extensions/runtime/controlled_runtime_api_test.dart
+  test/core/extensions/runtime/flutter_js_sandbox_test.dart
+
+CREATED — tooling and docs
+  tool/run_tests_real_js.sh
+  docs/PHASE_1_CLOSURE_REPORT.txt   (this file)
+
+MODIFIED — library
+  lib/main.dart                                   extension subsystem wired in
+  lib/core/extensions/manifest.dart               capabilities, body extraction,
+                                                   frozen signed payload
+  lib/core/extensions/verification/signature_verifier.dart
+                                                   protocol-bound verification
+  lib/core/extensions/runtime/extension_runtime.dart
+                                                   capability gate, load split,
+                                                   payload decoding, no leak
+  lib/core/extensions/runtime/runtime_api.dart     honest boundary comments
+  lib/core/extensions/runtime/flutter_js_sandbox.dart
+                                                   real-engine fixes; measured
+                                                   limit findings documented
+  lib/core/extensions/manager/extension_manager.dart
+                                                   verifier injection, body-covered
+                                                   trust, capability propagation,
+                                                   health classification
+  lib/core/extensions/manager/in_memory_extension_registry.dart   (audit session)
+  lib/core/extensions/manager/drift_extension_registry.dart       (audit session)
+
+MODIFIED — tests
+  test/core/extensions/manifest_test.dart
+  test/core/extensions/runtime/extension_runtime_test.dart
+  test/core/extensions/verification/signature_verifier_test.dart
+  test/support/fake_js_sandbox.dart
+
+MODIFIED — documentation
+  PROJECT_STATE.txt, README.md, docs/PROJECT_STATE.txt, docs/README.md,
+  docs/PHASE_1_REPORT.txt (addendum), docs/SETUP_LOG.md
+
+DELETED (temporary, after use)
+  test/_scratch_prodkey_check.dart, test/_scratch_engine_probe.dart and the
+  temporary probe payload/signature in the system temp directory. Verified gone.
+
+DEPENDENCIES CHANGED : NONE. pubspec.yaml is unchanged. The request layer uses
+dart:io; no `http` package was added. No new package was introduced anywhere.
+
+--------------------------------------------------------------------------------
+13. TESTS ADDED
+--------------------------------------------------------------------------------
+
+New test files and their test counts (measured):
+  test/core/extensions/verification/signing_protocol_test.dart       16
+  test/core/extensions/verification/signature_verifier_test.dart     19  (6 new)
+  test/core/extensions/contract/extension_capability_test.dart        8
+  test/core/extensions/identity/extension_health_test.dart           10
+  test/core/extensions/manager/extension_manager_signing_test.dart   15
+  test/core/extensions/manager/extension_manager_health_test.dart    14
+  test/core/extensions/runtime/request_policy_test.dart              21
+  test/core/extensions/runtime/controlled_runtime_api_test.dart      22
+  test/core/extensions/runtime/flutter_js_sandbox_test.dart           9
+  test/core/extensions/runtime/extension_runtime_test.dart           41 (+14)
+  test/core/extensions/manifest_test.dart                            13 (+2)
+  test/support/fake_js_sandbox.dart                        (support, no tests)
+  test/core/extensions/manager/extension_manager_test.dart           38 (+12)
+  test/core/extensions/manager/drift_extension_registry_test.dart    14
+  test/core/extensions/contract/extension_source_test.dart            7
+
+TESTS THAT PROVE ENFORCEMENT (mutation evidence, each run and observed):
+  * Removing JavaScript-body coverage from the signed payload fails exactly the
+    two body-tampering tests.
+  * Forcing the capability gate open fails 9 tests.
+  * Reverting the request-policy evaluation order fails the scheme and blank-URL
+    classification tests.
+  * Reverting the Drift uninstall ordering fails the foreign-key test.
+  * Reverting the load failure isolation lets a StateError escape.
+
+--------------------------------------------------------------------------------
+14. COMMANDS EXECUTED AND EXACT RESULTS
+--------------------------------------------------------------------------------
+
+Run from C:\Users\PORTCR\Music\SPECTA APK\SPECTA
+
+  H:\flutter\bin\flutter.bat analyze
+      -> No issues found! (ran in 5.2s)
+
+  H:\flutter\bin\cache\dart-sdk\bin\dart.exe format --set-exit-if-changed .
+      -> Formatted 66 files (0 changed)
+
+  H:\flutter\bin\flutter.bat test                      (no bridge on PATH)
+      -> 266 passed, 9 skipped, 0 failed   (275 total)
+
+  tool/run_tests_real_js.sh                            (bridge on PATH)
+      -> 275 passed, 0 skipped, 0 failed   (275 total)
+
+  H:\flutter\bin\flutter.bat build apk --debug
+      -> SUCCESS
+
+No code generation was required by this session; the Drift generated file was
+left byte-identical.
+
+--------------------------------------------------------------------------------
+15. TEST SUMMARY
+--------------------------------------------------------------------------------
+
+  Total tests            : 275
+  Phase 0 tests          :  28  (widget, form factor, database, failures,
+                                 home page, download concurrency)
+  Phase 1 tests          : 247
+  New in this session    : 128  (106 in new files + 22 added to existing files)
+  Passed                 : 275  (with the real JS bridge available)
+                           266  (without it; the 9 real-engine tests skip)
+  Failed                 :   0
+  Skipped                :   0 with the bridge, 9 without it
+
+--------------------------------------------------------------------------------
+16. BUILD
+--------------------------------------------------------------------------------
+
+  Result   : SUCCESS
+  Command  : H:\flutter\bin\flutter.bat build apk --debug
+  Artifact : build\app\outputs\flutter-apk\app-debug.apk
+  Size     : 234,266,367 bytes (measured from the filesystem, not estimated)
+  Built    : 2026-09-16 13:37:03
+
+  The Kotlin Gradle Plugin warning remains and is expected:
+    "Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP):
+     cryptography_flutter, flutter_js"
+  This is a separate upstream plugin-packaging warning. It is NOT the Java/Kotlin
+  JVM-target mismatch, which is fixed. It is not suppressed, because suppressing
+  it would hide a real future build breakage. The JVM target alignment is
+  verified independently by bytecode major version 61 (Java 17) across compiled
+  classes.
+
+--------------------------------------------------------------------------------
+17. KNOWN LIMITATIONS (carried forward honestly)
+--------------------------------------------------------------------------------
+
+  1. No CPU-time or memory ceiling for extension JavaScript. Measured, not
+     assumed (section 7). A runaway script can occupy the isolate.
+  2. The runtime is not an OS-level sandbox (section 7).
+  3. Real device / emulator verification remains PENDING (section 18).
+  4. The KGP warning from cryptography_flutter and flutter_js persists; fixing it
+     needs upstream releases, not a Phase 1 change.
+  5. The production private key is stored in a non-standard PEM format that
+     standard tools reject (section 3.7). Recorded, not fixed.
+  6. Redirects are followed up to the policy limit without re-evaluating the
+     scheme allow-list against the redirect target. dart:io only follows
+     HTTP(S) redirects and the initial URL was checked; stated rather than
+     implied.
+  7. Response bodies that are not valid UTF-8 are returned as a lossy Latin-1
+     projection. Extensions needing raw bytes cannot currently be served.
+  8. Trust classification is data, not enforcement: an unverified extension still
+     installs and is enabled. A later policy layer must decide what to do with
+     unverified extensions.
+
+--------------------------------------------------------------------------------
+18. DEVICE / EMULATOR VERIFICATION STATUS
+--------------------------------------------------------------------------------
+
+  STATUS: PENDING — REAL DEVICE/EMULATOR VERIFICATION
+
+  Automated verification (this machine, Windows host, `flutter test`) : DONE
+  Real QuickJS engine executed under test                          : YES
+  Android device or emulator run                                   : NO
+
+  What is missing from the environment: no Android device or emulator is
+  attached, and no run was attempted against one. Everything below therefore
+  rests on automated tests plus static inspection, not on an observed device:
+
+    * the extension subsystem starting up inside the running Android app
+    * the extension UI path (none exists, so nothing to observe)
+    * Drift directory creation on Android for the extensions tables
+    * the QuickJS bridge loading on device (the .so ships inside the APK, which
+      was confirmed present, but it has not been loaded on a device)
+    * the Android debug APK launching at all
+
+  This is the reason Phase 1 closure is NOT marked PASS. The Android debug APK
+  builds and contains the code; that is not the same as having run it.
+
+--------------------------------------------------------------------------------
+19. BLOCKERS
+--------------------------------------------------------------------------------
+
+  No blocker prevented any authorized closure work from being completed.
+  The single obstacle encountered — OpenSSL refusing the production private key
+  because it is stored as a raw seed in a PKCS#8-looking PEM — was worked around
+  for the one-off probe (in-memory re-encode via an external process) and is
+  recorded in section 3.7 as a finding for future signing-tool work. It does not
+  block Phase 1: it blocks building a permanent signing tool, which is
+  explicitly future work.
+
+  Git remains unavailable: the project directory is not a Git repository, so no
+  diff, branch or commit information exists.
+
+--------------------------------------------------------------------------------
+20. EXACT STOPPING POINT
+--------------------------------------------------------------------------------
+
+Stopped here, as authorized. No Phase 2 work was performed and none was designed.
+
+Not implemented, by instruction: GitHub extension repository, repository.json
+catalogue, real movie/series extensions, scrapers, provider integrations, TMDB,
+discovery/search/movie UI, player, MediaKit playback, streaming pipeline,
+download manager, offline playback, recommendations, accounts, backend/cloud
+sync, VPN, torrent functionality, DRM/anti-bot/authentication/paywall bypass.
+
+NEXT STEP (requires explicit authorization for Phase 2): attach an Android
+device or emulator and run the debug APK to close the PENDING device
+verification recorded in section 18.
+
+--------------------------------------------------------------------------------
+21. PHASE 1 CLOSURE VERDICT (superseded by section 22)
+--------------------------------------------------------------------------------
+
+  Manifest parsing / validation ......................... PASS
+  Extension identity / content types .................... PASS
+  Extension registry / storage .......................... PASS
+  Extension manager ..................................... PASS
+  Extension runtime lifecycle ........................... PASS
+  JS execution boundary ................................. PASS (restricted API
+                                                          surface; in-process,
+                                                          as documented)
+  Controlled extension APIs ............................. PASS
+  Capability enforcement ................................ PASS (NEW)
+  Ed25519 verification .................................. PASS (real-key path
+                                                          now proven)
+  Extension result / contract models .................... PASS
+  Failure handling ...................................... PASS
+  Health model .......................................... PASS (descriptive
+                                                          only, by design)
+  Phase 1 behavioural tests ............................. PASS
+  Android / Gradle configuration ........................ PASS (JVM alignment;
+                                                          KGP warning is a
+                                                          separate upstream item)
+  Static analysis ....................................... PASS (no issues)
+  Formatting ............................................ PASS (0 changed)
+  Full test suite ....................................... PASS (275/275 with the
+                                                          real engine)
+  Debug APK build ....................................... PASS
+  App integration / reachability ........................ PASS (NEW)
+  Documentation consistency ............................. PASS
+  Device / emulator verification ........................ PASS (2026-09-16, section 22)
+
+  OVERALL PHASE 1 STATUS: COMPLETE — REAL DEVICE VERIFIED
+
+  Every Phase 1 code, security, test, build and documentation objective is
+  satisfied and evidenced, and the last open gap has been closed: the
+  application and the full extension runtime have now been executed on a
+  physical Android device. The complete device record is section 22, below.
+
+================================================================================
+END OF PHASE 1 CLOSURE REPORT
+================================================================================
+
+================================================================================
+22. DEVICE VERIFICATION RECORD (added 2026-09-16 ~15:45 local, UTC+3)
+================================================================================
+
+This section closes section 18 of this report. It was written after the runs
+it describes; nothing in it is projected or assumed.
+
+ENVIRONMENT
+  Device        Samsung SM-A065F (Galaxy A06), arm64-v8a
+  OS            Android 16 (API 36), One UI
+  Connection    USB (adb id R83L20FRDFM); battery 95%, unplugged
+  App           net.specta.app — the debug APK built at 15:39 (274,359,431 B)
+  Harness       flutter test integration_test/phase1_device_verification_test.dart
+                -d R83L20FRDFM  (runs inside the real app process on device)
+
+RESULTS — FOUR CONSECUTIVE RUNS, 10/10 TESTS EACH, 0 FAILED, 0 SKIPPED
+  15:26, 15:31, 15:32, 15:35 local (UTC+3), 2026-09-16.
+
+  The harness (integration_test/phase1_device_verification_test.dart) is
+  test-only: it imports product code and changes none of it. The only project
+  change is the SDK-provided `integration_test` dev dependency. Evidence
+  markers are printed as `[SPECTA-P1] ...` debugPrint lines and are relayed by
+  the test runner's stdout; the run transcripts quote them in full.
+
+WHAT WAS EXERCISED (all inside the real app process on the device)
+
+  1.  App startup. The Riverpod graph built extensionManagerProvider
+      (DriftExtensionRegistry + ControlledExtensionRuntimeApi +
+      FlutterJsSandbox factory); the home screen rendered; the foundation
+      self-check reported schema v2 and a settings round trip read back from
+      the on-device SQLite file.
+
+  2.  Drift/SQLite on the device filesystem. The database opened and migrated
+      to schema v2; extensions, extension_versions and extension_failure_logs
+      were all reachable; PRAGMA foreign_keys = 1 was verified on the open
+      connection; a settings row was written and read back.
+
+  3.  QuickJS on the real FFI bridge. Evaluate and async promise bridging
+      worked; the engine exposed NO ambient host APIs (fetch, XMLHttpRequest,
+      require, process, Dart, window, document all undefined; only the
+      registered sendMessage bridge exists); dispose worked; a fresh engine
+      was constructed after dispose (a closed QuickJS runtime cannot reopen).
+
+  4.  Manager round trip on device. importExtension read the .js from the
+      app's private storage (trust classified unverified — unsigned by
+      design); loadRuntime executed on the real engine (bootstrap injection,
+      instantiation, load()); capabilities() was parsed from real JavaScript;
+      getSources() returned an mp4 source; healthCheck() passed; shutdown and
+      uninstall completed, uninstall leaving no rows behind.
+
+  5.  Controlled network over the device's real stack. The probe extension
+      called request() from JavaScript; the call passed the capability gate,
+      the request policy, and the controlled API to dart:io HttpClient, and
+      https://example.com returned 200 (1.5–2.1 s round trip observed). The
+      response was carried back into JavaScript and the search operation
+      completed with a normalized result.
+
+  6.  Request policy on device. file:///etc/passwd was refused
+      (SCHEME_NOT_ALLOWED) and DELETE was refused (METHOD_NOT_ALLOWED), in
+      both cases with ZERO transport activity — the policy refused before any
+      socket was touched, and deniedCount was incremented rather than
+      requestCount.
+
+  7.  Capability gate on device. An extension that did not declare `network`
+      received a structured CAPABILITY_ERROR from request(), and the host API
+      (which in this probe throws on any request) was never reached. A
+      declared log() was forwarded to the host sink.
+
+  8.  Unregistered message channel. sendMessage on a channel with no handler
+      was contained: the engine survived and stayed usable afterwards.
+
+  9.  Failure isolation on device. A JavaScript exception surfaced as a
+      contained JsEvalException (host alive); a malformed extension body
+      failed its load as a controlled RUNTIME_ERROR while import had
+      succeeded; the failure was recorded in extension_failure_logs on the
+      device (1 row verified); and a subsequent good extension loaded cleanly.
+
+LOGCAT / EVIDENCE FILES
+  docs/evidence_p1_device_native_logcat_2026-09-16.log
+      Native logcat captured on device (flutter:V + ActivityManager:I) around
+      the runs. It records net.specta.app process start (proc 8248 at
+      15:26:06), the Impeller/Vulkan backend, and the Dart VM service line.
+      Note: this device (Samsung One UI on Android 16) does not retain
+      app-level Dart debugPrint lines in logcat, so the [SPECTA-P1] marker
+      trail lives in the test runner's stdout transcripts, which are the
+      authoritative evidence trail for the per-step results above. No attempt
+      was made to dress that fact up; both sources are archived as they are.
+
+DEFECTS FOUND: NONE. Zero product-code changes were required by any of the
+four runs. The Phase 1 runtime behaved on hardware exactly as the unit and
+real-engine suites predicted.
+
+FINAL VERDICT: PHASE 1 COMPLETE — REAL DEVICE VERIFIED (2026-09-16).
+Phase 2 remains unauthorized and was not started.
+
+================================================================================
+END OF DEVICE VERIFICATION RECORD
+================================================================================

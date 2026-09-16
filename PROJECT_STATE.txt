@@ -1,0 +1,232 @@
+SPECTA — PROJECT STATE
+======================
+Handover document. Update after every meaningful implementation session.
+
+Last updated: 2026-09-16 — Phase 1 device verification run.
+Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED.
+Next: explicit authorization required before any Phase 2 work.
+
+NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
+copies are updated together; if only one exists in future, keep the root copy.
+
+Documents, in order of recency (newest wins where they disagree):
+  1. docs/PHASE_1_CLOSURE_REPORT.txt  (closure session + device verification)
+  2. docs/PHASE_1_REPORT.txt          (second audit report)
+  3. docs/PHASE_0_REPORT.md
+
+
+1. CURRENT PHASE
+----------------
+Phase 1 — Extension Foundation. Implemented, audited, corrected, tested,
+buildable, and now VERIFIED ON A REAL ANDROID DEVICE (2026-09-16). The last
+open item from the closure report (section 18: no device run) is closed; see
+section 3 below and the closure report's device verification record.
+
+Phase 2 scope is NOT defined or authorized. Earlier documents described Phase 2
+as "real scrapers, player wiring, downloads"; that was a guess, not an approved
+plan. Do not treat it as one.
+
+
+2. COMPLETED WORK
+-----------------
+
+Phase 0 (carried forward, verified):
+[x] Environment, Flutter SDK 3.47.4 (SHA-256 verified), pinned dependency
+    baseline, Riverpod/Drift foundations, error foundation, Android
+    scaffolding, Phase 0 defect fixes. See docs/PHASE_0_REPORT.md.
+
+Phase 1 audit session (docs/PHASE_1_REPORT.txt):
+[x] Manifest parser/validator, identity/trust, registries (Drift + in-memory),
+    signature verifier, runtime + sandbox, contract models, manager.
+[x] Six genuine defects found and fixed (Drift uninstall FK ordering, failure
+    attribution, failure escape path, engine leak on failed load, host request
+    error path, ignored limit in the in-memory registry).
+
+Phase 1 closure session (docs/PHASE_1_CLOSURE_REPORT.txt):
+[x] Signing protocol FROZEN (SPECTA-EXT-SIG-V1): length-prefixed UTF-8 payload
+    covering manifest metadata AND the JavaScript body; positive Ed25519 path
+    proven end to end with the production key (private key stayed off-repo).
+[x] Capability enforcement implemented and gated (network, logging, search,
+    latest, details, sources); undeclared = refused, with mutation evidence.
+[x] Controlled request API (ControlledExtensionRuntimeApi) with an explicit
+    transport policy (schemes, methods, sizes, redirects, timeout clamp) over
+    dart:io — no new dependency.
+[x] FlutterJsSandbox executed against the real QuickJS engine in the test
+    suite (9 tests; three real-engine defects found and fixed); runtime limit
+    semantics measured (neither memoryLimit nor timeout is enforced by the
+    bundled bridge — documented, not assumed).
+[x] Extension subsystem wired into the app graph (extension_providers.dart +
+    SpectaStartup in main.dart); reachability proven in the APK kernel.
+[x] Health model (descriptive only) implemented.
+[x] Manager wired over the existing SpectaDatabase (no second database).
+
+Phase 1 device verification session (this pass, 2026-09-16):
+[x] integration_test/phase1_device_verification_test.dart added (test-only;
+    no lib/ product code changed; the only project change is the SDK-provided
+    integration_test dev dependency).
+[x] The full Phase 1 runtime was exercised inside the real app process on a
+    physical device — three consecutive runs, 10/10 each. Details in section 3
+    and docs/PHASE_1_CLOSURE_REPORT.txt section 22.
+[x] No runtime defect surfaced. Zero product-code changes were needed.
+
+
+3. VERIFICATION RESULTS (2026-09-16, device verification session)
+----------------------------------------------------------------
+Command                                   | Result
+------------------------------------------|--------------------------------------
+flutter analyze                           | No issues found
+flutter test (real JS bridge on PATH)     | 275/275 passed (tool/run_tests_real_js.sh)
+flutter test (no bridge, plain)           | 266 passed, 9 skipped (real-engine group)
+integration test on device (x3 runs)      | 10/10 passed, 0 failed, 0 skipped
+flutter build apk --debug                 | SUCCESS — app-debug.apk
+                                          | 274,359,431 bytes, 2026-09-16 15:39
+
+Device verification evidence (2026-09-16, 15:26–15:40 local, UTC+3):
+  Device        Samsung SM-A065F (Galaxy A06), arm64-v8a
+  OS            Android 16 (API 36), One UI
+  Connection    USB (adb device id R83L20FRDFM)
+  App           net.specta.app, launched and rendered (proc observed in logcat)
+  Harness       flutter test integration_test/... -d R83L20FRDFM
+  Runs          15:26, 15:31, 15:32, 15:35 local — 10/10 passed each run
+
+What the device run exercised (all inside the real app process):
+  1.  App startup: Riverpod graph built extensionManagerProvider; home screen
+      rendered; foundation self-check read schema v2 + settings round trip
+      from the on-device SQLite file.
+  2.  Drift/SQLite on device: schema v2 migration; extensions,
+      extension_versions and extension_failure_logs all reachable; PRAGMA
+      foreign_keys = 1 verified per connection; settings round trip.
+  3.  QuickJS on the real FFI bridge: evaluate + async promise bridging; no
+      ambient host APIs (fetch/XHR/require/process/Dart/window/document all
+      undefined); dispose; fresh engine after dispose.
+  4.  Manager round trip on device: import (trust=unverified, unsigned by
+      design) -> loadRuntime on the real engine -> capabilities() parsed from
+      JS -> getSources (mp4) -> healthCheck -> shutdown -> uninstall.
+  5.  Controlled network over the device's real stack: extension request() ->
+      capability gate -> policy -> dart:io HttpClient -> https (200 OK,
+      response carried back into JavaScript; 1.5–2.1 s round trip observed).
+  6.  Request policy on device: file:// refused (SCHEME_NOT_ALLOWED), DELETE
+      refused (METHOD_NOT_ALLOWED); zero transport activity on both.
+  7.  Capability gate on device: undeclared network request refused with
+      CAPABILITY_ERROR before reaching the host API; declared log() forwarded.
+  8.  Unregistered message channel: contained, engine stayed usable.
+  9.  Failure isolation on device: JS exception contained as JsEvalException;
+      malformed extension failed its load as a controlled RUNTIME_ERROR; the
+      failure was recorded in extension_failure_logs on device; the next load
+      recovered cleanly.
+  Evidence trail: [SPECTA-P1] markers relayed by the test runner (captured in
+  the run transcripts) plus native device logcat archived at
+  docs/evidence_p1_device_native_logcat_2026-09-16.log. Note: this device
+  (Samsung One UI / Android 16) suppresses app-level Dart debugPrint lines
+  from logcat retention, so the authoritative marker trail is the test
+  runner's stdout, quoted in the closure report's device record.
+
+APK size note: the closure session recorded 234,266,367 bytes at 13:37; this
+session's rebuild is 274,359,431 bytes at 15:39. No lib/ change happened in
+between; the delta follows the addition of the integration_test SDK dev
+dependency and a fresh toolchain resolve. It is recorded, not explained away;
+a byte-level delta audit was out of scope for this pass.
+
+
+4. PENDING WORK
+---------------
+Phase 1 items resolved this cycle (kept for the record, all DONE):
+[x] FlutterJsSandbox against a real QuickJS engine — now also on device.
+[x] Signing protocol frozen; positive Ed25519 trust path proven.
+[x] Capability enforcement decided and implemented.
+[x] Request policy (scheme/method/size/redirect/timeout) implemented.
+[x] Health-state model added (descriptive only).
+[x] Extension subsystem wired into lib/main.dart (reachable in the APK).
+
+Still open (honest carry-overs, none Phase 1 blockers):
+[ ] No CPU or memory ceiling for extension JS — measured, not enforced by the
+    bundled QuickJS bridge; a runaway script can occupy the isolate.
+[ ] Production private key is stored as a raw seed in a PKCS#8-looking PEM;
+    standard tools reject it. Must be resolved before building a signing tool.
+[ ] Redirect targets are not re-evaluated against the scheme allow-list.
+[ ] Response bodies that are not valid UTF-8 are returned lossy (Latin-1).
+[ ] Trust classification is data, not enforcement: unverified extensions still
+    install and enable. A later policy layer must decide what to do with them.
+[ ] Android cmdline-tools absent; flutter doctor warns. Not build-blocking.
+[ ] True TV detection via platform channel (viewport approximation today).
+[ ] Housekeeping: README.md/docs/README.md and PROJECT_STATE.txt/
+    docs/PROJECT_STATE.txt remain byte-identical duplicates.
+[ ] APK size delta vs the closure build (see section 3) not yet audited.
+
+
+5. ARCHITECTURE DECISIONS
+-------------------------
+Agreed by the product owner (2026-09-15):
+- Project folder:            SPECTA
+- Android applicationId:     net.specta.app
+- One APK for phone + TV
+- State management:          Riverpod, pinned (flutter_riverpod 3.4.3; riverpod
+                             3.4.3 declared for `Override` in tests)
+- SQLite access:             Drift (drift 2.35.0 / drift_flutter 0.3.1 /
+                             sqlite3 3.6.0, native-assets model)
+- Playback:                  MediaKit (dependency baseline only, wired to
+                             nothing)
+- JS runtime:                flutter_js 0.8.7 (QuickJS on Android)
+- Cryptography:              cryptography 2.9.0 + cryptography_flutter 2.3.4
+
+Phase 1 architecture (implemented and now device-verified):
+- Extension execution: JS sandbox via flutter_js, with only two host channels
+  registered (specta_request, specta_log) and no fetch/XHR enabled.
+- Capabilities are declared in the manifest, are part of the signed payload,
+  and are enforced by the runtime on every operation and channel call.
+- Requests pass through an explicit transport policy (https/http, GET/POST/
+  HEAD, size caps, redirect cap, clamped timeout) over dart:io.
+- Ed25519 signature verification classifies TrustLevel. The private signing
+  key is NEVER in the repository.
+- Failure isolation: every extension error becomes a controlled
+  ExtensionFailure; failed loads dispose their engine.
+- IMPORTANT - do not overstate: this is a restricted API surface, not an
+  OS-level sandbox. Extension JS runs in-process with no CPU/memory ceiling.
+  See section 7 of docs/PHASE_1_REPORT.txt and section 7 of the closure
+  report for exactly what is and is not enforced.
+
+Schema discipline: every future version bump needs a registered migration step;
+unregistered or backwards versions throw (SpectaMigrations.apply).
+
+
+6. KNOWN LIMITATIONS
+--------------------
+- No CPU/memory ceiling for extension JavaScript (measured limitation).
+- Not an OS-level sandbox; in-process restricted-API boundary.
+- Redirect targets are not re-checked against the scheme allow-list.
+- Non-UTF-8 responses are returned as a lossy Latin-1 projection.
+- Unverified extensions install and enable (trust is data, not enforcement).
+- Form factor TV detection is a viewport approximation.
+- The Phase 0 home screen is a temporary foundation screen, not the product UI.
+- cryptography_flutter and flutter_js apply KGP; a future Flutter release will
+  refuse to build them. Upstream issue, documented, not suppressed.
+- Android cmdline-tools absent; `flutter doctor` warns. Not build-blocking.
+- Keep the Flutter SDK, pub cache and Gradle home off C:.
+- build_runner 2.16.1 ignores --delete-conflicting-outputs.
+- kotlin.incremental is disabled on purpose: the project path contains a space
+  ("SPECTA APK"), which has corrupted Kotlin incremental caches.
+- This device suppresses app-level Dart debugPrint from logcat; the device
+  verification marker trail lives in the test runner output (section 3).
+
+
+7. BLOCKERS
+-----------
+None. No Phase 1 defect is known to remain unfixed, and the full Phase 1
+runtime has now been verified on real hardware.
+
+Environment notes:
+- The pub cache resolves under C:\Users\PORTCR\AppData\Local\Pub\Cache, not
+  H:\pub-cache as docs/SETUP_LOG.md states.
+- C: has limited free space; keep SDK/caches on H:.
+- The project directory is NOT a Git repository, so there is no version control
+  history and no diff/status to report. Changed files are listed by inspection
+  and timestamp only.
+
+
+8. NEXT RECOMMENDED STEP
+------------------------
+Phase 1 is CLOSED: PHASE 1 COMPLETE — REAL DEVICE VERIFIED (2026-09-16).
+
+Do NOT begin Phase 2 — no scrapers, providers, catalogue, player, downloads,
+metadata provider or account/cloud work — until explicit authorization and an
+approved Phase 2 scope exist.

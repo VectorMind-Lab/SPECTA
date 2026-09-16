@@ -1,0 +1,82 @@
+name: specta
+description: "SPECTA — fast, simple, login-free movies and series for Android phone and Android TV."
+publish_to: "none"
+version: 0.0.1+1
+
+environment:
+  # Dart 3.13.3 ships with Flutter 3.47.4, the SDK version this project was
+  # initialised against (2026-09-15).
+  sdk: ">=3.13.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # --- State management -----------------------------------------------------
+  # Agreed architecture: Riverpod. Pinned to the latest stable release
+  # available at setup time (2026-09-15) instead of a guessed range.
+  flutter_riverpod: 3.4.3
+  # Declared explicitly because tests import package:riverpod/misc.dart for
+  # the `Override` type (no longer re-exported by flutter_riverpod in 3.x).
+  # Kept at the exact same version as flutter_riverpod's own requirement.
+  riverpod: 3.4.3
+
+  # --- Structured local persistence ----------------------------------------
+  # Agreed architecture: SQLite, accessed through Drift.
+  # drift_flutter supplies the platform integration (path_provider +
+  # bundled sqlite3 native libraries), so it is the only extra package needed.
+  drift: 2.35.0
+  drift_flutter: 0.3.1
+
+  # --- Local file locations (media / downloads / app-private data) ---------
+  path: 1.9.1
+  path_provider: 2.1.6
+
+  # --- Media playback -------------------------------------------------------
+  # Agreed architecture: MediaKit. Phase 0 records the dependency baseline
+  # only; the player itself is implemented in a later phase.
+  media_kit: 1.2.6
+  media_kit_video: 2.0.1
+  media_kit_libs_video: 1.0.7
+
+  # --- JavaScript runtime ---------------------------------------------------
+  # Phase 1: extension execution sandbox.
+  # flutter_js uses QuickJS (Bellard/Gordon) on Android via Dart FFI and
+  # JavascriptCore on iOS — no platform-channel overhead.  Only what the
+  # sandbox explicitly registers is available to extension JS code.
+  flutter_js: 0.8.7
+
+  # --- Cryptography ---------------------------------------------------------
+  # Phase 1: Ed25519 signature verification for extension trust classification.
+  # cryptography provides pure-Dart Ed25519; cryptography_flutter delegates to
+  # platform APIs (javax.crypto on Android) for better performance.
+  # The private signing key is NEVER stored here; only the public key lives in
+  # lib/core/extensions/verification/trusted_keys.dart.
+  cryptography: 2.9.0
+  cryptography_flutter: 2.3.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Phase 1 device verification: integration_test runs inside the real app
+  # process on a device/emulator (integration_test/ is not part of the app
+  # build; no lib/ file imports it).
+  integration_test:
+    sdk: flutter
+
+  flutter_lints: 6.0.0
+
+  # Drift code generation.
+  drift_dev: 2.35.0
+  build_runner: 2.16.1
+
+  # Pinned as part of the persistence baseline: drift's NativeDatabase is
+  # backed by sqlite3, whose 3.x releases ship their SQLite build as a Dart
+  # native code asset (no loader overrides needed, on any platform).
+  sqlite3: 3.6.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

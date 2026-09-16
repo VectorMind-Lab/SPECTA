@@ -1,0 +1,5 @@
+--------- beginning of main
+09-16 15:32:19.216 I/flutter (22425): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+09-16 15:32:19.389 I/flutter (22425): The Dart VM service is listening on http://127.0.0.1:46159/M6L6bIXIdEM=/
+09-16 15:34:58.001 I/flutter (27935): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+09-16 15:34:58.180 I/flutter (27935): The Dart VM service is listening on http://127.0.0.1:38445/WbUHncpvm0M=/

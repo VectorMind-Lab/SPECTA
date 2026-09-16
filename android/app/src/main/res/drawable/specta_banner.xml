@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android TV launcher banner (320 x 180 px). A deliberately minimal
+     word-mark placeholder: the real banner art is a later-phase design task. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#0B0E14" />
+        </shape>
+    </item>
+    <item
+        android:gravity="center">
+        <shape android:shape="rectangle">
+            <solid android:color="#00000000" />
+            <stroke
+                android:width="2dp"
+                android:color="#4C8DFF" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <item
+        android:gravity="center"
+        android:top="60dp"
+        android:bottom="60dp"
+        android:left="88dp"
+        android:right="88dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#4C8DFF" />
+            <corners android:radius="6dp" />
+        </shape>
+    </item>
+</layer-list>

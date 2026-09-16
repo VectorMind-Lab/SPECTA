@@ -1,0 +1,27 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Generated code is checked in for now (see docs/PROJECT_STATE.txt) so that a
+# fresh clone can be analysed without running build_runner first.
+# Uncomment the next line to keep drift output out of git instead.
+# **/*.g.dart
