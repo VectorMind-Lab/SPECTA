@@ -209,22 +209,7 @@ class ExtensionRuntime {
       requiredCapability: ExtensionCapability.search,
       jsExpression:
           'JSON.stringify(await _spectaInstance.search($escapedQuery, $page))',
-      parse: (String result) {
-        final List<dynamic> json = jsonDecode(result) as List<dynamic>;
-        return json
-            .map(
-              (dynamic item) => SearchResult(
-                title: (item as Map<String, dynamic>)['title'] as String,
-                url: item['url'] as String,
-                type:
-                    MediaType.fromCode(item['type'] as String?) ??
-                    MediaType.movie,
-                cover: item['cover'] as String?,
-                year: item['year'] as int?,
-              ),
-            )
-            .toList();
-      },
+      parse: (String result) => _parseSearchResults(result),
     );
   }
 
@@ -234,23 +219,41 @@ class ExtensionRuntime {
       operation: ExtensionOperation.latest,
       requiredCapability: ExtensionCapability.latest,
       jsExpression: 'JSON.stringify(await _spectaInstance.latest($page))',
-      parse: (String result) {
-        final List<dynamic> json = jsonDecode(result) as List<dynamic>;
-        return json
-            .map(
-              (dynamic item) => SearchResult(
-                title: (item as Map<String, dynamic>)['title'] as String,
-                url: item['url'] as String,
-                type:
-                    MediaType.fromCode(item['type'] as String?) ??
-                    MediaType.movie,
-                cover: item['cover'] as String?,
-                year: item['year'] as int?,
-              ),
-            )
-            .toList();
-      },
+      parse: (String result) => _parseSearchResults(result),
     );
+  }
+
+  /// Parses a search/latest result list.
+  ///
+  /// Robustness rules (Phase 2B): an entry whose `type` is not movie/series is
+  /// SKIPPED, not silently converted to movie (SPECTA is movies+series only);
+  /// entries missing title or URL are skipped; entries that are not JSON
+  /// objects are skipped. A list made entirely of invalid entries parses to an
+  /// empty list rather than failing the whole operation — an extension that
+  /// decorates its results with one malformed row must not lose the rest.
+  static List<SearchResult> _parseSearchResults(String result) {
+    final List<dynamic> json = jsonDecode(result) as List<dynamic>;
+    final List<SearchResult> parsed = <SearchResult>[];
+    for (final dynamic item in json) {
+      if (item is! Map<String, dynamic>) continue;
+      final String? typeCode = item['type'] as String?;
+      final MediaType? type = MediaType.fromCode(typeCode);
+      if (type == null) continue; // unsupported type — safely ignored
+      final dynamic title = item['title'];
+      final dynamic url = item['url'];
+      if (title is! String || title.isEmpty) continue;
+      if (url is! String || url.isEmpty) continue;
+      parsed.add(
+        SearchResult(
+          title: title,
+          url: url,
+          type: type,
+          cover: item['cover'] as String?,
+          year: item['year'] is int ? item['year'] as int : null,
+        ),
+      );
+    }
+    return parsed;
   }
 
   /// Calls the extension's `details(url)` operation.

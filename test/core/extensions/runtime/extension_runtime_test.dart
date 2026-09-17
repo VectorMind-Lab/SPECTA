@@ -1014,6 +1014,138 @@ void main() {
       },
     );
   });
+
+  group('search/latest result parsing robustness (Phase 2B)', () {
+    test(
+      'an unsupported media type is skipped, not converted to movie',
+      () async {
+        final ExtensionRuntime runtime = await loadRuntime(
+          sandbox,
+          api,
+          jsCode: 'class Extension extends SpectaExtension {}',
+        );
+        sandbox.setAsyncResult(
+          'JSON.stringify(await _spectaInstance.search("q", 1))',
+          jsonEncode(<dynamic>[
+            <String, dynamic>{
+              'title': 'A Movie',
+              'url': 'https://e.test/m',
+              'type': 'movie',
+            },
+            <String, dynamic>{
+              'title': 'Some Anime',
+              'url': 'https://e.test/a',
+              'type': 'anime',
+            },
+            <String, dynamic>{
+              'title': 'Some Novel',
+              'url': 'https://e.test/n',
+              'type': 'novel',
+            },
+          ]),
+        );
+
+        final SpectaResult<List<SearchResult>> result = await runtime.search(
+          query: 'q',
+          page: 1,
+        );
+
+        expect(result.isOk, isTrue, reason: result.failureOrNull.toString());
+        expect(result.valueOrNull!.map((SearchResult r) => r.title), <String>[
+          'A Movie',
+        ]);
+      },
+    );
+
+    test(
+      'entries missing title/url and non-object entries are skipped',
+      () async {
+        final ExtensionRuntime runtime = await loadRuntime(
+          sandbox,
+          api,
+          jsCode: 'class Extension extends SpectaExtension {}',
+        );
+        sandbox.setAsyncResult(
+          'JSON.stringify(await _spectaInstance.search("q", 1))',
+          jsonEncode(<dynamic>[
+            <String, dynamic>{
+              'title': 'Good',
+              'url': 'https://e.test/good',
+              'type': 'movie',
+              'year': 2024,
+            },
+            <String, dynamic>{'url': 'https://e.test/x', 'type': 'movie'},
+            <String, dynamic>{'title': 'No URL', 'type': 'movie'},
+            <String, dynamic>{'title': '', 'url': 'https://e.test/e'},
+            'a bare string',
+            <int>[1, 2],
+          ]),
+        );
+
+        final SpectaResult<List<SearchResult>> result = await runtime.search(
+          query: 'q',
+          page: 1,
+        );
+
+        expect(result.isOk, isTrue);
+        expect(result.valueOrNull!.length, 1);
+        expect(result.valueOrNull!.single.title, 'Good');
+        expect(result.valueOrNull!.single.year, 2024);
+      },
+    );
+
+    test(
+      'a list of all-invalid entries parses to an empty success, not an error',
+      () async {
+        final ExtensionRuntime runtime = await loadRuntime(
+          sandbox,
+          api,
+          jsCode: 'class Extension extends SpectaExtension {}',
+        );
+        sandbox.setAsyncResult(
+          'JSON.stringify(await _spectaInstance.search("q", 1))',
+          jsonEncode(<dynamic>[
+            <String, dynamic>{'title': 'Anime', 'url': 'u', 'type': 'anime'},
+            <String, String?>{'title': null, 'url': 'u'},
+          ]),
+        );
+
+        final SpectaResult<List<SearchResult>> result = await runtime.search(
+          query: 'q',
+          page: 1,
+        );
+
+        expect(result.isOk, isTrue);
+        expect(result.valueOrNull, isEmpty);
+      },
+    );
+
+    test('latest applies the same skip rules', () async {
+      final ExtensionRuntime runtime = await loadRuntime(
+        sandbox,
+        api,
+        jsCode: 'class Extension extends SpectaExtension {}',
+      );
+      sandbox.setAsyncResult(
+        'JSON.stringify(await _spectaInstance.latest(1))',
+        jsonEncode(<dynamic>[
+          <String, dynamic>{
+            'title': 'A Series',
+            'url': 'https://e.test/s',
+            'type': 'series',
+          },
+          <String, dynamic>{'title': 'A Comic', 'url': 'u', 'type': 'comic'},
+        ]),
+      );
+
+      final SpectaResult<List<SearchResult>> result = await runtime.latest(
+        page: 1,
+      );
+
+      expect(result.isOk, isTrue);
+      expect(result.valueOrNull!.single.type, MediaType.series);
+    });
+  });
 }
 
 class FakeRuntimeApi implements ExtensionRuntimeApi {

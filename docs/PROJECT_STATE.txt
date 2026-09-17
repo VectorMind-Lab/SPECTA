@@ -2,10 +2,10 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-17 — Phase 2 authorized; sub-stage 2A complete.
+Last updated: 2026-09-17 — Phase 2 authorized; sub-stages 2A + 2B complete.
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
-PHASE 2 IN PROGRESS (2A done; 2B–2H open).
-Next: Phase 2 sub-stage 2B (search/discovery pipeline).
+PHASE 2 IN PROGRESS (2A + 2B done; 2C–2H open).
+Next: Phase 2 sub-stage 2C (metadata manager architecture).
 
 GitHub checkpoint (2026-09-17, completed and VERIFIED by a second
 investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
@@ -34,14 +34,24 @@ Phase 2 (authorized 2026-09-17):
   Settings; placeholder statuses corrected to their true sub-stage.
 - flutter analyze: No issues found. flutter test: 274 passed, 9 skipped
   (real-engine group), 0 failed. No lib/core/ changes; no new dependencies.
-- Sub-stages 2B–2H NOT started.
+- Sub-stage 2B (search/discovery pipeline) COMPLETE — see
+  docs/PHASE_2B_REPORT.md. lib/core/discovery/ (models, normalizer,
+  deduplicator, coordinator + Riverpod service); search session state and
+  Search UI wired to real discovery; runtime search/latest parsing hardened
+  (unsupported types now safely ignored, not defaulted to movie).
+  EXTENSIONS DISCOVER / SPECTA DECIDES preserved; provenance kept per
+  reference. flutter analyze: No issues found. flutter test: 340 passed,
+  9 skipped (real-engine group), 0 failed. No database change; no new
+  dependency. Device verification not required (no device attached; pure
+  Dart pipeline + widget UI).
+- Sub-stages 2C–2H NOT started.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
 
 Documents, in order of recency (newest wins where they disagree):
-  1. docs/PHASE_2_REPORT.md            (Phase 2 sub-stage record)
-  2. docs/GITHUB_CHECKPOINT_REPORT.md  (checkpoint verification record)
+  1. docs/PHASE_2B_REPORT.md           (Phase 2 sub-stage record — 2B)
+  2. docs/PHASE_2_REPORT.md            (Phase 2 sub-stage record — 2A)
   3. docs/PHASE_1_CLOSURE_REPORT.txt   (closure session + device verification)
   4. docs/PHASE_1_REPORT.txt           (second audit report)
   5. docs/PHASE_0_REPORT.md
@@ -50,8 +60,9 @@ Documents, in order of recency (newest wins where they disagree):
 1. CURRENT PHASE
 ----------------
 Phase 2 — now AUTHORIZED (2026-09-17) and IN PROGRESS, executed in controlled
-sub-stages (2A UI foundation → 2H extension catalogue). Sub-stage 2A is
-complete and verified (docs/PHASE_2_REPORT.md); 2B–2H are open.
+sub-stages (2A UI foundation → 2H extension catalogue). Sub-stages 2A and 2B
+are complete and verified (docs/PHASE_2_REPORT.md, docs/PHASE_2B_REPORT.md);
+2C–2H are open.
 
 Phase 1 — Extension Foundation. Implemented, audited, corrected, tested,
 buildable, and VERIFIED ON A REAL ANDROID DEVICE (2026-09-16).
@@ -79,6 +90,32 @@ Phase 2A — Application/UI foundation (2026-09-17, docs/PHASE_2_REPORT.md):
     sub-stage (2B/2F/2G/2H); search query state provider ready for 2B.
 [x] Verification: flutter analyze clean; flutter test 274 passed / 9 skipped
     (real-engine group) / 0 failed; no lib/core/ change; no new dependency.
+
+Phase 2B — Search/discovery pipeline (2026-09-17, docs/PHASE_2B_REPORT.md):
+[x] lib/core/discovery/ established: SearchRequest + DiscoveryItem/
+    DiscoveryResult with per-reference provenance (DiscoveryObservation),
+    DiscoveryNormalizer (title/whitespace/casing/year/type/URL/reference
+    normalization, no invented data), DiscoveryDeduplicator (normalized
+    title + type + year key with multi-ext provenance merge),
+    DiscoveryCoordinator (parallel fan-out over enabled + compatible
+    extensions, per-extension timeout, failure isolation, stale-run
+    rejection; exposed as discoveryCoordinatorProvider).
+[x] Search session state extended in place (no competing provider):
+    idle/loading/results (partialFailure, extensionsPolled)/empty/
+    allFailed statuses, race-safe submit, retry, reset; UI renders unified
+    items with D-pad/touch-safe focus (field keeps focus, results below).
+[x] Runtime search/latest parsing hardened: unsupported media types from
+    an extension are now safely ignored (previously silently defaulted to
+    movie); provenance chain intact (SearchResult -> observation -> item).
+[x] EXTENSIONS DISCOVER / SPECTA DECIDES preserved: coordinator speaks only
+    to ExtensionManager's granted capabilities; no metadata/TMDB coupling,
+    no source-resolution coupling, no provider hard-coding.
+[x] Pagination boundary: contract search(query, page) honored end-to-end;
+    page 1 delivered now; load-more service seam deferred to 2C+ (documented).
+[x] Database: NO schema change. Dependencies: NONE added.
+[x] Verification: flutter analyze No issues found; flutter test 340 passed,
+    9 skipped (real-engine group), 0 failed (66 new tests: normalizer,
+    deduplicator, coordinator, search state, search UI, runtime parsing).
 
 UI Restoration & Git Setup (2026-09-17):
 [x] SPECTA UI shell restored matching provided design assets (specta_logo_glow.png,
@@ -150,6 +187,10 @@ Phase 2A re-verification (2026-09-17):
 flutter analyze                           | No issues found
 flutter test (no bridge, plain)           | 274 passed, 9 skipped, 0 failed
 
+Phase 2B re-verification (2026-09-17):
+flutter analyze                           | No issues found
+flutter test (no bridge, plain)           | 340 passed, 9 skipped, 0 failed
+
 Device verification evidence (2026-09-16, 15:26–15:40 local, UTC+3):
   Device        Samsung SM-A065F (Galaxy A06), arm64-v8a
   OS            Android 16 (API 36), One UI
@@ -200,9 +241,9 @@ recorded, not explained away; a byte-level delta audit was out of scope.
 4. PENDING WORK
 ---------------
 Phase 2 sub-stages (authorized, in the approved order):
-[ ] 2B Search/discovery pipeline — SearchResult/MediaItem/Movie/Series/
-    Season/Episode models, parallel extension discovery, normalization,
-    deduplication into unified SPECTA results.
+[x] 2B Search/discovery pipeline — DONE 2026-09-17: models + normalizer +
+    deduplicator + coordinator, search state/UI wired, runtime parsing
+    hardened, 66 new tests, analyze clean, full suite 340+9/0.
 [ ] 2C Metadata manager architecture (metadata separate from sources; TMDB
     only as an optional, locally-configured metadata provider).
 [ ] 2D Source manager (pool -> validation -> ranking -> selection; MP4 + HLS
@@ -273,7 +314,14 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
 - Non-UTF-8 responses are returned as a lossy Latin-1 projection.
 - Unverified extensions install and enable (trust is data, not enforcement).
 - Form factor TV detection is a viewport approximation.
-- Home/Search content is design fixtures / query stubs until 2B lands.
+- Home content is design fixtures until metadata/catalogue surfaces land;
+  Search is live discovery from installed extensions only (no TMDB yet, by
+  design until 2C).
+- Pagination: contract page seam honored, load-more UI deferred (2C+).
+- In-memory search cache: none (kept separate from durable data; add only on
+  demonstrated need).
+- Device verification for 2B: not performed (no device attached; pure Dart
+  pipeline + widget UI verified by unit/widget tests only).
 - The Phase 0 home screen is preserved as Settings > Diagnostics, not the
   product home.
 - cryptography_flutter and flutter_js apply KGP; a future Flutter release will
@@ -289,8 +337,8 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
 
 7. BLOCKERS
 -----------
-None. No Phase 2A defect is known to remain, and no Phase 1 regression was
-introduced (full suite green on the 2A tree).
+None. No Phase 2A/2B defect is known to remain, and no Phase 1 regression was
+introduced (full suite green on the 2B tree).
 
 Environment notes:
 - The pub cache resolves under C:\Users\PORTCR\AppData\Local\Pub\Cache, not
@@ -304,7 +352,6 @@ Environment notes:
 
 8. NEXT RECOMMENDED STEP
 ------------------------
-Phase 2 sub-stage 2B — SEARCH / DISCOVERY PIPELINE (models, parallel
-extension discovery, normalization, deduplication) per the authorized order
-in docs/PHASE_2_REPORT.md section 10. Test, verify, document, commit after
-the sub-stage; continue to 2C only within the Phase 2 authorization.
+Phase 2 sub-stage 2C — METADATA MANAGER ARCHITECTURE, per the authorized
+order in docs/PHASE_2_REPORT.md section 10. Test, verify, document, commit
+after the sub-stage; continue to 2D only within the Phase 2 authorization.

@@ -187,10 +187,12 @@ Recorded after this report was drafted: see the build line in section 7 and
 `PROJECT_STATE.txt` for the measured result. No product dependency changed, so
 no toolchain drift was expected.
 
-## 10. REMAINING PHASE 2 WORK (authorized, not started)
+## 10. REMAINING PHASE 2 WORK (authorized)
 
-- 2B Search/discovery pipeline (SearchResult/MediaItem/Movie/Series/Season/
-  Episode models, parallel extension discovery, normalization, dedup).
+- ~~2B Search/discovery pipeline~~ — **DONE** (2026-09-17, see
+  docs/PHASE_2B_REPORT.md: discovery models/normalizer/deduplicator/
+  coordinator, search state + UI wired, 66 new tests, analyze clean,
+  full suite 340 passed / 9 skipped / 0 failed).
 - 2C Metadata manager architecture (metadata ≠ sources; TMDB as optional
   local-config metadata provider).
 - 2D Source manager (pool → validation → ranking → selection; MP4 + HLS v1).
@@ -202,4 +204,5 @@ no toolchain drift was expected.
 
 ## 11. NEXT PHASE 2 SUB-STAGE
 
-**PHASE 2B — SEARCH / DISCOVERY PIPELINE**, per the authorized order.
+**PHASE 2C — METADATA MANAGER ARCHITECTURE**, per the authorized order.
+(2B was completed 2026-09-17 — see docs/PHASE_2B_REPORT.md.)
