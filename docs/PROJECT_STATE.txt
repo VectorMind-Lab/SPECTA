@@ -2,16 +2,27 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-17 — GitHub checkpoint complete.
+Last updated: 2026-09-17 — GitHub checkpoint complete (second pass, verified).
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
 Next: Explicit authorization required before any Phase 2 work.
 
-GitHub checkpoint (2026-09-17):
-- Private repository `VectorMind-Lab/SPECTA` created and pushed.
-- Branch: master. Remote: https://github.com/VectorMind-Lab/SPECTA.git
-- Visibility: PRIVATE. No public publication.
-- SPECTA-Extensions NOT created. Extension catalogue NOT created.
-- See docs/GITHUB_CHECKPOINT_REPORT.md.
+GitHub checkpoint (2026-09-17, completed and VERIFIED by a second
+investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
+- Private repository `VectorMind-Lab/SPECTA` exists; branch `master` pushed.
+- Local HEAD == remote HEAD: fa3d28f.
+  Remote: https://github.com/VectorMind-Lab/SPECTA.git
+- Visibility: PRIVATE (API-verified). No public publication.
+- Correction on the record: the first checkpoint pass created the repository
+  but its push never happened (session ended in a server-side 503), and its
+  report claimed "push successful" falsely. The second pass verified the
+  repo was PRIVATE but empty, configured the missing remote, committed
+  fa3d28f (untrack build/Kotlin error logs; fix .gitignore pattern), pushed,
+  and verified remote == local via API and `git fetch`.
+- Security scan before push: CLEAN. flutter analyze: No issues found.
+  flutter test: 266 passed, 9 skipped (real-engine group, no JS bridge on
+  PATH), 0 failed. APK build not required (no product code changed).
+- SPECTA-Extensions NOT created (verified absent: 404). Extension catalogue
+  NOT created.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
@@ -36,6 +47,21 @@ plan. Do not treat it as one.
 
 2. COMPLETED WORK
 -----------------
+
+UI Restoration & Git Setup (2026-09-17):
+[x] SPECTA UI shell restored matching provided design assets (specta_logo_glow.png,
+    man_facing_city_pure.png, specta_ui_reference.png).
+[x] lib/ui/widgets: focus wrapper, buttons, badges, cards, scaffold, empty states.
+[x] lib/app/navigation: responsive app shell (phone bottom nav / TV sidebar rail),
+    destinations, Riverpod navigation state.
+[x] lib/features placeholder views for Phase 2+ (search, library, downloads,
+    extensions, settings).
+[x] Splash page with animated SPECTA logo and city artwork.
+[x] Flutter analyze: No issues found.
+[x] Flutter test: 266 passed, 9 skipped (no JS bridge), 0 failed.
+[x] APK build: SUCCESS (262 MB debug APK).
+[x] Git initialized locally: commits e789dad, 9b5bb8d (LOCAL ONLY, no GitHub remote).
+[x] GitHub error corrected: accidental main-app repository removed, project remains local.
 
 Phase 0 (carried forward, verified):
 [x] Environment, Flutter SDK 3.47.4 (SHA-256 verified), pinned dependency
@@ -225,9 +251,11 @@ Environment notes:
 - The pub cache resolves under C:\Users\PORTCR\AppData\Local\Pub\Cache, not
   H:\pub-cache as docs/SETUP_LOG.md states.
 - C: has limited free space; keep SDK/caches on H:.
-- The project directory is NOT a Git repository, so there is no version control
-  history and no diff/status to report. Changed files are listed by inspection
-  and timestamp only.
+- The project directory IS a Git repository (branch `master`, pushed to the
+  private remote `VectorMind-Lab/SPECTA`; local HEAD == remote HEAD at the
+  time of this update). Reports written before Git existed correctly describe
+  that earlier state; their "changed files listed by inspection" notes are
+  historical, not current.
 
 
 8. NEXT RECOMMENDED STEP
