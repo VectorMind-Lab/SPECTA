@@ -1,6 +1,9 @@
-# OS noise
-.DS_Store
-Thumbs.db
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
 
 # IDE
 .idea/
@@ -16,9 +19,14 @@ android/captures/
 *.jks
 *.keystore
 
+# OS noise
+.DS_Store
+Thumbs.db
+
 # Build outputs
 build/
-.apk_build.log
+apk_build.log
+android/.kotlin/errors/errors-*.log
 
 # Generated code is checked in for now (see docs/PROJECT_STATE.txt) so that a
 # fresh clone can be analysed without running build_runner first.
