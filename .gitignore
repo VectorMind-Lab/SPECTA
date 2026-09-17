@@ -1,25 +1,24 @@
-# Flutter / Dart
-.dart_tool/
-.packages
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
+# OS noise
+.DS_Store
+Thumbs.db
 
 # IDE
 .idea/
 .vscode/
 *.iml
 
-# Android
+# Android local state (contains build artifacts, generated Kotlin error logs)
 android/.gradle/
 android/local.properties
 android/key.properties
+android/.kotlin/
+android/captures/
 *.jks
 *.keystore
 
-# OS noise
-.DS_Store
-Thumbs.db
+# Build outputs
+build/
+.apk_build.log
 
 # Generated code is checked in for now (see docs/PROJECT_STATE.txt) so that a
 # fresh clone can be analysed without running build_runner first.

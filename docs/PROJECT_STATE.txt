@@ -2,9 +2,16 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-16 — Phase 1 device verification run.
-Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED.
-Next: explicit authorization required before any Phase 2 work.
+Last updated: 2026-09-17 — GitHub checkpoint complete.
+Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
+Next: Explicit authorization required before any Phase 2 work.
+
+GitHub checkpoint (2026-09-17):
+- Private repository `VectorMind-Lab/SPECTA` created and pushed.
+- Branch: master. Remote: https://github.com/VectorMind-Lab/SPECTA.git
+- Visibility: PRIVATE. No public publication.
+- SPECTA-Extensions NOT created. Extension catalogue NOT created.
+- See docs/GITHUB_CHECKPOINT_REPORT.md.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
