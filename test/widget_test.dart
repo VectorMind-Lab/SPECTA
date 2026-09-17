@@ -1,9 +1,8 @@
-// SPECTA — application smoke test.
+// SPECTA — application launch-flow smoke test.
 //
-// Verifies that the root widget tree pumps without error and that the
-// application title is visible.  This is intentionally minimal: the Phase 0
-// foundation screen is temporary, and deeper widget coverage lives in
-// test/features/home/home_page_test.dart.
+// Verifies the approved launch flow end to end at the widget level:
+// Splash (branding, man facing the city) → Main App shell.
+// Deeper widget coverage lives beside the features they exercise.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Riverpod 3.x no longer re-exports `Override` from flutter_riverpod; it is
@@ -14,37 +13,67 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:specta/app/specta_app.dart';
 import 'package:specta/core/database/database_providers.dart';
 import 'package:specta/features/home/foundation_status.dart';
+import 'package:specta/features/splash/splash_state.dart';
 
 import 'support/in_memory_settings_store.dart';
 
+Future<void> _pumpThroughSplash(
+  WidgetTester tester,
+  InMemorySettingsStore store,
+) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: <Override>[
+        settingsStoreProvider.overrideWith((Ref ref) => store),
+        foundationStatusProvider.overrideWith(
+          (Ref ref) async => const <FoundationStatusItem>[
+            FoundationStatusItem('SQLite schema', 'v1'),
+            FoundationStatusItem('Settings round trip', 'OK'),
+          ],
+        ),
+      ],
+      child: const SpectaApp(),
+    ),
+  );
+
+  // Fire the splash auto-transition timer (a Timer is not a frame producer,
+  // so pumpAndSettle alone would stop before it fires), then settle the fade
+  // into the main app shell.
+  await tester.pump();
+  await tester.pump(SplashState.autoTransitionDelay);
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('SPECTA root renders without error', (WidgetTester tester) async {
-    // SpectaApp must be wrapped in a ProviderScope so Riverpod providers
-    // are available.  Tests do not need to inject overrides here because
-    // the smoke test only cares that the widget tree assembles at all.
+  testWidgets('splash branding renders first', (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        // Override the real Drift database with an in-memory settings store
-        // so the smoke test does not open a database or leave a pending timer.
         overrides: <Override>[
           settingsStoreProvider.overrideWith(
             (Ref ref) => InMemorySettingsStore(),
-          ),
-          foundationStatusProvider.overrideWith(
-            (Ref ref) async => const <FoundationStatusItem>[
-              FoundationStatusItem('SQLite schema', 'v1'),
-              FoundationStatusItem('Settings round trip', 'OK'),
-            ],
           ),
         ],
         child: const SpectaApp(),
       ),
     );
-
-    // Pump once more to allow any async providers to settle.
     await tester.pump();
 
-    // The Phase 0 home screen includes the word 'SPECTA' in a Text widget.
     expect(find.text('SPECTA'), findsWidgets);
+    expect(find.text('YOUR WORLD. YOUR CONTENT.'), findsOneWidget);
+  });
+
+  testWidgets('launch flow reaches the main app shell after the splash', (
+    WidgetTester tester,
+  ) async {
+    final InMemorySettingsStore store = InMemorySettingsStore();
+    await _pumpThroughSplash(tester, store);
+
+    // The shell's home surface is showing (hero + rails).
+    expect(find.text('Continue Watching'), findsOneWidget);
+    expect(find.text('Trending Now'), findsOneWidget);
+    expect(find.text('Latest Releases'), findsOneWidget);
+
+    // The splash recorded that the launch flow completed.
+    expect(await store.read('app.hasSeenSplash'), 'true');
   });
 }

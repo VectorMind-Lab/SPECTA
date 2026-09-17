@@ -2,18 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../../ui/widgets/specta_empty_state.dart';
 
-/// Extensions management view.
+/// Extension Manager / Store view.
 ///
-/// Placeholder for Phase 2+ implementation.
-/// Will show installed extensions, catalogue, and extension settings.
+/// The extension runtime, capability enforcement and signature verification
+/// exist since Phase 1 and run at startup; the user-facing install/manage UI
+/// and the remote catalogue integration arrive in Phase 2H. Until then this
+/// screen states its real status.
 class ExtensionsView extends StatelessWidget {
   const ExtensionsView({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const SpectaEmptyState(
-      icon: Icons.extension_rounded,
-      message: 'Extensions UI coming in Phase 2',
+      icon: Icons.extension_outlined,
+      message:
+          'The extension runtime is active; the install/manage UI and the '
+          'remote catalogue arrive with Phase 2 extension-catalogue '
+          'integration',
     );
   }
 }

@@ -7,6 +7,7 @@ import '../../features/home/home_view.dart';
 import '../../features/library/library_view.dart';
 import '../../features/search/search_view.dart';
 import '../../features/settings/settings_view.dart';
+import '../../features/settings/state/auto_update_state.dart';
 import '../../ui/widgets/specta_focus_wrapper.dart';
 import '../../ui/widgets/specta_scaffold.dart';
 import '../../ui/widgets/specta_status_badge.dart';
@@ -27,8 +28,6 @@ class SpectaAppShell extends ConsumerStatefulWidget {
 }
 
 class _SpectaAppShellState extends ConsumerState<SpectaAppShell> {
-  bool _autoUpdateEnabled = true;
-
   @override
   Widget build(BuildContext context) {
     final SpectaFormFactor formFactor = ref.watch(formFactorProvider);
@@ -124,8 +123,12 @@ class _SpectaAppShellState extends ConsumerState<SpectaAppShell> {
 
           const Spacer(),
 
-          // Auto Update Card (as shown in reference mockup)
+          // Auto Update Card (as shown in reference mockup). The switch is
+          // wired to the persisted auto-update setting. width: infinity keeps
+          // the card filling the sidebar; shrink-wrapping it would starve the
+          // inner Row and overflow on narrow layouts.
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: SpectaColors.surfaceElevated,
@@ -138,12 +141,16 @@ class _SpectaAppShellState extends ConsumerState<SpectaAppShell> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
-                    const Text(
-                      'Auto Update',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: SpectaColors.textPrimary,
+                    const Expanded(
+                      child: Text(
+                        'Auto Update',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: SpectaColors.textPrimary,
+                        ),
                       ),
                     ),
                     SizedBox(
@@ -152,10 +159,10 @@ class _SpectaAppShellState extends ConsumerState<SpectaAppShell> {
                       child: Transform.scale(
                         scale: 0.7,
                         child: Switch(
-                          value: _autoUpdateEnabled,
-                          onChanged: (bool value) {
-                            setState(() => _autoUpdateEnabled = value);
-                          },
+                          value: ref.watch(autoUpdateExtensionsProvider),
+                          onChanged: (bool value) async => ref
+                              .read(autoUpdateExtensionsProvider.notifier)
+                              .setEnabled(value),
                         ),
                       ),
                     ),

@@ -4,23 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // exposed through the package's public `misc` surface instead.
 import 'package:riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:specta/app/specta_app.dart';
+
+import 'package:specta/app/navigation/specta_app_shell.dart';
 import 'package:specta/core/database/database_providers.dart';
 import 'package:specta/core/settings/specta_setting_keys.dart';
 import 'package:specta/features/home/foundation_status.dart';
 
 import '../../support/in_memory_settings_store.dart';
 
-Future<void> _pumpApp(WidgetTester tester, InMemorySettingsStore store) async {
+Future<void> _pumpShell(WidgetTester tester, InMemorySettingsStore store) async {
   tester.view.physicalSize = const Size(1200, 2200);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
   await tester.pumpWidget(
     ProviderScope(
-      // The widget tests exercise presentation, so the status reader is
-      // replaced with fixed rows; SpectaDatabase and the real DAO are covered
-      // by test/core/database/specta_database_test.dart.
       overrides: <Override>[
         settingsStoreProvider.overrideWith((Ref ref) => store),
         foundationStatusProvider.overrideWith(
@@ -30,44 +28,60 @@ Future<void> _pumpApp(WidgetTester tester, InMemorySettingsStore store) async {
           ],
         ),
       ],
-      child: const SpectaApp(),
+      // The shell is normally hosted inside MaterialApp; the test host
+      // supplies the same Directionality/Theme ancestry.
+      child: const MaterialApp(
+        home: SpectaAppShell(),
+      ),
     ),
   );
   await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('renders the shell and the live status rows', (tester) async {
-    await _pumpApp(tester, InMemorySettingsStore());
+  testWidgets('home shows the visual home surface, not diagnostics', (
+    tester,
+  ) async {
+    await _pumpShell(tester, InMemorySettingsStore());
 
-    expect(find.text('SPECTA'), findsOneWidget);
-    expect(find.text('Phase 0 — foundation'), findsOneWidget);
+    expect(find.text('Continue Watching'), findsOneWidget);
+    expect(find.text('Trending Now'), findsOneWidget);
+    expect(find.text('Latest Releases'), findsOneWidget);
+    // Hero spotlight content from the design fixture.
+    expect(find.text('THE LAST HORIZON'), findsOneWidget);
+  });
+
+  testWidgets('diagnostics live under Settings, not on the home surface', (
+    tester,
+  ) async {
+    final InMemorySettingsStore store = InMemorySettingsStore();
+    await _pumpShell(tester, store);
+
+    // At the shell's default test size the layout family is large-screen, so
+    // destinations live in the TV sidebar.
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Diagnostics'), findsOneWidget);
+    expect(find.text('SQLite schema'), findsOneWidget);
     expect(find.text('v1'), findsOneWidget);
     expect(find.text('Settings round trip'), findsOneWidget);
   });
 
-  testWidgets('changing download concurrency persists the new value', (
+  testWidgets('download concurrency control persists through Settings', (
     tester,
   ) async {
     final InMemorySettingsStore store = InMemorySettingsStore();
-    await _pumpApp(tester, store);
+    await _pumpShell(tester, store);
+
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
 
     expect(find.text('3'), findsOneWidget);
-
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
 
     expect(find.text('4'), findsOneWidget);
     expect(await store.read(SpectaSettingKeys.downloadConcurrency), '4');
-  });
-
-  testWidgets('does not claim unbuilt features exist', (tester) async {
-    await _pumpApp(tester, InMemorySettingsStore());
-
-    expect(find.text('Not implemented yet'), findsOneWidget);
-    expect(
-      find.textContaining('Extension runtime and sandbox'),
-      findsOneWidget,
-    );
   });
 }

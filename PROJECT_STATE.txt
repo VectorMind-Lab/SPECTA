@@ -2,14 +2,16 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-17 — GitHub checkpoint complete (second pass, verified).
+Last updated: 2026-09-17 — Phase 2 authorized; sub-stage 2A complete.
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
-Next: Explicit authorization required before any Phase 2 work.
+PHASE 2 IN PROGRESS (2A done; 2B–2H open).
+Next: Phase 2 sub-stage 2B (search/discovery pipeline).
 
 GitHub checkpoint (2026-09-17, completed and VERIFIED by a second
 investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
 - Private repository `VectorMind-Lab/SPECTA` exists; branch `master` pushed.
-- Local HEAD == remote HEAD: fa3d28f.
+- Local HEAD == remote HEAD: ad68512 at checkpoint close; advanced by the
+  Phase 2A commit afterwards.
   Remote: https://github.com/VectorMind-Lab/SPECTA.git
 - Visibility: PRIVATE (API-verified). No public publication.
 - Correction on the record: the first checkpoint pass created the repository
@@ -24,29 +26,59 @@ investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
 - SPECTA-Extensions NOT created (verified absent: 404). Extension catalogue
   NOT created.
 
+Phase 2 (authorized 2026-09-17):
+- Sub-stage 2A (application/UI foundation) COMPLETE — see
+  docs/PHASE_2_REPORT.md. Approved launch flow (Splash → Main App shell)
+  wired; real Home view over the design fixtures; Settings with persisted
+  appearance/downloads/extensions controls; diagnostics preserved under
+  Settings; placeholder statuses corrected to their true sub-stage.
+- flutter analyze: No issues found. flutter test: 274 passed, 9 skipped
+  (real-engine group), 0 failed. No lib/core/ changes; no new dependencies.
+- Sub-stages 2B–2H NOT started.
+
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
 
 Documents, in order of recency (newest wins where they disagree):
-  1. docs/PHASE_1_CLOSURE_REPORT.txt  (closure session + device verification)
-  2. docs/PHASE_1_REPORT.txt          (second audit report)
-  3. docs/PHASE_0_REPORT.md
+  1. docs/PHASE_2_REPORT.md            (Phase 2 sub-stage record)
+  2. docs/GITHUB_CHECKPOINT_REPORT.md  (checkpoint verification record)
+  3. docs/PHASE_1_CLOSURE_REPORT.txt   (closure session + device verification)
+  4. docs/PHASE_1_REPORT.txt           (second audit report)
+  5. docs/PHASE_0_REPORT.md
 
 
 1. CURRENT PHASE
 ----------------
-Phase 1 — Extension Foundation. Implemented, audited, corrected, tested,
-buildable, and now VERIFIED ON A REAL ANDROID DEVICE (2026-09-16). The last
-open item from the closure report (section 18: no device run) is closed; see
-section 3 below and the closure report's device verification record.
+Phase 2 — now AUTHORIZED (2026-09-17) and IN PROGRESS, executed in controlled
+sub-stages (2A UI foundation → 2H extension catalogue). Sub-stage 2A is
+complete and verified (docs/PHASE_2_REPORT.md); 2B–2H are open.
 
-Phase 2 scope is NOT defined or authorized. Earlier documents described Phase 2
-as "real scrapers, player wiring, downloads"; that was a guess, not an approved
-plan. Do not treat it as one.
+Phase 1 — Extension Foundation. Implemented, audited, corrected, tested,
+buildable, and VERIFIED ON A REAL ANDROID DEVICE (2026-09-16).
+
+Do not treat the earlier "Phase 2 = real scrapers, player wiring, downloads"
+note as an approved scope; the Phase 2 authorization and its sub-stage order
+in docs/PHASE_2_REPORT.md section 10 are the plan of record.
 
 
 2. COMPLETED WORK
 -----------------
+
+Phase 2A — Application/UI foundation (2026-09-17, docs/PHASE_2_REPORT.md):
+[x] Approved launch flow wired: Splash (branding + man facing the city) ->
+    main app shell; hasSeenSplash persisted; theme driven by the persisted
+    preset provider (brand default cyan/teal).
+[x] Real Home view (hero carousel + rails) over the supplied design fixtures,
+    explicitly labelled fixtures until 2B supplies real data.
+[x] Settings view with persisted controls: theme preset, download
+    concurrency (3 default / 9 max), extensions auto-update; Phase 0
+    foundation self-check preserved as the Diagnostics section.
+[x] App shell: TV-sidebar Auto Update switch wired to persisted state;
+    two overflow defects fixed (sidebar card, status badge).
+[x] Search/Library/Downloads/Extensions placeholders state their true
+    sub-stage (2B/2F/2G/2H); search query state provider ready for 2B.
+[x] Verification: flutter analyze clean; flutter test 274 passed / 9 skipped
+    (real-engine group) / 0 failed; no lib/core/ change; no new dependency.
 
 UI Restoration & Git Setup (2026-09-17):
 [x] SPECTA UI shell restored matching provided design assets (specta_logo_glow.png,
@@ -114,6 +146,10 @@ integration test on device (x3 runs)      | 10/10 passed, 0 failed, 0 skipped
 flutter build apk --debug                 | SUCCESS — app-debug.apk
                                           | 274,359,431 bytes, 2026-09-16 15:39
 
+Phase 2A re-verification (2026-09-17):
+flutter analyze                           | No issues found
+flutter test (no bridge, plain)           | 274 passed, 9 skipped, 0 failed
+
 Device verification evidence (2026-09-16, 15:26–15:40 local, UTC+3):
   Device        Samsung SM-A065F (Galaxy A06), arm64-v8a
   OS            Android 16 (API 36), One UI
@@ -154,24 +190,32 @@ What the device run exercised (all inside the real app process):
   from logcat retention, so the authoritative marker trail is the test
   runner's stdout, quoted in the closure report's device record.
 
-APK size note: the closure session recorded 234,266,367 bytes at 13:37; this
-session's rebuild is 274,359,431 bytes at 15:39. No lib/ change happened in
-between; the delta follows the addition of the integration_test SDK dev
-dependency and a fresh toolchain resolve. It is recorded, not explained away;
-a byte-level delta audit was out of scope for this pass.
+APK size note: the closure session recorded 234,266,367 bytes at 13:37; the
+device-verification session's rebuild is 274,359,431 bytes at 15:39. No lib/
+change happened in between; the delta follows the addition of the
+integration_test SDK dev dependency and a fresh toolchain resolve. It is
+recorded, not explained away; a byte-level delta audit was out of scope.
 
 
 4. PENDING WORK
 ---------------
-Phase 1 items resolved this cycle (kept for the record, all DONE):
-[x] FlutterJsSandbox against a real QuickJS engine — now also on device.
-[x] Signing protocol frozen; positive Ed25519 trust path proven.
-[x] Capability enforcement decided and implemented.
-[x] Request policy (scheme/method/size/redirect/timeout) implemented.
-[x] Health-state model added (descriptive only).
-[x] Extension subsystem wired into lib/main.dart (reachable in the APK).
+Phase 2 sub-stages (authorized, in the approved order):
+[ ] 2B Search/discovery pipeline — SearchResult/MediaItem/Movie/Series/
+    Season/Episode models, parallel extension discovery, normalization,
+    deduplication into unified SPECTA results.
+[ ] 2C Metadata manager architecture (metadata separate from sources; TMDB
+    only as an optional, locally-configured metadata provider).
+[ ] 2D Source manager (pool -> validation -> ranking -> selection; MP4 + HLS
+    for v1; no DASH, no DRM/anti-bot bypass).
+[ ] 2E Player integration (MediaKit surface, retry-through-pipeline, watch
+    progress persistence).
+[ ] 2F Library / history / watch progress persistence (local only).
+[ ] 2G Download foundation (queue, pause/resume where supported, <=3 default
+    concurrency, 9 ceiling).
+[ ] 2H Extension catalogue integration (separate SPECTA-Extensions repository;
+    creation deferred until this stage actually requires it).
 
-Still open (honest carry-overs, none Phase 1 blockers):
+Phase 1 carry-overs (honest, none Phase 2 blockers yet):
 [ ] No CPU or memory ceiling for extension JS — measured, not enforced by the
     bundled QuickJS bridge; a runaway script can occupy the isolate.
 [ ] Production private key is stored as a raw seed in a PKCS#8-looking PEM;
@@ -184,7 +228,6 @@ Still open (honest carry-overs, none Phase 1 blockers):
 [ ] True TV detection via platform channel (viewport approximation today).
 [ ] Housekeeping: README.md/docs/README.md and PROJECT_STATE.txt/
     docs/PROJECT_STATE.txt remain byte-identical duplicates.
-[ ] APK size delta vs the closure build (see section 3) not yet audited.
 
 
 5. ARCHITECTURE DECISIONS
@@ -230,7 +273,9 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
 - Non-UTF-8 responses are returned as a lossy Latin-1 projection.
 - Unverified extensions install and enable (trust is data, not enforcement).
 - Form factor TV detection is a viewport approximation.
-- The Phase 0 home screen is a temporary foundation screen, not the product UI.
+- Home/Search content is design fixtures / query stubs until 2B lands.
+- The Phase 0 home screen is preserved as Settings > Diagnostics, not the
+  product home.
 - cryptography_flutter and flutter_js apply KGP; a future Flutter release will
   refuse to build them. Upstream issue, documented, not suppressed.
 - Android cmdline-tools absent; `flutter doctor` warns. Not build-blocking.
@@ -244,24 +289,22 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
 
 7. BLOCKERS
 -----------
-None. No Phase 1 defect is known to remain unfixed, and the full Phase 1
-runtime has now been verified on real hardware.
+None. No Phase 2A defect is known to remain, and no Phase 1 regression was
+introduced (full suite green on the 2A tree).
 
 Environment notes:
 - The pub cache resolves under C:\Users\PORTCR\AppData\Local\Pub\Cache, not
   H:\pub-cache as docs/SETUP_LOG.md states.
 - C: has limited free space; keep SDK/caches on H:.
 - The project directory IS a Git repository (branch `master`, pushed to the
-  private remote `VectorMind-Lab/SPECTA`; local HEAD == remote HEAD at the
-  time of this update). Reports written before Git existed correctly describe
-  that earlier state; their "changed files listed by inspection" notes are
-  historical, not current.
+  private remote `VectorMind-Lab/SPECTA`). Reports written before Git existed
+  correctly describe that earlier state; their "changed files listed by
+  inspection" notes are historical, not current.
 
 
 8. NEXT RECOMMENDED STEP
 ------------------------
-Phase 1 is CLOSED: PHASE 1 COMPLETE — REAL DEVICE VERIFIED (2026-09-16).
-
-Do NOT begin Phase 2 — no scrapers, providers, catalogue, player, downloads,
-metadata provider or account/cloud work — until explicit authorization and an
-approved Phase 2 scope exist.
+Phase 2 sub-stage 2B — SEARCH / DISCOVERY PIPELINE (models, parallel
+extension discovery, normalization, deduplication) per the authorized order
+in docs/PHASE_2_REPORT.md section 10. Test, verify, document, commit after
+the sub-stage; continue to 2C only within the Phase 2 authorization.

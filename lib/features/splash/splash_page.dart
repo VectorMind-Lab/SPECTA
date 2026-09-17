@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/navigation/specta_app_shell.dart';
 import '../../app/platform/form_factor.dart';
 import '../../app/theme/specta_colors.dart';
+import '../../core/database/database_providers.dart';
 import '../../ui/widgets/specta_button.dart';
 import '../../ui/widgets/specta_focus_wrapper.dart';
+import 'splash_state.dart';
 
 /// The official SPECTA launch & splash experience.
 ///
@@ -21,7 +23,7 @@ class SplashPage extends ConsumerStatefulWidget {
   const SplashPage({
     super.key,
     this.autoTransition = true,
-    this.transitionDelay = const Duration(milliseconds: 2800),
+    this.transitionDelay = SplashState.autoTransitionDelay,
   });
 
   final bool autoTransition;
@@ -77,6 +79,15 @@ class _SplashPageState extends ConsumerState<SplashPage>
   }
 
   void _navigateToApp() {
+    // Record that the launch flow completed (best-effort; a storage failure
+    // must never trap the user on the splash).
+    try {
+      unawaited(
+        SplashState.markSplashSeen(ref.read(settingsStoreProvider)),
+      );
+    } on Object {
+      // Diagnostics only; the flow continues regardless.
+    }
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         pageBuilder: (
