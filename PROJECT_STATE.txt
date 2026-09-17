@@ -2,9 +2,9 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-17 02:48 local — UI restoration and Git checkpoint.
-Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — GIT INITIALIZED.
-Next: GitHub repository creation, then explicit authorization required before Phase 2.
+Last updated: 2026-09-17 00:22 UTC — UI restoration, Git initialized locally.
+Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — LOCAL GIT ONLY.
+Next: Explicit authorization required before any Phase 2 work.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
@@ -30,7 +30,7 @@ plan. Do not treat it as one.
 2. COMPLETED WORK
 -----------------
 
-UI Restoration (2026-09-17 02:48 local):
+UI Restoration & Git Setup (2026-09-17):
 [x] SPECTA UI shell restored matching provided design assets (specta_logo_glow.png,
     man_facing_city_pure.png, specta_ui_reference.png).
 [x] lib/ui/widgets: focus wrapper, buttons, badges, cards, scaffold, empty states.
@@ -42,7 +42,8 @@ UI Restoration (2026-09-17 02:48 local):
 [x] Flutter analyze: No issues found.
 [x] Flutter test: 266 passed, 9 skipped (no JS bridge), 0 failed.
 [x] APK build: SUCCESS (262 MB debug APK).
-[x] Git initialized: commit e789dad.
+[x] Git initialized locally: commits e789dad, 9b5bb8d (LOCAL ONLY, no GitHub remote).
+[x] GitHub error corrected: accidental main-app repository removed, project remains local.
 
 Phase 0 (carried forward, verified):
 [x] Environment, Flutter SDK 3.47.4 (SHA-256 verified), pinned dependency
