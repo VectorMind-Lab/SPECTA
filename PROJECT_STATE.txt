@@ -2,9 +2,9 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-16 — Phase 1 device verification run.
-Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED.
-Next: explicit authorization required before any Phase 2 work.
+Last updated: 2026-09-17 02:48 local — UI restoration and Git checkpoint.
+Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — GIT INITIALIZED.
+Next: GitHub repository creation, then explicit authorization required before Phase 2.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
@@ -29,6 +29,20 @@ plan. Do not treat it as one.
 
 2. COMPLETED WORK
 -----------------
+
+UI Restoration (2026-09-17 02:48 local):
+[x] SPECTA UI shell restored matching provided design assets (specta_logo_glow.png,
+    man_facing_city_pure.png, specta_ui_reference.png).
+[x] lib/ui/widgets: focus wrapper, buttons, badges, cards, scaffold, empty states.
+[x] lib/app/navigation: responsive app shell (phone bottom nav / TV sidebar rail),
+    destinations, Riverpod navigation state.
+[x] lib/features placeholder views for Phase 2+ (search, library, downloads,
+    extensions, settings).
+[x] Splash page with animated SPECTA logo and city artwork.
+[x] Flutter analyze: No issues found.
+[x] Flutter test: 266 passed, 9 skipped (no JS bridge), 0 failed.
+[x] APK build: SUCCESS (262 MB debug APK).
+[x] Git initialized: commit e789dad.
 
 Phase 0 (carried forward, verified):
 [x] Environment, Flutter SDK 3.47.4 (SHA-256 verified), pinned dependency
