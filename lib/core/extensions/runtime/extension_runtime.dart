@@ -256,6 +256,127 @@ class ExtensionRuntime {
     return parsed;
   }
 
+  /// Parses a `details()` result.
+  ///
+  /// Robustness rules (Phase 2C, mirroring the Phase 2B search rules):
+  /// - `type` is REQUIRED and must be movie/series. A missing or unsupported
+  ///   type is never silently converted to movie — the parse fails and the
+  ///   runtime reports a controlled PARSE_ERROR (SPECTA is movies+series
+  ///   only, and must not mislabel a work it cannot classify).
+  /// - Required scalar fields (`id`, `title`, `url`) must be non-empty
+  ///   strings; a malformed one fails the parse rather than fabricating a
+  ///   value (SPECTA never invents metadata).
+  /// - Tolerated: missing optional fields; rating outside 0..10 is dropped
+  ///   (kept as null, not clamped — out-of-range ratings are bad data, not
+  ///   data to repair); non-string genre entries are skipped; a season or
+  ///   episode row that is malformed is skipped individually so one bad row
+  ///   cannot destroy an otherwise valid payload.
+  static MediaDetails parseMediaDetails(String result) {
+    final dynamic decoded = jsonDecode(result);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('details payload is not a JSON object');
+    }
+    final Map<String, dynamic> json = decoded;
+
+    final dynamic id = json['id'];
+    final dynamic title = json['title'];
+    final dynamic url = json['url'];
+    if (id is! String || id.isEmpty) {
+      throw const FormatException('details payload has no valid id');
+    }
+    if (title is! String || title.trim().isEmpty) {
+      throw const FormatException('details payload has no valid title');
+    }
+    if (url is! String || url.isEmpty) {
+      throw const FormatException('details payload has no valid url');
+    }
+
+    final MediaType? type = MediaType.fromCode(json['type'] as String?);
+    if (type == null) {
+      throw const FormatException(
+        'details payload type is missing or unsupported',
+      );
+    }
+
+    final dynamic rating = json['rating'];
+    final double? validRating = rating is num && rating >= 0 && rating <= 10
+        ? rating.toDouble()
+        : null;
+
+    return MediaDetails(
+      id: id,
+      title: title.trim(),
+      type: type,
+      url: url,
+      originalTitle: json['originalTitle'] as String?,
+      cover: json['cover'] as String?,
+      backdrop: json['backdrop'] as String?,
+      year: json['year'] is int ? json['year'] as int : null,
+      description: json['description'] as String?,
+      genres: _parseGenres(json['genres']),
+      durationSeconds: json['duration'] is int ? json['duration'] as int : null,
+      rating: validRating,
+      status: json['status'] != null
+          ? SeriesStatus.fromCode(json['status'] as String)
+          : null,
+      seasons: _parseSeasons(json['seasons']),
+    );
+  }
+
+  /// Genre list: non-string entries are skipped, blanks dropped.
+  static List<String> _parseGenres(dynamic raw) {
+    if (raw is! List<dynamic>) return const <String>[];
+    return raw
+        .whereType<String>()
+        .map((String g) => g.trim())
+        .where((String g) => g.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  /// Season list: malformed season rows are skipped individually.
+  static List<MediaSeason> _parseSeasons(dynamic raw) {
+    if (raw is! List<dynamic>) return const <MediaSeason>[];
+    final List<MediaSeason> seasons = <MediaSeason>[];
+    for (final dynamic entry in raw) {
+      if (entry is! Map<String, dynamic>) continue;
+      final dynamic seasonNumber = entry['seasonNumber'];
+      if (seasonNumber is! int) continue;
+      seasons.add(
+        MediaSeason(
+          seasonNumber: seasonNumber,
+          title: entry['title'] as String?,
+          episodes: _parseEpisodes(entry['episodes']),
+        ),
+      );
+    }
+    return seasons;
+  }
+
+  /// Episode list: malformed episode rows are skipped individually.
+  static List<MediaEpisode> _parseEpisodes(dynamic raw) {
+    if (raw is! List<dynamic>) return const <MediaEpisode>[];
+    final List<MediaEpisode> episodes = <MediaEpisode>[];
+    for (final dynamic entry in raw) {
+      if (entry is! Map<String, dynamic>) continue;
+      final dynamic episodeNumber = entry['episodeNumber'];
+      final dynamic url = entry['url'];
+      if (episodeNumber is! int) continue;
+      if (url is! String || url.isEmpty) continue;
+      episodes.add(
+        MediaEpisode(
+          episodeNumber: episodeNumber,
+          url: url,
+          title: entry['title'] as String?,
+          description: entry['description'] as String?,
+          cover: entry['cover'] as String?,
+          durationSeconds:
+              entry['duration'] is int ? entry['duration'] as int : null,
+        ),
+      );
+    }
+    return episodes;
+  }
+
   /// Calls the extension's `details(url)` operation.
   Future<SpectaResult<MediaDetails>> details({required String url}) async {
     final String escapedUrl = jsonEncode(url);
@@ -264,53 +385,7 @@ class ExtensionRuntime {
       requiredCapability: ExtensionCapability.details,
       jsExpression:
           'JSON.stringify(await _spectaInstance.details($escapedUrl))',
-      parse: (String result) {
-        final Map<String, dynamic> json =
-            jsonDecode(result) as Map<String, dynamic>;
-        return MediaDetails(
-          id: json['id'] as String,
-          title: json['title'] as String,
-          type: MediaType.fromCode(json['type'] as String?) ?? MediaType.movie,
-          url: json['url'] as String,
-          originalTitle: json['originalTitle'] as String?,
-          cover: json['cover'] as String?,
-          backdrop: json['backdrop'] as String?,
-          year: json['year'] as int?,
-          description: json['description'] as String?,
-          genres:
-              (json['genres'] as List<dynamic>?)?.cast<String>() ?? <String>[],
-          durationSeconds: json['duration'] as int?,
-          rating: json['rating'] as double?,
-          status: json['status'] != null
-              ? SeriesStatus.fromCode(json['status'] as String)
-              : null,
-          seasons:
-              (json['seasons'] as List<dynamic>?)
-                  ?.map(
-                    (dynamic s) => MediaSeason(
-                      seasonNumber:
-                          (s as Map<String, dynamic>)['seasonNumber'] as int,
-                      title: s['title'] as String?,
-                      episodes: (s['episodes'] as List<dynamic>? ?? <dynamic>[])
-                          .map(
-                            (dynamic e) => MediaEpisode(
-                              episodeNumber:
-                                  (e as Map<String, dynamic>)['episodeNumber']
-                                      as int,
-                              title: e['title'] as String?,
-                              url: e['url'] as String,
-                              description: e['description'] as String?,
-                              cover: e['cover'] as String?,
-                              durationSeconds: e['duration'] as int?,
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  )
-                  .toList() ??
-              <MediaSeason>[],
-        );
-      },
+      parse: parseMediaDetails,
     );
   }
 

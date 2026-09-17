@@ -289,6 +289,106 @@ void main() {
       },
     );
 
+    group('details payload robustness (Phase 2C)', () {
+      Future<SpectaResult<MediaDetails>> parse(Object? payload) async {
+        final ExtensionRuntime runtime = await loadRuntime(
+          sandbox,
+          api,
+          jsCode: 'class Extension extends SpectaExtension {}',
+        );
+        const String url = 'https://example.com/title/1';
+        sandbox.setAsyncResult(
+          'JSON.stringify(await _spectaInstance.details("$url"))',
+          payload is String ? payload : jsonEncode(payload),
+        );
+        return runtime.details(url: url);
+      }
+
+      test('a missing type is a controlled failure, not a silent movie',
+          () async {
+        final SpectaResult<MediaDetails> result = await parse(<String, dynamic>{
+          'id': 'x1',
+          'title': 'No Type',
+          'url': 'https://example.com/title/1',
+        });
+
+        expect(result.isErr, isTrue);
+      });
+
+      test('an unsupported type is a controlled failure, not a silent movie',
+          () async {
+        final SpectaResult<MediaDetails> result = await parse(<String, dynamic>{
+          'id': 'x1',
+          'title': 'Anime Thing',
+          'type': 'anime',
+          'url': 'https://example.com/title/1',
+        });
+
+        expect(result.isErr, isTrue);
+      });
+
+      test('a blank title is a controlled failure', () async {
+        final SpectaResult<MediaDetails> result = await parse(<String, dynamic>{
+          'id': 'x1',
+          'title': '   ',
+          'type': 'movie',
+          'url': 'https://example.com/title/1',
+        });
+
+        expect(result.isErr, isTrue);
+      });
+
+      test('an out-of-range rating is dropped to null, not clamped', () async {
+        final SpectaResult<MediaDetails> result = await parse(<String, dynamic>{
+          'id': 'x1',
+          'title': 'Rated Movie',
+          'type': 'movie',
+          'url': 'https://example.com/title/1',
+          'rating': 11.5,
+        });
+
+        expect(result.isOk, isTrue);
+        expect(result.valueOrNull!.rating, isNull);
+      });
+
+      test('malformed season and episode rows are skipped individually',
+          () async {
+        final SpectaResult<MediaDetails> result = await parse(<String, dynamic>{
+          'id': 'x1',
+          'title': 'Messy Series',
+          'type': 'series',
+          'url': 'https://example.com/title/1',
+          'seasons': <dynamic>[
+            'not-a-season',
+            <String, dynamic>{
+              'seasonNumber': 1,
+              'episodes': <dynamic>[
+                'not-an-episode',
+                <String, dynamic>{
+                  'episodeNumber': 1,
+                  'url': 'https://example.com/title/1/e1',
+                },
+                <String, dynamic>{'episodeNumber': 2}, // no url — skipped
+              ],
+            },
+            <String, dynamic>{'seasonNumber': 'two'}, // no int number — skipped
+          ],
+        });
+
+        expect(result.isOk, isTrue);
+        final MediaDetails details = result.valueOrNull!;
+        expect(details.seasons.length, 1);
+        expect(details.seasons.single.episodes.length, 1);
+        expect(details.seasons.single.episodes.single.episodeNumber, 1);
+      });
+
+      test('a non-object payload is a controlled failure', () async {
+        final SpectaResult<MediaDetails> result = await parse('[1, 2, 3]');
+
+        expect(result.isErr, isTrue);
+      });
+    });
+
     test('getSources parses MP4 and HLS sources with headers', () async {
       final ExtensionRuntime runtime = await loadRuntime(
         sandbox,

@@ -9,6 +9,8 @@ import '../../core/discovery/discovery_models.dart';
 import '../../core/extensions/contract/result_models.dart';
 import '../../ui/widgets/specta_empty_state.dart';
 import '../../ui/widgets/specta_focus_wrapper.dart';
+import '../details/details_state.dart';
+import '../details/details_view.dart';
 import 'search_state.dart';
 
 /// Query text being typed in the search surface.
@@ -190,22 +192,27 @@ class _ResultList extends StatelessWidget {
 }
 
 /// One unified discovery item.
-class _DiscoveryCard extends StatelessWidget {
+class _DiscoveryCard extends ConsumerWidget {
   const _DiscoveryCard({required this.item, required this.accent});
 
   final DiscoveryItem item;
   final Color accent;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bool isLarge = MediaQuery.sizeOf(context).width >= SpectaBreakpoints.television;
     final double posterSize = isLarge ? 84 : 64;
 
     return SpectaFocusWrapper(
       borderRadius: SpectaMetrics.cardRadius,
       onTap: () {
-        // Details navigation is Phase 2C; cards are focusable now so TV
-        // traversal through results is real from day one.
+        // Phase 2C: open the canonical details surface for this item. The
+        // details session (not the card) owns the metadata request, so a
+        // stale card tap can never render fabricated data.
+        ref.read(detailsSessionProvider.notifier).open(item);
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (BuildContext _) => const DetailsView()),
+        );
       },
       child: Container(
         padding: const EdgeInsets.all(10),

@@ -2,10 +2,10 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-17 — Phase 2 authorized; sub-stages 2A + 2B complete.
+Last updated: 2026-09-17 — Phase 2 authorized; sub-stages 2A + 2B + 2C complete.
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
-PHASE 2 IN PROGRESS (2A + 2B done; 2C–2H open).
-Next: Phase 2 sub-stage 2C (metadata manager architecture).
+PHASE 2 IN PROGRESS (2A + 2B + 2C done; 2D–2H open).
+Next: Phase 2 sub-stage 2D (source manager).
 
 GitHub checkpoint (2026-09-17, completed and VERIFIED by a second
 investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
@@ -44,25 +44,35 @@ Phase 2 (authorized 2026-09-17):
   9 skipped (real-engine group), 0 failed. No database change; no new
   dependency. Device verification not required (no device attached; pure
   Dart pipeline + widget UI).
-- Sub-stages 2C–2H NOT started.
+- Sub-stage 2C (metadata manager / details pipeline) COMPLETE — see
+  docs/PHASE_2C_REPORT.md. lib/core/metadata/ (canonical MetadataItem with
+  per-reference provenance, MetadataNormalizer, MetadataManager + service);
+  details session state (race-safe, honest partial failure) and minimal
+  details UI (movie + series/seasons/episodes, D-pad safe); search cards
+  open details; runtime details() parsing hardened (type now REQUIRED,
+  malformed rows skipped, bad ratings dropped).
+  flutter analyze: No issues found. flutter test: 379 passed, 9 skipped,
+  0 failed. No database change; no new dependency; no getSources() usage.
+- Sub-stages 2D–2H NOT started.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
 
 Documents, in order of recency (newest wins where they disagree):
-  1. docs/PHASE_2B_REPORT.md           (Phase 2 sub-stage record — 2B)
-  2. docs/PHASE_2_REPORT.md            (Phase 2 sub-stage record — 2A)
-  3. docs/PHASE_1_CLOSURE_REPORT.txt   (closure session + device verification)
-  4. docs/PHASE_1_REPORT.txt           (second audit report)
-  5. docs/PHASE_0_REPORT.md
+  1. docs/PHASE_2C_REPORT.md           (Phase 2 sub-stage record — 2C)
+  2. docs/PHASE_2B_REPORT.md           (Phase 2 sub-stage record — 2B)
+  3. docs/PHASE_2_REPORT.md            (Phase 2 sub-stage record — 2A)
+  4. docs/PHASE_1_CLOSURE_REPORT.txt   (closure session + device verification)
+  5. docs/PHASE_1_REPORT.txt           (second audit report)
+  6. docs/PHASE_0_REPORT.md
 
 
 1. CURRENT PHASE
 ----------------
 Phase 2 — now AUTHORIZED (2026-09-17) and IN PROGRESS, executed in controlled
-sub-stages (2A UI foundation → 2H extension catalogue). Sub-stages 2A and 2B
-are complete and verified (docs/PHASE_2_REPORT.md, docs/PHASE_2B_REPORT.md);
-2C–2H are open.
+sub-stages (2A UI foundation → 2H extension catalogue). Sub-stages 2A, 2B and
+2C are complete and verified (docs/PHASE_2_REPORT.md, docs/PHASE_2B_REPORT.md,
+docs/PHASE_2C_REPORT.md); 2D–2H are open.
 
 Phase 1 — Extension Foundation. Implemented, audited, corrected, tested,
 buildable, and VERIFIED ON A REAL ANDROID DEVICE (2026-09-16).
@@ -116,6 +126,37 @@ Phase 2B — Search/discovery pipeline (2026-09-17, docs/PHASE_2B_REPORT.md):
 [x] Verification: flutter analyze No issues found; flutter test 340 passed,
     9 skipped (real-engine group), 0 failed (66 new tests: normalizer,
     deduplicator, coordinator, search state, search UI, runtime parsing).
+
+Phase 2C — Metadata manager / details pipeline (2026-09-17,
+docs/PHASE_2C_REPORT.md):
+[x] lib/core/metadata/ established: canonical MetadataItem (movie/series)
+    with one ReferenceMetadata per contributing provider reference
+    (provenance preserved through merging), SeriesSeason/SeriesEpisode
+    normalized shapes, MetadataNormalizer (validation: type-mismatch drop,
+    blank/over-long field drop; tolerance: missing optionals -> null,
+    empty seasons = partial, duplicate rows deduped, episodes sorted),
+    MetadataManager (per-reference details() over the Phase 1 manager,
+    capability-checked, 20s bounded timeout, failure-isolated outcomes
+    as data) + metadataServiceProvider.
+[x] Identity: metadata key == discovery evidence key (normalized title,
+    type, year) — no invented global identity; cross-provider merging only
+    through discovery-established references.
+[x] Details session state (detailsSessionProvider): idle/loading/success/
+    failure + honest partial failure; monotonic generation race guard
+    (stale opens rejected, tested); discovery data renders immediately
+    while loading — nothing fabricated.
+[x] Minimal details UI: header (title/year/type/genres/rating/runtime),
+    overview, seasons with expandable episodes, Retry; D-pad reachable
+    (back button + tappable cards); search result cards now open details.
+[x] Runtime details() parser hardened: type REQUIRED (no silent
+    movie conversion), required scalars enforced, out-of-range rating
+    dropped, malformed season/episode rows skipped individually.
+[x] getSources() NOT called anywhere in 2C code (2D boundary intact).
+[x] Database: NO schema change. Dependencies: NONE added. TMDB: NOT
+    implemented (no keys, no provider settings).
+[x] Verification: flutter analyze No issues found; flutter test 379
+    passed, 9 skipped (real-engine group), 0 failed (39 new tests:
+    parser robustness, normalizer, manager, session state, UI).
 
 UI Restoration & Git Setup (2026-09-17):
 [x] SPECTA UI shell restored matching provided design assets (specta_logo_glow.png,
@@ -191,6 +232,10 @@ Phase 2B re-verification (2026-09-17):
 flutter analyze                           | No issues found
 flutter test (no bridge, plain)           | 340 passed, 9 skipped, 0 failed
 
+Phase 2C re-verification (2026-09-17):
+flutter analyze                           | No issues found
+flutter test (no bridge, plain)           | 379 passed, 9 skipped, 0 failed
+
 Device verification evidence (2026-09-16, 15:26–15:40 local, UTC+3):
   Device        Samsung SM-A065F (Galaxy A06), arm64-v8a
   OS            Android 16 (API 36), One UI
@@ -244,8 +289,11 @@ Phase 2 sub-stages (authorized, in the approved order):
 [x] 2B Search/discovery pipeline — DONE 2026-09-17: models + normalizer +
     deduplicator + coordinator, search state/UI wired, runtime parsing
     hardened, 66 new tests, analyze clean, full suite 340+9/0.
-[ ] 2C Metadata manager architecture (metadata separate from sources; TMDB
-    only as an optional, locally-configured metadata provider).
+[x] 2C Metadata manager / details pipeline — DONE 2026-09-17: canonical
+    MetadataItem + provenance, normalizer, manager, details session state
+    + minimal details UI, runtime details() parsing hardened, 39 new
+    tests, analyze clean, full suite 379+9/0. TMDB not implemented
+    (not authorized); no database change.
 [ ] 2D Source manager (pool -> validation -> ranking -> selection; MP4 + HLS
     for v1; no DASH, no DRM/anti-bot bypass).
 [ ] 2E Player integration (MediaKit surface, retry-through-pipeline, watch
@@ -316,10 +364,13 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
 - Form factor TV detection is a viewport approximation.
 - Home content is design fixtures until metadata/catalogue surfaces land;
   Search is live discovery from installed extensions only (no TMDB yet, by
-  design until 2C).
+  design until 2C). Details are live from installed extensions (2C); no
+  TMDB/external metadata provider by design (not authorized).
 - Pagination: contract page seam honored, load-more UI deferred (2C+).
 - In-memory search cache: none (kept separate from durable data; add only on
-  demonstrated need).
+  demonstrated need). Metadata is likewise in-memory only until 2F.
+- Details UI is intentionally minimal (metadata only) until 2D/2E authorize
+  source/player surfaces.
 - Device verification for 2B: not performed (no device attached; pure Dart
   pipeline + widget UI verified by unit/widget tests only).
 - The Phase 0 home screen is preserved as Settings > Diagnostics, not the
@@ -337,8 +388,8 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
 
 7. BLOCKERS
 -----------
-None. No Phase 2A/2B defect is known to remain, and no Phase 1 regression was
-introduced (full suite green on the 2B tree).
+None. No Phase 2A/2B/2C defect is known to remain, and no Phase 1 regression
+was introduced (full suite green on the 2C tree).
 
 Environment notes:
 - The pub cache resolves under C:\Users\PORTCR\AppData\Local\Pub\Cache, not
@@ -352,6 +403,6 @@ Environment notes:
 
 8. NEXT RECOMMENDED STEP
 ------------------------
-Phase 2 sub-stage 2C — METADATA MANAGER ARCHITECTURE, per the authorized
-order in docs/PHASE_2_REPORT.md section 10. Test, verify, document, commit
-after the sub-stage; continue to 2D only within the Phase 2 authorization.
+Phase 2 sub-stage 2D — SOURCE MANAGER, per the authorized order in
+docs/PHASE_2_REPORT.md section 10. Test, verify, document, commit after
+the sub-stage; continue to 2E only within the Phase 2 authorization.

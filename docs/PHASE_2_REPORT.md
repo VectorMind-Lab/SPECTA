@@ -193,8 +193,11 @@ no toolchain drift was expected.
   docs/PHASE_2B_REPORT.md: discovery models/normalizer/deduplicator/
   coordinator, search state + UI wired, 66 new tests, analyze clean,
   full suite 340 passed / 9 skipped / 0 failed).
-- 2C Metadata manager architecture (metadata ≠ sources; TMDB as optional
-  local-config metadata provider).
+- ~~2C Metadata manager / details pipeline~~ — **DONE** (2026-09-17, see
+  docs/PHASE_2C_REPORT.md: canonical MetadataItem + per-reference
+  provenance, MetadataNormalizer, MetadataManager, details session state
+  + minimal details UI, runtime details() parsing hardened, 39 new tests,
+  analyze clean, full suite 379 passed / 9 skipped / 0 failed).
 - 2D Source manager (pool → validation → ranking → selection; MP4 + HLS v1).
 - 2E Player integration (MediaKit surface, retry-through-pipeline, progress).
 - 2F Library / history / watch progress persistence.
@@ -204,5 +207,6 @@ no toolchain drift was expected.
 
 ## 11. NEXT PHASE 2 SUB-STAGE
 
-**PHASE 2C — METADATA MANAGER ARCHITECTURE**, per the authorized order.
-(2B was completed 2026-09-17 — see docs/PHASE_2B_REPORT.md.)
+**PHASE 2D — SOURCE MANAGER**, per the authorized order.
+(2B completed 2026-09-17 — docs/PHASE_2B_REPORT.md; 2C completed
+2026-09-17 — docs/PHASE_2C_REPORT.md.)
