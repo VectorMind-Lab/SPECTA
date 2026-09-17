@@ -2,10 +2,10 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-17 — Phase 2 authorized; sub-stages 2A + 2B + 2C complete.
+Last updated: 2026-09-17 — Phase 2 authorized; sub-stages 2A–2D complete.
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
-PHASE 2 IN PROGRESS (2A + 2B + 2C done; 2D–2H open).
-Next: Phase 2 sub-stage 2D (source manager).
+PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D done; 2E–2H open).
+Next: Phase 2 sub-stage 2E (player integration).
 
 GitHub checkpoint (2026-09-17, completed and VERIFIED by a second
 investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
@@ -53,26 +53,38 @@ Phase 2 (authorized 2026-09-17):
   malformed rows skipped, bad ratings dropped).
   flutter analyze: No issues found. flutter test: 379 passed, 9 skipped,
   0 failed. No database change; no new dependency; no getSources() usage.
-- Sub-stages 2D–2H NOT started.
+- Sub-stage 2D (source manager) COMPLETE — see docs/PHASE_2D_REPORT.md.
+  lib/core/sources/ (QualityPreference, ExtensionSourceOutcome, SourcePool/
+  RankedSource with per-extension provenance, structural SourceValidator,
+  deterministic SourceRanker, SourceManager resolve/refresh + service);
+  race-safe source session state (no player UI). Reuses the Phase 1
+  ExtensionSource contract and getSources/refreshSource operations; no
+  second contract. Structural validation only (no network probes);
+  deterministic ranking with honest treatment of unknown quality;
+  defensive response caps; failure isolation per extension.
+  flutter analyze: No issues found. flutter test: 418 passed, 9 skipped,
+  0 failed. No database change; no new dependency.
+- Sub-stages 2E–2H NOT started.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
 
 Documents, in order of recency (newest wins where they disagree):
-  1. docs/PHASE_2C_REPORT.md           (Phase 2 sub-stage record — 2C)
-  2. docs/PHASE_2B_REPORT.md           (Phase 2 sub-stage record — 2B)
-  3. docs/PHASE_2_REPORT.md            (Phase 2 sub-stage record — 2A)
-  4. docs/PHASE_1_CLOSURE_REPORT.txt   (closure session + device verification)
-  5. docs/PHASE_1_REPORT.txt           (second audit report)
-  6. docs/PHASE_0_REPORT.md
+  1. docs/PHASE_2D_REPORT.md           (Phase 2 sub-stage record — 2D)
+  2. docs/PHASE_2C_REPORT.md           (Phase 2 sub-stage record — 2C)
+  3. docs/PHASE_2B_REPORT.md           (Phase 2 sub-stage record — 2B)
+  4. docs/PHASE_2_REPORT.md            (Phase 2 sub-stage record — 2A)
+  5. docs/PHASE_1_CLOSURE_REPORT.txt   (closure session + device verification)
+  6. docs/PHASE_1_REPORT.txt           (second audit report)
+  7. docs/PHASE_0_REPORT.md
 
 
 1. CURRENT PHASE
 ----------------
 Phase 2 — now AUTHORIZED (2026-09-17) and IN PROGRESS, executed in controlled
-sub-stages (2A UI foundation → 2H extension catalogue). Sub-stages 2A, 2B and
-2C are complete and verified (docs/PHASE_2_REPORT.md, docs/PHASE_2B_REPORT.md,
-docs/PHASE_2C_REPORT.md); 2D–2H are open.
+sub-stages (2A UI foundation → 2H extension catalogue). Sub-stages 2A–2D are
+complete and verified (docs/PHASE_2_REPORT.md, docs/PHASE_2B_REPORT.md,
+docs/PHASE_2C_REPORT.md, docs/PHASE_2D_REPORT.md); 2E–2H are open.
 
 Phase 1 — Extension Foundation. Implemented, audited, corrected, tested,
 buildable, and VERIFIED ON A REAL ANDROID DEVICE (2026-09-16).
@@ -158,6 +170,36 @@ docs/PHASE_2C_REPORT.md):
     passed, 9 skipped (real-engine group), 0 failed (39 new tests:
     parser robustness, normalizer, manager, session state, UI).
 
+Phase 2D — Source manager (2026-09-17, docs/PHASE_2D_REPORT.md):
+[x] lib/core/sources/ established: QualityPreference (auto/480p/720p/
+    1080p/4K), ExtensionSourceOutcome (success/skipped/failed/invalid as
+    data), SourcePool (selected + ranked fallbacks + per-extension
+    outcomes), RankedSource (candidate + extensionId + reference + score).
+    Reuses the Phase 1 ExtensionSource contract unchanged — no duplicate
+    model; MP4 + HLS only, no DASH/DRM.
+[x] SourceManager.resolve: parallel getSources over the Phase 1 manager,
+    capability-checked, 20s bounded timeout, failure-isolated outcomes;
+    structural validation (scheme allow-list http/https, header-name
+    injection guard, subtitle URL required, 2048-char URL cap, 32-header
+    cap, 100-candidate per-extension cap); dedup (same URL from one
+    extension collapses, from two stays — distinct CDN risk); ranking
+    (preference-driven, NOT highest-quality-first; unknown quality
+    explicitly scored below known; adaptive bonus under auto;
+    deterministic tie-breaks score -> tier -> type -> URL).
+[x] SourceManager.refresh: uses the existing refreshSource contract
+    operation; refresh-unavailable/failure represented honestly as null.
+[x] Source session state (sourceSessionProvider): race-safe monotonic
+    generation guard (Episode 1's late result cannot overwrite Episode 2,
+    tested); NO player UI/screens/controls added (2E boundary).
+[x] EXTENSIONS DISCOVER / SPECTA DECIDES preserved: extensions report
+    candidates; validity, order, selection are SPECTA's alone.
+[x] Database: NO schema change. Dependencies: NONE added. No GitHub
+    runtime dependency. No network probing (structural validation only;
+    reachability is 2E's failure path).
+[x] Verification: flutter analyze No issues found; flutter test 418
+    passed, 9 skipped (real-engine group), 0 failed (39 new tests:
+    validator, ranker, manager, session state).
+
 UI Restoration & Git Setup (2026-09-17):
 [x] SPECTA UI shell restored matching provided design assets (specta_logo_glow.png,
     man_facing_city_pure.png, specta_ui_reference.png).
@@ -236,6 +278,10 @@ Phase 2C re-verification (2026-09-17):
 flutter analyze                           | No issues found
 flutter test (no bridge, plain)           | 379 passed, 9 skipped, 0 failed
 
+Phase 2D re-verification (2026-09-17):
+flutter analyze                           | No issues found
+flutter test (no bridge, plain)           | 418 passed, 9 skipped, 0 failed
+
 Device verification evidence (2026-09-16, 15:26–15:40 local, UTC+3):
   Device        Samsung SM-A065F (Galaxy A06), arm64-v8a
   OS            Android 16 (API 36), One UI
@@ -294,8 +340,10 @@ Phase 2 sub-stages (authorized, in the approved order):
     + minimal details UI, runtime details() parsing hardened, 39 new
     tests, analyze clean, full suite 379+9/0. TMDB not implemented
     (not authorized); no database change.
-[ ] 2D Source manager (pool -> validation -> ranking -> selection; MP4 + HLS
-    for v1; no DASH, no DRM/anti-bot bypass).
+[x] 2D Source manager — DONE 2026-09-17: source pool with per-extension
+    provenance, structural validator, deterministic ranker, resolve +
+    refresh over the existing contract, race-safe session state, 39 new
+    tests, analyze clean, full suite 418+9/0. No player UI added.
 [ ] 2E Player integration (MediaKit surface, retry-through-pipeline, watch
     progress persistence).
 [ ] 2F Library / history / watch progress persistence (local only).
@@ -369,10 +417,16 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
 - Pagination: contract page seam honored, load-more UI deferred (2C+).
 - In-memory search cache: none (kept separate from durable data; add only on
   demonstrated need). Metadata is likewise in-memory only until 2F.
-- Details UI is intentionally minimal (metadata only) until 2D/2E authorize
-  source/player surfaces.
-- Device verification for 2B: not performed (no device attached; pure Dart
-  pipeline + widget UI verified by unit/widget tests only).
+  Source pools are in-memory only; no source persistence before 2E/2G
+  demonstrate a need.
+- Details UI is intentionally minimal (metadata only) until 2E authorizes
+  source/player surfaces. No source-selection UI was added in 2D (not
+  required; deferred to 2E per plan).
+- Device verification for 2B/2C/2D: not performed (no device attached; pure
+  Dart pipeline + widget UI verified by unit/widget tests only).
+- Source validation is structural only; no network reachability probes
+  (deliberate: probes belong to playback's failure path through 2D's
+  fallback seam).
 - The Phase 0 home screen is preserved as Settings > Diagnostics, not the
   product home.
 - cryptography_flutter and flutter_js apply KGP; a future Flutter release will
@@ -388,8 +442,8 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
 
 7. BLOCKERS
 -----------
-None. No Phase 2A/2B/2C defect is known to remain, and no Phase 1 regression
-was introduced (full suite green on the 2C tree).
+None. No Phase 2A–2D defect is known to remain, and no Phase 1 regression
+was introduced (full suite green on the 2D tree).
 
 Environment notes:
 - The pub cache resolves under C:\Users\PORTCR\AppData\Local\Pub\Cache, not
@@ -403,6 +457,8 @@ Environment notes:
 
 8. NEXT RECOMMENDED STEP
 ------------------------
-Phase 2 sub-stage 2D — SOURCE MANAGER, per the authorized order in
-docs/PHASE_2_REPORT.md section 10. Test, verify, document, commit after
-the sub-stage; continue to 2E only within the Phase 2 authorization.
+Phase 2 sub-stage 2E — PLAYER INTEGRATION, per the authorized order in
+docs/PHASE_2_REPORT.md section 10. 2D left the seam ready: SourcePool
+(selected + fallbacks + refresh) is the player contract. Test, verify,
+document, commit after the sub-stage; continue to 2F only within the
+Phase 2 authorization.

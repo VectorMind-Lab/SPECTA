@@ -198,7 +198,11 @@ no toolchain drift was expected.
   provenance, MetadataNormalizer, MetadataManager, details session state
   + minimal details UI, runtime details() parsing hardened, 39 new tests,
   analyze clean, full suite 379 passed / 9 skipped / 0 failed).
-- 2D Source manager (pool → validation → ranking → selection; MP4 + HLS v1).
+- ~~2D Source manager~~ — **DONE** (2026-09-17, see docs/PHASE_2D_REPORT.md:
+  SourcePool with per-extension provenance, structural validator,
+  deterministic ranker, resolve + refresh over the existing contract,
+  race-safe session state, no player UI, 39 new tests, analyze clean,
+  full suite 418 passed / 9 skipped / 0 failed).
 - 2E Player integration (MediaKit surface, retry-through-pipeline, progress).
 - 2F Library / history / watch progress persistence.
 - 2G Download foundation (queue, pause/resume, ≤3 default / ≤9 ceiling).
@@ -207,6 +211,7 @@ no toolchain drift was expected.
 
 ## 11. NEXT PHASE 2 SUB-STAGE
 
-**PHASE 2D — SOURCE MANAGER**, per the authorized order.
+**PHASE 2E — PLAYER INTEGRATION**, per the authorized order.
 (2B completed 2026-09-17 — docs/PHASE_2B_REPORT.md; 2C completed
-2026-09-17 — docs/PHASE_2C_REPORT.md.)
+2026-09-17 — docs/PHASE_2C_REPORT.md; 2D completed 2026-09-17 —
+docs/PHASE_2D_REPORT.md.)
