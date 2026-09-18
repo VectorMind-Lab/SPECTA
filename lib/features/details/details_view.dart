@@ -7,6 +7,7 @@ import '../../core/extensions/contract/result_models.dart';
 import '../../core/metadata/metadata_models.dart';
 import '../../ui/widgets/specta_empty_state.dart';
 import '../../ui/widgets/specta_focus_wrapper.dart';
+import '../playback/playback_entry.dart';
 import 'details_state.dart';
 
 /// Minimal Phase 2C details surface.
@@ -55,7 +56,16 @@ class DetailsView extends ConsumerWidget {
             actionLabel: 'Retry',
             action: () => _retry(context, ref, state),
           ),
-        DetailsStatus.success => _DetailsContent(state: state),
+        DetailsStatus.success => _DetailsContent(
+            state: state,
+            onPlayEpisode: (SeriesEpisode episode) => startPlayback(
+              context,
+              ref: ref,
+              metadata: state.metadata!,
+              item: state.item!,
+              episode: episode,
+            ),
+          ),
       },
     );
   }
@@ -79,9 +89,15 @@ class DetailsView extends ConsumerWidget {
 
 /// The metadata content: header block + (for series) seasons and episodes.
 class _DetailsContent extends StatelessWidget {
-  const _DetailsContent({required this.state});
+  const _DetailsContent({
+    required this.state,
+    required this.onPlayEpisode,
+  });
 
   final DetailsState state;
+
+  /// Called when the user activates one episode of one season.
+  final void Function(SeriesEpisode episode) onPlayEpisode;
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +129,10 @@ class _DetailsContent extends StatelessWidget {
               color: SpectaColors.textSecondary,
             ),
           ),
+        ],
+        if (metadata.type == MediaType.movie && state.item != null) ...<Widget>[
+          const SizedBox(height: 16),
+          _PlayMovieButton(item: state.item!, metadata: metadata),
         ],
         if (metadata.type == MediaType.series)
           ..._seasonsSection(metadata, accent),
@@ -153,7 +173,11 @@ class _DetailsContent extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       for (final SeriesSeason season in seasons)
-        _SeasonCard(season: season, accent: accent),
+        _SeasonCard(
+          season: season,
+          accent: accent,
+          onPlayEpisode: onPlayEpisode,
+        ),
     ];
   }
 }
@@ -273,6 +297,69 @@ class _Header extends StatelessWidget {
   }
 }
 
+/// Play affordance for movies: resolves the 2D pool from the item's
+/// provenance and opens the player with SPECTA's ordered candidates.
+class _PlayMovieButton extends ConsumerWidget {
+  const _PlayMovieButton({required this.item, required this.metadata});
+
+  final DiscoveryItem item;
+
+  /// The canonical metadata this item's details session resolved. Passed in
+  /// by the content block (never re-read with a null assertion).
+  final MetadataItem metadata;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final Color accent = Theme.of(context).colorScheme.primary;
+
+    return SpectaFocusWrapper(
+      borderRadius: SpectaMetrics.buttonRadius,
+      onTap: () => startPlayback(
+        context,
+        ref: ref,
+        metadata: metadata,
+        item: item,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+        decoration: BoxDecoration(
+          color: accent,
+          borderRadius: BorderRadius.circular(SpectaMetrics.buttonRadius),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.play_arrow_rounded,
+                size: 22, color: SpectaColors.background),
+            const SizedBox(width: 8),
+            Text(
+              'Play',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+                color: SpectaColors.background,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small per-episode play affordance (the row itself is the tap target).
+class _EpisodePlayIcon extends StatelessWidget {
+  const _EpisodePlayIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    final Color accent = Theme.of(context).colorScheme.primary;
+    return Icon(Icons.play_circle_outline_rounded,
+        size: 20, color: accent.withValues(alpha: 0.8));
+  }
+}
+
 /// Honest partial-failure notice (ids are NOT shown — counts only).
 class _PartialNotice extends StatelessWidget {
   const _PartialNotice({required this.state});
@@ -312,11 +399,17 @@ class _PartialNotice extends StatelessWidget {
 }
 
 /// One season with its episodes (expandable; first season expanded).
+/// Episodes are individually tappable/focusable play targets (2E).
 class _SeasonCard extends StatefulWidget {
-  const _SeasonCard({required this.season, required this.accent});
+  const _SeasonCard({
+    required this.season,
+    required this.accent,
+    required this.onPlayEpisode,
+  });
 
   final SeriesSeason season;
   final Color accent;
+  final void Function(SeriesEpisode episode) onPlayEpisode;
 
   @override
   State<_SeasonCard> createState() => _SeasonCardState();
@@ -381,40 +474,52 @@ class _SeasonCardState extends State<_SeasonCard> {
                 for (final SeriesEpisode episode in season.episodes)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        SizedBox(
-                          width: 28,
-                          child: Text(
-                            '${episode.episodeNumber}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: widget.accent,
-                            ),
-                          ),
+                    child: SpectaFocusWrapper(
+                      borderRadius: 8,
+                      onTap: () => widget.onPlayEpisode(episode),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
                         ),
-                        Expanded(
-                          child: Text(
-                            episode.title?.isNotEmpty == true
-                                ? episode.title!
-                                : 'Episode ${episode.episodeNumber}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: SpectaColors.textSecondary,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            SizedBox(
+                              width: 28,
+                              child: Text(
+                                '${episode.episodeNumber}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: widget.accent,
+                                ),
+                              ),
                             ),
-                          ),
+                            Expanded(
+                              child: Text(
+                                episode.title?.isNotEmpty == true
+                                    ? episode.title!
+                                    : 'Episode ${episode.episodeNumber}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: SpectaColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            if (episode.durationSeconds != null)
+                              Text(
+                                '${episode.durationSeconds! ~/ 60}m',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: SpectaColors.textMuted,
+                                ),
+                              ),
+                            const SizedBox(width: 8),
+                            const _EpisodePlayIcon(),
+                          ],
                         ),
-                        if (episode.durationSeconds != null)
-                          Text(
-                            '${episode.durationSeconds! ~/ 60}m',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: SpectaColors.textMuted,
-                            ),
-                          ),
-                      ],
+                      ),
                     ),
                   ),
               ],

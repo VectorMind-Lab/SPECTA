@@ -7,14 +7,18 @@ source failures.
 ## Status
 
 **Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
+**Phase 2 — application build-out: sub-stages 2A–2E COMPLETE; 2F–2H open.**
 
-`flutter analyze` reports no issues, **275/275 tests pass** with the real JS
-bridge (`tool/run_tests_real_js.sh`), and the full extension runtime has been
-executed inside the app process on a physical device — Samsung Galaxy A06,
-Android 16 — with four consecutive 10/10 integration-test runs: app startup,
-Drift/SQLite on device, the real QuickJS FFI sandbox, a controlled HTTPS round
-trip through the request policy, capability-gate and policy refusals, and
-failure isolation with registry-recorded failures. See
+`flutter analyze` reports no issues and **446 tests pass** (9 skipped: the
+real-engine group needs the JS bridge on `PATH`, `tool/run_tests_real_js.sh`).
+The full extension runtime was executed inside the app process on a physical
+device — Samsung Galaxy A06, Android 16 — with four consecutive 10/10
+integration-test runs: app startup, Drift/SQLite on device, the real QuickJS
+FFI sandbox, a controlled HTTPS round trip through the request policy,
+capability-gate and policy refusals, and failure isolation with
+registry-recorded failures. The Phase 2E player was verified the same way
+(5/5 on the same device, including real MP4 and HLS playback and ordered
+source fallback). See [`docs/PHASE_2E_REPORT.md`](docs/PHASE_2E_REPORT.md),
 [`docs/PHASE_1_CLOSURE_REPORT.txt`](docs/PHASE_1_CLOSURE_REPORT.txt) — section
 22 is the device verification record — and
 [`PROJECT_STATE.txt`](PROJECT_STATE.txt) for the handover state.
@@ -159,31 +163,41 @@ flutter run
 
 ## Not implemented yet (deliberately)
 
-Real scrapers and providers, the metadata manager, source
-resolution/validation/ranking/selection, the MediaKit player surface, the
-download manager, search/discovery UI, the GitHub extension catalogue, and any
-account/cloud work. The extension foundation these build on is in place; nothing
-is wired into the app yet.
+Sub-stages 2F (library, history and persistent watch progress), 2G (download
+manager) and 2H (extension catalogue in a separate repository) — plus real
+scraper extensions and any external metadata provider (e.g. TMDB). SPECTA
+produces no content of its own: it searches, resolves and plays what the
+extensions you install provide. The extension foundation, discovery pipeline,
+metadata layer, source manager and player surface are all in place and wired
+into the running app.
 
 ## Documents
 
 | File | Purpose |
 | --- | --- |
 | `PROJECT_STATE.txt` | Handover state: phase, work done, verification, blockers |
+| `docs/PHASE_2E_REPORT.md` | Phase 2E (player integration) report: source pipeline, fallback, refresh, device verification |
+| `docs/PHASE_2D_REPORT.md` | Phase 2D (source manager) report |
+| `docs/PHASE_2C_REPORT.md` | Phase 2C (metadata manager / details) report |
+| `docs/PHASE_2B_REPORT.md` | Phase 2B (search / discovery) report |
+| `docs/PHASE_2_REPORT.md` | Phase 2A (application/UI foundation) report and the Phase 2 plan of record |
+| `docs/PHASE_1_CLOSURE_REPORT.txt` | Phase 1 closure: signing protocol, capability enforcement, device verification record |
 | `docs/PHASE_1_REPORT.txt` | Phase 1 second-audit report: defects fixed, exact test counts, security audit, trust model, item-by-item verdict |
 | `docs/PHASE_0_REPORT.md` | Phase 0 completion report |
 | `docs/SETUP_LOG.md` | Development environment setup record (2026-09-15) |
 
 ## Known limitations
 
-* Extension runtime code is not shipped (unreachable from `main.dart`).
-* `FlutterJsSandbox` is untested; it needs a real device or emulator.
-* The signing protocol is provisional: the signed payload covers manifest
-  metadata, not the JavaScript body, and is passed as UTF-16 code units.
-* No capability enforcement, no request policy, no concrete
-  `ExtensionRuntimeApi`.
-* No CPU/memory ceiling for extension JavaScript.
+* The JS runtime is a restricted-API in-process boundary, not an OS sandbox,
+  and there is no CPU/memory ceiling for extension JavaScript.
+* Trust classification is data, not enforcement: unsigned/unverified
+  extensions still install and enable.
+* Redirect targets are not re-checked against the request scheme allow-list,
+  and non-UTF-8 response bodies are returned as a lossy Latin-1 projection.
 * TV detection is a viewport approximation.
+* Device tests use public third-party test streams; a stream host that stalls
+  (rather than errors) is failed by the player's open timeout and the session
+  falls through to the next candidate — measured on device (2026-09-19).
 * `cryptography_flutter` and `flutter_js` apply the Kotlin Gradle Plugin; a
   future Flutter release will refuse to build them. Upstream issue, documented
   rather than suppressed.

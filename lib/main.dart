@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:media_kit/media_kit.dart';
 
 import 'app/specta_app.dart';
 import 'core/extensions/manager/extension_providers.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Phase 2E: bring the playback engine up with the application. Kept in a
+  // guarded block: a native-library load failure must not prevent the app
+  // from starting — the player reports such failures through its structured
+  // failure model instead.
+  try {
+    MediaKit.ensureInitialized();
+  } on Object catch (e) {
+    debugPrint('media_kit init failed: $e');
+  }
 
   // Riverpod owns the application's dependency graph from the first frame.
   runApp(const ProviderScope(child: SpectaStartup()));

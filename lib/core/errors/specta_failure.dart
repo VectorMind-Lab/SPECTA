@@ -90,6 +90,80 @@ final class StorageFailure extends SpectaFailure {
       'StorageFailure($message${path == null ? '' : ' @ $path'})';
 }
 
+/// A playback attempt failed in a controlled, structured way.
+///
+/// The player (Phase 2E) converts every engine/transport/decoder problem into
+/// one of these instead of letting an exception escape into the UI. The
+/// failure is attached to the exact candidate that failed (extension id +
+/// reference provenance by the caller) so fallback and refresh decisions
+/// keep their provenance.
+enum PlaybackFailureType {
+  /// The source could not be opened at all (unreachable URL, refused
+  /// handshake, rejected container).
+  sourceOpenFailure('SOURCE_OPEN_FAILURE', retryable: true),
+
+  /// The media cannot be decoded/played on this device (unsupported codec,
+  /// broken container).
+  unsupportedMedia('UNSUPPORTED_MEDIA'),
+
+  /// The network failed mid-stream or the stream stalled.
+  networkFailure('NETWORK_FAILURE', retryable: true),
+
+  /// Playback stalled/was interrupted while buffering.
+  bufferingFailure('BUFFERING_FAILURE', retryable: true),
+
+  /// The player engine itself failed (decoder/device error).
+  playerFailure('PLAYER_FAILURE', retryable: true),
+
+  /// The engine was not usable in the first place (missing platform support,
+  /// failed initialization).
+  engineUnavailable('ENGINE_UNAVAILABLE'),
+
+  /// The session was stopped before playback could be established.
+  sessionAborted('SESSION_ABORTED'),
+
+  /// Every usable candidate in the pool failed.
+  sourcesExhausted('SOURCES_EXHAUSTED'),
+
+  /// A refresh attempt through the source manager could not produce a
+  /// usable source.
+  refreshFailed('REFRESH_FAILED', retryable: true);
+
+  const PlaybackFailureType(this.code, {this.retryable = false});
+
+  /// Canonical, stable name for diagnostics.
+  final String code;
+
+  /// Whether retrying the same candidate can plausibly succeed.
+  final bool retryable;
+}
+
+final class PlaybackFailure extends SpectaFailure {
+  // Not const: the default retryability is read from [type] at runtime.
+  PlaybackFailure({
+    required this.type,
+    required String message,
+    this.engineDetail,
+    bool? isRetryable,
+  }) : super(message, isRetryable: isRetryable ?? type.retryable);
+
+  final PlaybackFailureType type;
+
+  /// Raw engine/driver diagnostics. Developer-only; never rendered on an
+  /// ordinary user screen (mirrors [ExtensionFailure.detail]).
+  final String? engineDetail;
+
+  /// Structured diagnostics record for internal logging.
+  Map<String, Object?> toDiagnostics() => <String, Object?>{
+        'errorType': type.code,
+        'message': message,
+        if (engineDetail != null) 'engineDetail': engineDetail,
+      };
+
+  @override
+  String toString() => '${type.code} $message';
+}
+
 /// An extension was asked for something it never declared.
 ///
 /// SPECTA must not assume a function exists merely because a JavaScript

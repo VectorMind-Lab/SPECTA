@@ -2,10 +2,12 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-17 — Phase 2 authorized; sub-stages 2A–2D complete.
+Last updated: 2026-09-19 — Phase 2E (player integration) complete, documented
+and verified on a REAL DEVICE (recovery session: the previous AI implemented
+most of 2E, then ended without documenting, committing or device-verifying it).
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
-PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D done; 2E–2H open).
-Next: Phase 2 sub-stage 2E (player integration).
+PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D + 2E done; 2F–2H open).
+Next: Phase 2 sub-stage 2F (library / history / watch-progress persistence).
 
 GitHub checkpoint (2026-09-17, completed and VERIFIED by a second
 investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
@@ -64,14 +66,34 @@ Phase 2 (authorized 2026-09-17):
   defensive response caps; failure isolation per extension.
   flutter analyze: No issues found. flutter test: 418 passed, 9 skipped,
   0 failed. No database change; no new dependency.
-- Sub-stages 2E–2H NOT started.
+- Sub-stage 2E (player integration) COMPLETE — see docs/PHASE_2E_REPORT.md.
+  lib/core/playback/ (transport-agnostic PlaybackEngine contract + sealed
+  event set, MediaKitPlaybackEngine, PlaybackProgressSink + in-memory 2E
+  impl) and lib/features/playback/ (PlaybackStatus + snapshot models with
+  copyWith, race-safe PlaybackSessionNotifier with ordered fallback and
+  refresh-once, SPECTA player surface with phone/TV controls, details→player
+  entry). Reuses the Phase 1 ExtensionSource contract and the 2D SourcePool +
+  source session UNCHANGED — no second source model, no second refresh API,
+  no duplicate validation/ranking. Honest state machine: `playing` requires
+  MEASURED media flow (a progress tick with position > 0), never mpv's
+  optimistic playing=true. 8 defects found and fixed during the recovery
+  audit, including a real post-dispose contract violation reproduced on
+  device. flutter analyze: No issues found. flutter test: 446 passed,
+  9 skipped (real-engine group), 0 failed. DEVICE: 5/5 PASS (SM-A065F,
+  Android 16) — real MP4 (322 ms to first frame), real HLS, ordered
+  fallback, progress sink; log docs/evidence_p2e_device_run_2026-09-19.log.
+  APK build: SUCCESS. No database change; no new dependency; no
+  SPECTA-Extensions; README corrected (see report §10).
+- Sub-stages 2F–2H NOT started.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
 
 Documents, in order of recency (newest wins where they disagree):
-  1. docs/PHASE_2D_REPORT.md           (Phase 2 sub-stage record — 2D)
-  2. docs/PHASE_2C_REPORT.md           (Phase 2 sub-stage record — 2C)
+  1. docs/PHASE_2E_REPORT.md           (Phase 2 sub-stage record — 2E;
+                                        includes the recovery audit and the
+                                        device-verification record)
+  2. docs/PHASE_2D_REPORT.md           (Phase 2 sub-stage record — 2D)
   3. docs/PHASE_2B_REPORT.md           (Phase 2 sub-stage record — 2B)
   4. docs/PHASE_2_REPORT.md            (Phase 2 sub-stage record — 2A)
   5. docs/PHASE_1_CLOSURE_REPORT.txt   (closure session + device verification)
@@ -82,9 +104,11 @@ Documents, in order of recency (newest wins where they disagree):
 1. CURRENT PHASE
 ----------------
 Phase 2 — now AUTHORIZED (2026-09-17) and IN PROGRESS, executed in controlled
-sub-stages (2A UI foundation → 2H extension catalogue). Sub-stages 2A–2D are
+sub-stages (2A UI foundation → 2H extension catalogue). Sub-stages 2A–2E are
 complete and verified (docs/PHASE_2_REPORT.md, docs/PHASE_2B_REPORT.md,
-docs/PHASE_2C_REPORT.md, docs/PHASE_2D_REPORT.md); 2E–2H are open.
+docs/PHASE_2C_REPORT.md, docs/PHASE_2D_REPORT.md, docs/PHASE_2E_REPORT.md);
+2F–2H are open. 2E is the only sub-stage besides Phase 1 verified on a real
+device.
 
 Phase 1 — Extension Foundation. Implemented, audited, corrected, tested,
 buildable, and VERIFIED ON A REAL ANDROID DEVICE (2026-09-16).
@@ -200,6 +224,50 @@ Phase 2D — Source manager (2026-09-17, docs/PHASE_2D_REPORT.md):
     passed, 9 skipped (real-engine group), 0 failed (39 new tests:
     validator, ranker, manager, session state).
 
+Phase 2E — Player integration (2026-09-19, docs/PHASE_2E_REPORT.md):
+[x] lib/core/playback/ established: transport-agnostic PlaybackEngine
+    contract + sealed PlaybackEngineEvent set, MediaKitPlaybackEngine
+    (event bridging, candidate-transition suppression, idempotent disposal),
+    PlaybackProgressSink + InMemoryPlaybackProgressSink (2E seam only —
+    NO persistence, no schema change).
+[x] lib/features/playback/: PlaybackStatus (idle/loading/playing/paused/
+    buffering/switchingSource/completed/failed), PlaybackSnapshot (+copyWith
+    with an `unset` sentinel), PlaybackCandidate/PlaybackAttempt/
+    PlaybackAttemptRecord, PlaybackSessionNotifier (generation-guarded;
+    ordered fallback; refresh-once through the EXISTING 2D refreshSource
+    contract; engine-factory/open-timeout/stall-timeout/progress-sink
+    providers), SPECTA player surface (phone landscape/immersive pinning +
+    auto-hiding touch controls; TV D-pad focus + autofocused anchor),
+    details→player entry with provenance-driven episode targeting.
+[x] Honest playback truth: `playing` requires a progress tick with
+    position > 0 (mpv reports playing=true optimistically — observed on
+    device for a URL that cannot connect). A mid-stream engine error is a
+    recoverable stall; a real interruption times out into the next candidate.
+[x] Defects found and fixed during the recovery audit (8): terminal snapshot
+    dropped the episode identity line; MediaKitPlaybackEngine violated its own
+    post-dispose contract (reproduced on device as
+    `[Player] has been disposed`); a stray late failure could restart playback
+    after completed; Retry lost the session identity (progress key/title/
+    episode line); startPlayback could throw StateError on an item with no
+    references; _PlayMovieButton used `metadata!`; dead PlaybackObservation
+    removed; snapshot assembly de-duplicated through copyWith.
+[x] Boundaries: no DASH, no DRM/access-control/anti-bot/authentication
+    bypass, no 2F persistence, no 2G downloads, no 2H catalogue, no
+    SPECTA-Extensions, no second source model, no duplicate extension contract,
+    no new dependency, no database change.
+[x] Verification: flutter analyze No issues found; flutter test 446 passed,
+    9 skipped (real-engine group), 0 failed (34 focused 2E tests + 5 new).
+[x] DEVICE VERIFICATION PASS — 5/5 (SM-A065F, Android 16): engine construct,
+    real MP4 (322 ms to first frame), real HLS + setRate, ordered fallback
+    through the real engine, progress sink. Raw log:
+    docs/evidence_p2e_device_run_2026-09-19.log.
+[x] APK build SUCCESS — build/app/outputs/flutter-apk/app-debug.apk,
+    277,459,792 bytes, 2026-09-19 02:01 (Gradle assembleDebug 149.7 s).
+[x] README/docs/README.md corrected: pre-Phase-1-closure claims ("runtime not
+    shipped", "sandbox untested", "signing provisional", "no capability
+    enforcement") were stale and are now accurate; both copies byte-identical.
+    Historical phase reports were NOT rewritten.
+
 UI Restoration & Git Setup (2026-09-17):
 [x] SPECTA UI shell restored matching provided design assets (specta_logo_glow.png,
     man_facing_city_pure.png, specta_ui_reference.png).
@@ -282,6 +350,33 @@ Phase 2D re-verification (2026-09-17):
 flutter analyze                           | No issues found
 flutter test (no bridge, plain)           | 418 passed, 9 skipped, 0 failed
 
+Phase 2E verification (2026-09-19):
+flutter analyze                           | No issues found
+flutter test (no bridge, plain)           | 446 passed, 9 skipped, 0 failed
+flutter build apk --debug                 | SUCCESS — app-debug.apk,
+                                          | 277,459,792 bytes, 2026-09-19 02:01
+integration test on device (SM-A065F)     | 5/5 passed, 0 failed, 0 skipped
+                                          | (docs/evidence_p2e_device_run_2026-09-19.log)
+
+Phase 2E device record (2026-09-19):
+  Device        Samsung SM-A065F (Galaxy A06), arm64-v8a, USB
+  OS            Android 16 (API 36), One UI
+  App           net.specta.app (debug), installed and run by the harness
+  Harness       flutter test integration_test/phase2e_device_verification_test.dart -d R83L20FRDFM
+  P2E-1  MediaKit native library loads; engine constructs and disposes
+  P2E-2  real MP4 playback reaches a playable state (322 ms to first frame)
+  P2E-3  real HLS playback reaches a playable state; setRate(1.25) applied
+  P2E-4  ordered fallback: dead candidate fails (SOURCE_OPEN_FAILURE), the
+         session lands on the live candidate (STATE: playing attempt:2/3)
+  P2E-5  in-memory progress sink receives a report during real playback
+  Note  the first three runs failed P2E-4 because the test used the SAME
+        third-party MP4 host for both P2E-2 and the fallback candidate, which
+        stalled (mpv reported playing/buffering, delivered no media, and was
+        honestly failed at the 45 s open limit). Native-player recreation was
+        tried and did NOT help; the test was at fault, not the player. The
+        fallback candidate now uses an independent origin (W3C). See report
+        §12.1. This wall-clock is a real measurement, not an estimate.
+
 Device verification evidence (2026-09-16, 15:26–15:40 local, UTC+3):
   Device        Samsung SM-A065F (Galaxy A06), arm64-v8a
   OS            Android 16 (API 36), One UI
@@ -344,8 +439,12 @@ Phase 2 sub-stages (authorized, in the approved order):
     provenance, structural validator, deterministic ranker, resolve +
     refresh over the existing contract, race-safe session state, 39 new
     tests, analyze clean, full suite 418+9/0. No player UI added.
-[ ] 2E Player integration (MediaKit surface, retry-through-pipeline, watch
-    progress persistence).
+[x] 2E Player integration — DONE 2026-09-19: MediaKit behind a PlaybackEngine
+    seam, honest state machine, ordered fallback, refresh-once through 2D's
+    contract, phone/TV surface, in-memory progress seam. 8 defects fixed,
+    34 focused tests, analyze clean, full suite 446+9/0, DEVICE 5/5 PASS,
+    APK build SUCCESS. No database change; no new dependency. See
+    docs/PHASE_2E_REPORT.md.
 [ ] 2F Library / history / watch progress persistence (local only).
 [ ] 2G Download foundation (queue, pause/resume where supported, <=3 default
     concurrency, 9 ceiling).
@@ -377,8 +476,9 @@ Agreed by the product owner (2026-09-15):
                              3.4.3 declared for `Override` in tests)
 - SQLite access:             Drift (drift 2.35.0 / drift_flutter 0.3.1 /
                              sqlite3 3.6.0, native-assets model)
-- Playback:                  MediaKit (dependency baseline only, wired to
-                             nothing)
+- Playback:                  MediaKit (2E: wired behind the PlaybackEngine
+                             seam — media_kit 1.2.6 / media_kit_video 2.0.1 /
+                             media_kit_libs_video 1.0.7; MP4 + HLS only)
 - JS runtime:                flutter_js 0.8.7 (QuickJS on Android)
 - Cryptography:              cryptography 2.9.0 + cryptography_flutter 2.3.4
 
@@ -404,6 +504,19 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
 
 6. KNOWN LIMITATIONS
 --------------------
+- Player: device-verified on ONE device (SM-A065F, Android 16). No
+  MediaKitPlaybackEngine unit test is possible without native code, so the
+  engine seam is covered by the device suite instead (stated plainly, not
+  faked). Embedded in-container audio/subtitle track selection is not
+  surfaced yet (external subtitle tracks are); EngineTracksChanged/
+  EngineSubtitleChanged are deliberate no-ops in the session.
+- Player: a candidate that stalls rather than errors is detected only by the
+  open/stall timeouts (45 s / 30 s, provider-overridable). Device tests use
+  public third-party test streams; a host that stalls is honestly failed and
+  the session advances (measured 2026-09-19).
+- Player: watch progress is in-memory for the process lifetime only (2F owns
+  persistence). Quality selection remains 2D's ranking decision; the player
+  never second-guesses it, and 4K smoothness is not promised on every device.
 - No CPU/memory ceiling for extension JavaScript (measured limitation).
 - Not an OS-level sandbox; in-process restricted-API boundary.
 - Redirect targets are not re-checked against the scheme allow-list.
@@ -419,11 +532,12 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
   demonstrated need). Metadata is likewise in-memory only until 2F.
   Source pools are in-memory only; no source persistence before 2E/2G
   demonstrate a need.
-- Details UI is intentionally minimal (metadata only) until 2E authorizes
-  source/player surfaces. No source-selection UI was added in 2D (not
-  required; deferred to 2E per plan).
+- Details UI remains metadata-led; 2E added a Play action (movies) and
+  per-episode play targets (series) instead of a source-selection UI — the
+  source pool is resolved from provenance, never chosen by hand from a list.
 - Device verification for 2B/2C/2D: not performed (no device attached; pure
-  Dart pipeline + widget UI verified by unit/widget tests only).
+  Dart pipeline + widget UI verified by unit/widget tests only). 2E IS device
+  verified (5/5, SM-A065F) — see section 3.
 - Source validation is structural only; no network reachability probes
   (deliberate: probes belong to playback's failure path through 2D's
   fallback seam).
@@ -457,8 +571,11 @@ Environment notes:
 
 8. NEXT RECOMMENDED STEP
 ------------------------
-Phase 2 sub-stage 2E — PLAYER INTEGRATION, per the authorized order in
-docs/PHASE_2_REPORT.md section 10. 2D left the seam ready: SourcePool
-(selected + fallbacks + refresh) is the player contract. Test, verify,
-document, commit after the sub-stage; continue to 2F only within the
+Phase 2 sub-stage 2F — LIBRARY / HISTORY / WATCH-PROGRESS PERSISTENCE, per the
+authorized order in docs/PHASE_2_REPORT.md section 10. 2E left the seam ready:
+bind a persistent implementation of `PlaybackProgressSink` (the player already
+reports honest elapsed/position/completed per playback key) and add the Drift
+schema for it — that is the point where a database change becomes appropriate,
+and it must follow the registered-migration discipline. Test, verify,
+document, commit after the sub-stage; continue to 2G/2H only within the
 Phase 2 authorization.
