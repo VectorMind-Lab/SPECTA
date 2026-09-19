@@ -150,6 +150,21 @@ seam is what makes the whole state machine testable without native code.
 
 Defects found and fixed:
 
+0. **The "Off" subtitle option was dead in the shipped UI.** The menu entry
+   carried `value: null`, and `PopupMenuButton` reports a `null` item value as
+   a *cancelled* menu — it calls `onCanceled`, never `onSelected`. Once a
+   viewer turned subtitles on they could not turn them off again. Found by the
+   new widget tests; fixed with a real sentinel value.
+
+0b. **A D-pad remote could focus a player control but never activate it.**
+   `SpectaPlayerButton` was a bare `GestureDetector`, which no remote key ever
+   reaches; it now handles the activation keys
+   (select/enter/numpadEnter/space/gameButtonA) explicitly. Found by the new
+   widget tests. (The rest of the app's `SpectaFocusWrapper`-based controls
+   have the same shape and are worth auditing when TV behaviour is next
+   verified on real hardware — recorded as a known limitation, not fixed
+   here.)
+
 1. **Episode identity dropped on the terminal failure snapshot.** `_snapshot`
    assigned `_subtitleLine = subtitleLine` unconditionally, so the exhausted
    path (which supplies no line) wiped `Season 1 · Episode 2`. Now preserved;
@@ -236,10 +251,22 @@ concise and belongs in the README itself.
 ## 11. TESTS
 
 ```
-flutter analyze   → No issues found
-flutter test      → 446 passed, 9 skipped (real-engine group: no JS bridge
-                    on PATH), 0 failed
+flutter analyze                → No issues found
+flutter test                   → 458 passed, 9 skipped (real-engine group:
+                                 no JS bridge on PATH), 0 failed
+tool/run_tests_real_js.sh      → 467 passed, 0 skipped, 0 failed
 ```
+
+Widget coverage (12 tests, `test/features/playback/playback_view_test.dart`) —
+the rendered control surface the session tests cannot reach: the touch overlay
+(controls render for a playing candidate, play/pause drives the session and the
+label follows, slider seek reaches the engine, auto-hide after 4 s with a touch
+poking it back, TV never auto-hides), D-pad/focus (the TV surface auto-focuses
+its primary action and paints the focus ring, arrow keys move focus and the
+ring follows, the focused control is activatable with the remote's select key),
+the focus-feedback primitive (`SpectaPlayerButton` ring only while focused), and
+the subtitle/speed menus (tracks listed from the candidate's own surface,
+selection applied, "Off" clears, supported rates listed and applied).
 
 Focused Phase 2E coverage (34 tests) — player state transitions (honest `playing`,
 no premature playable state), selected-source open, MP4 handling, HLS handling
@@ -329,7 +356,15 @@ An earlier APK had already been produced by the interrupted session
 
 - No `MediaKitPlaybackEngine` unit test: the real engine needs native code, so
   it is covered by device tests instead of the Dart suite (stated plainly
-  rather than faked).
+  rather than faked). The control surface IS covered by widget tests, but the
+  widget tests use a fake engine — the pairing is: widget tests for the UI,
+  device tests for the engine.
+- TV controls are verified by widget tests (focus ring, traversal, activation
+  keys), NOT on Android TV hardware — no TV device was attached, so an
+  on-device TV pass is still owed.
+- `SpectaFocusWrapper` (used by the rest of the app's cards/buttons) still
+  relies on a bare `GestureDetector`, so D-pad *activation* elsewhere may need
+  the same treatment once TV behaviour is tested on hardware.
 - Device verification for 2B/2C/2D remains unit/widget-level only (unchanged
   from those reports).
 - Embedded (in-container) audio/subtitle track selection is not surfaced yet;

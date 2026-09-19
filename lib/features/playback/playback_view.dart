@@ -331,12 +331,30 @@ class SpectaPlayerButton extends StatefulWidget {
 class _SpectaPlayerButtonState extends State<SpectaPlayerButton> {
   bool _focused = false;
 
+  /// Keys that mean "activate the focused control" on a remote/D-pad.
+  ///
+  /// A plain [GestureDetector] does not respond to any of these, so without
+  /// explicit handling a TV remote could focus a control but never press it.
+  static bool _isActivationKey(LogicalKeyboardKey key) =>
+      key == LogicalKeyboardKey.select ||
+      key == LogicalKeyboardKey.enter ||
+      key == LogicalKeyboardKey.numpadEnter ||
+      key == LogicalKeyboardKey.space ||
+      key == LogicalKeyboardKey.gameButtonA;
+
   @override
   Widget build(BuildContext context) {
     final Color accent = Theme.of(context).colorScheme.primary;
     return Focus(
       autofocus: widget.autofocus,
       onFocusChange: (bool f) => setState(() => _focused = f),
+      onKeyEvent: (FocusNode _, KeyEvent event) {
+        if (event is KeyDownEvent && _isActivationKey(event.logicalKey)) {
+          widget.onTap();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
@@ -612,6 +630,14 @@ class _SpectaPlayerControlsState extends ConsumerState<SpectaPlayerControls> {
   }
 }
 
+/// The "Off" entry of the subtitle menu.
+///
+/// [PopupMenuButton] reports a `null` item value as a CANCELLED menu and calls
+/// `onCanceled` instead of `onSelected`, so the entry cannot carry `null`
+/// itself: without a real sentinel "Off" is silently unselectable and the
+/// viewer can never turn subtitles back off.
+const Object _subtitlesOff = Object();
+
 /// Subtitle selector over the candidate's own track list.
 class _SubtitleMenuButton extends ConsumerWidget {
   const _SubtitleMenuButton({required this.onPoke});
@@ -623,16 +649,18 @@ class _SubtitleMenuButton extends ConsumerWidget {
     final PlaybackSnapshot s = ref.watch(playbackSessionProvider);
     final SubtitleTrack? selected = s.selectedSubtitle;
 
-    return PopupMenuButton<SubtitleTrack?>(
+    return PopupMenuButton<Object>(
       tooltip: 'Subtitles',
       onOpened: onPoke,
-      onSelected: (SubtitleTrack? track) {
+      onSelected: (Object choice) {
         onPoke();
-        ref.read(playbackSessionProvider.notifier).selectSubtitle(track);
+        ref
+            .read(playbackSessionProvider.notifier)
+            .selectSubtitle(choice is SubtitleTrack ? choice : null);
       },
-      itemBuilder: (BuildContext context) => <PopupMenuEntry<SubtitleTrack?>>[
-        PopupMenuItem<SubtitleTrack?>(
-          value: null,
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<Object>>[
+        PopupMenuItem<Object>(
+          value: _subtitlesOff,
           child: Text(
             'Off',
             style: TextStyle(
@@ -643,7 +671,7 @@ class _SubtitleMenuButton extends ConsumerWidget {
           ),
         ),
         for (final SubtitleTrack t in s.availableSubtitles)
-          PopupMenuItem<SubtitleTrack?>(
+          PopupMenuItem<Object>(
             value: t,
             child: Text(
               t.label ?? t.language ?? 'Track',
@@ -692,6 +720,14 @@ class _SpeedMenuButton extends ConsumerWidget {
 
   static const List<double> _rates = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
+  /// `2.0` → `2x`: a trailing `.0` is noise on a remote-driven menu.
+  static String _rateLabel(double rate) {
+    final String value = rate == rate.roundToDouble()
+        ? rate.toStringAsFixed(0)
+        : rate.toString();
+    return '${value}x';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final double rate = ref.watch(playbackSessionProvider).rate;
@@ -708,7 +744,7 @@ class _SpeedMenuButton extends ConsumerWidget {
           PopupMenuItem<double>(
             value: r,
             child: Text(
-              r == 1.0 ? 'Normal' : '${r}x',
+              r == 1.0 ? 'Normal' : _rateLabel(r),
               style: TextStyle(
                 fontSize: 13,
                 color: SpectaColors.textPrimary,
@@ -731,7 +767,7 @@ class _SpeedMenuButton extends ConsumerWidget {
                 size: 16, color: SpectaColors.textPrimary),
             const SizedBox(width: 6),
             Text(
-              rate == 1.0 ? 'Speed' : '${rate}x',
+              rate == 1.0 ? 'Speed' : _rateLabel(rate),
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
