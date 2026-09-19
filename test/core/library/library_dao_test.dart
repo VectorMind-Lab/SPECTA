@@ -4,6 +4,7 @@ library;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:specta/core/database/specta_database.dart';
+import 'package:specta/core/discovery/discovery_models.dart';
 import 'package:specta/core/extensions/contract/result_models.dart';
 import 'package:specta/core/library/library_dao.dart';
 import 'package:specta/core/library/watch_progress.dart';
@@ -183,5 +184,58 @@ void main() {
     expect(row.duration, isNull);
     expect(row.fraction, isNull);
     expect(row.remaining, isNull);
+  });
+
+  group('durable resume provenance (media_references)', () {
+    test('stores references in first-seen order', () async {
+      await dao.saveReferences('show|series|2020', const <DiscoveryReference>[
+        DiscoveryReference(extensionId: 'extA', url: 'https://a/show'),
+        DiscoveryReference(extensionId: 'extB', url: 'https://b/show'),
+      ]);
+
+      final List<DiscoveryReference> refs =
+          await dao.referencesFor('show|series|2020');
+      expect(refs.length, 2);
+      expect(refs[0].extensionId, 'extA');
+      expect(refs[0].url, 'https://a/show');
+      expect(refs[1].extensionId, 'extB');
+    });
+
+    test('saving again REPLACES rather than appends', () async {
+      await dao.saveReferences('m|movie|2020', const <DiscoveryReference>[
+        DiscoveryReference(extensionId: 'extA', url: 'https://a/one'),
+        DiscoveryReference(extensionId: 'extB', url: 'https://b/one'),
+      ]);
+      await dao.saveReferences('m|movie|2020', const <DiscoveryReference>[
+        DiscoveryReference(extensionId: 'extC', url: 'https://c/two'),
+      ]);
+
+      final List<DiscoveryReference> refs =
+          await dao.referencesFor('m|movie|2020');
+      expect(refs.length, 1);
+      expect(refs.single.extensionId, 'extC');
+    });
+
+    test('references are kept per media key', () async {
+      await dao.saveReferences('a|movie|2020', const <DiscoveryReference>[
+        DiscoveryReference(extensionId: 'extA', url: 'https://a/x'),
+      ]);
+      await dao.saveReferences('b|movie|2021', const <DiscoveryReference>[
+        DiscoveryReference(extensionId: 'extB', url: 'https://b/y'),
+      ]);
+
+      expect(
+        (await dao.referencesFor('a|movie|2020')).single.url,
+        'https://a/x',
+      );
+      expect(
+        (await dao.referencesFor('b|movie|2021')).single.url,
+        'https://b/y',
+      );
+    });
+
+    test('an unknown key has no references', () async {
+      expect(await dao.referencesFor('never|movie|2020'), isEmpty);
+    });
   });
 }

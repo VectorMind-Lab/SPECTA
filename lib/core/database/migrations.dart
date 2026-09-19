@@ -12,7 +12,8 @@ abstract final class SpectaMigrations {
   /// Phase 0 = v1 (settings_entries).
   /// Phase 1 = v2 (extensions, extension_versions, extension_failures).
   /// Phase 2F = v3 (watch_progress: library / history / watch progress).
-  static const int schemaVersion = 3;
+  /// Phase 2F resume follow-up = v4 (media_references: durable provenance).
+  static const int schemaVersion = 4;
 
   /// Migration step applied when moving *to* the keyed version.
   static final Map<int, Future<void> Function(Migrator m)> _steps =
@@ -88,6 +89,20 @@ abstract final class SpectaMigrations {
           completed INTEGER NOT NULL DEFAULT 0,
           updated_at DATETIME NOT NULL,
           PRIMARY KEY (id)
+        )
+      ''');
+        },
+        4: (Migrator m) async {
+          // Phase 2F resume follow-up — durable discovery provenance so a
+          // persisted Continue Watching item can be re-opened through the
+          // metadata layer without a title search. Additive only.
+          await m.database.customStatement('''
+        CREATE TABLE media_references (
+          media_key TEXT NOT NULL,
+          ordinal INTEGER NOT NULL,
+          extension_id TEXT NOT NULL,
+          reference_url TEXT NOT NULL,
+          PRIMARY KEY (media_key, ordinal)
         )
       ''');
         },

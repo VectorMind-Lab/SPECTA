@@ -1,3 +1,4 @@
+import '../discovery/discovery_models.dart';
 import 'watch_progress.dart';
 
 /// Narrow persistence contract for the SPECTA library (Phase 2F).
@@ -30,4 +31,18 @@ abstract interface class LibraryStore {
 
   /// Removes every record. Used by tests and by an explicit user clear.
   Future<void> clear();
+
+  /// Replaces the durable discovery provenance for [mediaKey].
+  ///
+  /// Reuses the discovery layer's [DiscoveryReference] — no second reference
+  /// model. The set is REPLACED (not appended) so a work always resolves
+  /// through the references its most recent playback actually used.
+  Future<void> saveReferences(
+    String mediaKey,
+    List<DiscoveryReference> references,
+  );
+
+  /// The stored provenance for [mediaKey], in first-seen order. Empty when
+  /// none was recorded (e.g. progress written before this feature).
+  Future<List<DiscoveryReference>> referencesFor(String mediaKey);
 }

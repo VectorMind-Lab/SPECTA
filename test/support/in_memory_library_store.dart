@@ -1,3 +1,4 @@
+import 'package:specta/core/discovery/discovery_models.dart';
 import 'package:specta/core/library/library_store.dart';
 import 'package:specta/core/library/watch_progress.dart';
 
@@ -6,6 +7,8 @@ import 'package:specta/core/library/watch_progress.dart';
 /// the same semantics as production.
 class InMemoryLibraryStore implements LibraryStore {
   final Map<String, WatchProgress> _rows = <String, WatchProgress>{};
+  final Map<String, List<DiscoveryReference>> _references =
+      <String, List<DiscoveryReference>>{};
 
   @override
   Future<void> upsert(WatchProgress progress) async {
@@ -40,4 +43,16 @@ class InMemoryLibraryStore implements LibraryStore {
 
   @override
   Future<void> clear() async => _rows.clear();
+
+  @override
+  Future<void> saveReferences(
+    String mediaKey,
+    List<DiscoveryReference> references,
+  ) async {
+    _references[mediaKey] = List<DiscoveryReference>.of(references);
+  }
+
+  @override
+  Future<List<DiscoveryReference>> referencesFor(String mediaKey) async =>
+      _references[mediaKey] ?? const <DiscoveryReference>[];
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/discovery/discovery_models.dart';
+import '../../core/library/library_providers.dart';
 import '../../core/metadata/metadata_models.dart';
 import 'playback_session_state.dart';
 import 'playback_view.dart';
@@ -27,6 +28,7 @@ Future<void> startPlayback(
   required MetadataItem metadata,
   required DiscoveryItem item,
   SeriesEpisode? episode,
+  Duration? startPosition,
 }) async {
   final SourceSessionNotifier sources = ref.read(sourceSessionProvider.notifier);
 
@@ -80,6 +82,18 @@ Future<void> startPlayback(
     return;
   }
 
+  // Durability (2F resume follow-up): remember the exact discovery provenance
+  // for this work so Continue Watching can be re-opened later without a title
+  // search. Only provenance is stored — never a source URL, which is always
+  // re-resolved through the current SourceManager.
+  if (item.references.isNotEmpty) {
+    unawaited(
+      ref
+          .read(libraryStoreProvider)
+          .saveReferences(metadata.key, item.references),
+    );
+  }
+
   // The session reports through its own state from here; the returned
   // future completes only when the session ends.
   unawaited(
@@ -100,6 +114,7 @@ Future<void> startPlayback(
           mediaType: metadata.type,
           seasonNumber: episode?.seasonNumber,
           episodeNumber: episode?.episodeNumber,
+          startPosition: startPosition,
         ),
       ),
   );

@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:specta/core/discovery/discovery_models.dart';
 import 'package:specta/core/extensions/contract/result_models.dart';
 import 'package:specta/core/library/library_store.dart';
 import 'package:specta/core/library/watch_progress.dart';
@@ -158,4 +159,14 @@ class _FlakyStore implements LibraryStore {
 
   @override
   Future<void> clear() async {}
+
+  @override
+  Future<void> saveReferences(
+    String mediaKey,
+    List<DiscoveryReference> references,
+  ) async {}
+
+  @override
+  Future<List<DiscoveryReference>> referencesFor(String mediaKey) async =>
+      const <DiscoveryReference>[];
 }

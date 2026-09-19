@@ -1,0 +1,60 @@
+00:00 +0: loading C:/Users/PORTCR/Music/SPECTA APK/SPECTA/integration_test/phase2f_device_verification_test.dart
+Running Gradle task 'assembleDebug'...                          
+WARNING: Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP): cryptography_flutter, flutter_js
+Future versions of Flutter will fail to build if your app uses plugins that apply KGP.
+
+Please check the changelogs of these plugins and upgrade to a version that supports Built-in Kotlin.
+If no such version exists, report the issue to the plugin. If necessary, here is a guide on filing
+an issue against a plugin: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers#report-incompatible-kotlin-gradle-plugin-usage-to-plugin-authors
+
+If you are a plugin author, please migrate your plugin to Built-in Kotlin using this guide: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-plugin-authors
+Running Gradle task 'assembleDebug'...                             34.7s
+√ Built build\app\outputs\flutter-apk\app-debug.apk
+Installing build\app\outputs\flutter-apk\app-debug.apk...           9.5s
+00:00 +0: P2F-1: the on-device database is at schema v4 (migrations ran)
+[SPECTA-P2F] on-device PRAGMA user_version = 4
+[SPECTA-P2F] settings_entries reachable after upgrade
+[SPECTA-P2F] watch_progress reachable after upgrade
+[SPECTA-P2F] media_references reachable after upgrade
+00:00 +1: P2F-2: the persistent sink writes real progress to the device database
+WARNING (drift): It looks like you've created the database class SpectaDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$SpectaDatabase (package:specta/core/database/specta_database.g.dart:3204:39)
+#4      new SpectaDatabase (package:specta/core/database/specta_database.dart:33:7)
+#5      spectaDatabaseProvider.<anonymous closure> (package:specta/core/database/database_providers.dart:15:39)
+#6      Provider.create (package:riverpod/src/providers/provider.dart:59:36)
+#7      $ProviderElement.create (package:riverpod/src/providers/provider.dart:343:33)
+#8      ProviderElement.buildState (package:riverpod/src/core/element.dart:751:28)
+#9      ProviderElement.mount (package:riverpod/src/core/element.dart:587:7)
+#10     ProviderElement.flush (package:riverpod/src/core/element.dart:704:9)
+#11     $ProviderBaseImpl._addListener (package:riverpod/src/core/provider/provider.dart:119:24)
+#12     ProviderElement.listen (package:riverpod/src/core/element.dart:991:28)
+#13     Ref.watch (package:riverpod/src/core/ref.dart:726:20)
+#14     libraryStoreProvider.<anonymous closure> (package:specta/core/library/library_providers.dart:15:25)
+#15     Provider.create (package:riverpod/src/providers/provider.dart:59:36)
+#16     $ProviderElement.create (package:riverpod/src/providers/provider.dart:343:33)
+#17     ProviderElement.buildState (package:riverpod/src/core/element.dart:751:28)
+#18     ProviderElement.mount (package:riverpod/src/core/element.dart:587:7)
+#19     ProviderElement.flush (package:riverpod/src/core/element.dart:704:9)
+#20     $ProviderBaseImpl._addListener (package:riverpod/src/core/provider/provider.dart:119:24)
+#21     ProviderContainer.listen (package:riverpod/src/core/provider_container.dart:1141:26)
+#22     ProviderContainer.read (package:riverpod/src/core/provider_container.dart:1068:17)
+#23     main.<anonymous closure> (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase2f_device_verification_test.dart:73:42)
+#24     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:25)
+<asynchronous suspension>
+#25     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
+<asynchronous suspension>
+#26     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+[SPECTA-P2F] continue watching rows present on device: [__p2f_test__|movie|2026, __p2f_test__|series|2026|s1e2]
+[SPECTA-P2F] verification rows removed
+00:01 +2: P2F-3: durable resume provenance is stored on the device database
+[SPECTA-P2F] durable provenance on device: [__p2f_ext_a__, __p2f_ext_b__]
+[SPECTA-P2F] provenance verification rows removed
+00:01 +3: (tearDownAll)
+00:02 +3: All tests passed!

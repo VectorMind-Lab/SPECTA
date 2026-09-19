@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:specta/core/database/daos/settings_dao.dart';
 import 'package:specta/core/database/specta_database.dart';
+import 'package:specta/core/discovery/discovery_models.dart';
 import 'package:specta/core/extensions/contract/result_models.dart';
 import 'package:specta/core/library/library_dao.dart';
 import 'package:specta/core/library/watch_progress.dart';
@@ -28,7 +29,7 @@ void main() {
     tearDown(() => database.close());
 
     test('opens the schema at the version this build declares', () {
-      expect(database.schemaVersion, 3);
+      expect(database.schemaVersion, 4);
     });
 
     test('writes and reads a setting back', () async {
@@ -129,7 +130,7 @@ void main() {
 
     // The upgrade runs on first use, and the pre-existing row survives.
     expect(await SettingsDao(upgraded).read('theme.preset'), 'cyan');
-    expect(upgraded.schemaVersion, 3);
+    expect(upgraded.schemaVersion, 4);
 
     // The new v3 table exists and is writable/readable.
     final LibraryDao library = LibraryDao(upgraded);
@@ -145,5 +146,14 @@ void main() {
       ),
     );
     expect((await library.history()).length, 1);
+
+    // The v4 provenance table exists too (resume follow-up).
+    await library.saveReferences(
+      'Movie|movie|2024',
+      const <DiscoveryReference>[
+        DiscoveryReference(extensionId: 'extA', url: 'https://a/movie'),
+      ],
+    );
+    expect((await library.referencesFor('Movie|movie|2024')).length, 1);
   });
 }

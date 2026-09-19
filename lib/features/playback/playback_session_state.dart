@@ -25,6 +25,7 @@ final class PlaybackRequest {
     this.mediaType,
     this.seasonNumber,
     this.episodeNumber,
+    this.startPosition,
   });
 
   /// Opens playback from a resolved 2D pool: its selection first, then its
@@ -38,6 +39,7 @@ final class PlaybackRequest {
     MediaType? mediaType,
     int? seasonNumber,
     int? episodeNumber,
+    Duration? startPosition,
   }) =>
       PlaybackRequest(
         candidates: pool.ranked,
@@ -48,6 +50,7 @@ final class PlaybackRequest {
         mediaType: mediaType,
         seasonNumber: seasonNumber,
         episodeNumber: episodeNumber,
+        startPosition: startPosition,
       );
 
   /// Opens a direct candidate list (already-ordered RankedSources). Used for
@@ -61,6 +64,7 @@ final class PlaybackRequest {
     this.mediaType,
     this.seasonNumber,
     this.episodeNumber,
+    this.startPosition,
   }) : candidates = ranked;
 
   /// Ordered best-first. Every entry carries its provenance.
@@ -87,6 +91,11 @@ final class PlaybackRequest {
   /// update Episode 1.
   final int? seasonNumber;
   final int? episodeNumber;
+
+  /// Where playback should begin (resume). Null starts at the beginning.
+  /// The session seeks to it exactly once, when the first candidate first
+  /// reaches a playable state — never before, so a fallback still works.
+  final Duration? startPosition;
 }
 
 /// How long one candidate may take to reach a playable state.
@@ -191,6 +200,8 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
       _title = request.title;
       _subtitleLine = request.subtitle;
       _applyIdentity(request);
+      _startPosition = request.startPosition;
+      _seekedOnStart = false;
       _refreshedOnce = false;
       _elapsedWatch = Duration.zero;
       _failures.clear();
@@ -221,6 +232,8 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
     _title = request.title;
     _subtitleLine = request.subtitle;
     _applyIdentity(request);
+    _startPosition = request.startPosition;
+    _seekedOnStart = false;
     _failures.clear();
 
     final bool wasActive = switch (state.status) {
@@ -330,6 +343,18 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
         episodeNumber: _episodeNumber,
       ),
     );
+  }
+
+  /// Seeks to the resume position exactly once, the first time a candidate
+  /// actually becomes playable. Deferred until now on purpose: seeking before
+  /// media is flowing would either be dropped by the engine or race the open,
+  /// and a fallback candidate must still receive the seek.
+  void _applyStartPositionOnce() {
+    final Duration? start = _startPosition;
+    if (_seekedOnStart || start == null || start <= Duration.zero) return;
+    _seekedOnStart = true;
+    final PlaybackEngine? engine = _engine;
+    if (engine != null) unawaited(engine.seek(start));
   }
 
   /// Records the persistence identity a request carried (2F).
@@ -682,6 +707,7 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
               volume: volume,
             );
             _startTick();
+            _applyStartPositionOnce();
           }
           return;
         }
@@ -759,6 +785,8 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
   MediaType? _mediaType;
   int? _seasonNumber;
   int? _episodeNumber;
+  Duration? _startPosition;
+  bool _seekedOnStart = false;
   final List<PlaybackAttempt> _failures = <PlaybackAttempt>[];
   bool _playedThisCandidate = false;
 

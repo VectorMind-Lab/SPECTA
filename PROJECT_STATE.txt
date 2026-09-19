@@ -2,14 +2,13 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-19 — Phase 2F (library / history / watch-progress
-persistence) complete, documented and verified on a REAL DEVICE (the schema
-v2 -> v3 migration ran against the real installed database; the persistent
-sink wrote and read real rows).
+Last updated: 2026-09-19 — Phase 2F and the 2F RESUME-BY-KEY FOLLOW-UP are
+complete, documented and verified on a REAL DEVICE (schema v2 -> v3 -> v4
+migrations ran against the real installed database; progress and durable
+provenance were written and read back).
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
-PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D + 2E + 2F done; 2G–2H open).
-Next: Phase 2 sub-stage 2G (download foundation), or a 2F follow-up
-(resume-by-key), on explicit authorization.
+PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D + 2E + 2F + 2F-resume done; 2G–2H open).
+Next: Phase 2 sub-stage 2G (download foundation), on explicit authorization.
 
 GitHub checkpoint (2026-09-17, completed and VERIFIED by a second
 investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
@@ -103,13 +102,33 @@ Phase 2 (authorized 2026-09-17):
   watch_progress reachable, persistent sink round trip, verification rows
   removed; log docs/evidence_p2f_device_run_2026-09-19.log. APK build:
   SUCCESS (277,511,502 bytes).
+- Sub-stage 2F RESUME-BY-KEY FOLLOW-UP COMPLETE — see
+  docs/PHASE_2F_RESUME_FOLLOWUP_REPORT.md. Continue Watching / Library /
+  History items now RE-OPEN through the existing pipeline. The persisted
+  identity (`<normTitle>|<type>|<year>`) is self-describing and is parsed back
+  exactly; the discovery provenance that metadataFor needs is persisted in a
+  new additive schema v4 table `media_references` (reusing the discovery
+  layer's DiscoveryReference — no second reference model, no stored source
+  URL). `resumeWith` rebuilds the DiscoveryItem, re-runs the metadata layer,
+  selects the exact SeriesEpisode (season AND episode), and calls the
+  UNCHANGED 2E `startPlayback`; sources are always re-resolved through the
+  current SourceManager/SourcePool. A one-time `startPosition` seek restores
+  the saved position when playback first becomes playable (completed items
+  restart). Failures are structured and honest (no references / metadata
+  unavailable / episode missing). flutter analyze: No issues found.
+  flutter test: 503 passed, 9 skipped, 0 failed; real JS bridge 512 passed,
+  0 skipped. DEVICE: 3/3 PASS (SM-A065F, Android 16) — on-device
+  PRAGMA user_version = 4, media_references reachable, provenance round trip;
+  log docs/evidence_p2f_resume_device_run_2026-09-19.log. APK build: SUCCESS
+  (277,535,750 bytes). No new dependency; no 2G/2H work.
 - Sub-stages 2G–2H NOT started.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
 
 Documents, in order of recency (newest wins where they disagree):
-  0. docs/PHASE_2F_REPORT.md           (Phase 2 sub-stage record — 2F)
+  0. docs/PHASE_2F_RESUME_FOLLOWUP_REPORT.md (2F resume-by-key follow-up)
+  0b. docs/PHASE_2F_REPORT.md          (Phase 2 sub-stage record — 2F)
   1. docs/PHASE_2E_REPORT.md           (Phase 2 sub-stage record — 2E;
                                         includes the recovery audit and the
                                         device-verification record)
@@ -388,6 +407,16 @@ integration test on device (SM-A065F)     | 2/2 passed, 0 failed, 0 skipped
                                           | on-device user_version = 3;
                                           | (docs/evidence_p2f_device_run_2026-09-19.log)
 
+Phase 2F resume-by-key follow-up (2026-09-19):
+flutter analyze                           | No issues found
+flutter test (no bridge, plain)           | 503 passed, 9 skipped, 0 failed
+flutter test (real JS bridge)             | 512 passed, 0 skipped, 0 failed
+flutter build apk --debug                 | SUCCESS — app-debug.apk,
+                                          | 277,535,750 bytes, 2026-09-19 04:21
+integration test on device (SM-A065F)     | 3/3 passed, 0 failed, 0 skipped
+                                          | on-device user_version = 4;
+                                          | (docs/evidence_p2f_resume_device_run_2026-09-19.log)
+
 Phase 2E device record (2026-09-19):
   Device        Samsung SM-A065F (Galaxy A06), arm64-v8a, USB
   OS            Android 16 (API 36), One UI
@@ -552,11 +581,16 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
   same seam; a persistent LibraryStore row is written per playback identity.
   Quality selection remains 2D's ranking decision; the player never
   second-guesses it, and 4K smoothness is not promised on every device.
-- Library (2F): items DISPLAY progress but do not RESUME — opening one needs a
-  metadata-by-key lookup the architecture does not have yet. Watchlist/favorites
-  are not implemented (no affordance populates them). History is a per-identity
-  view over `watch_progress`, not an append-only event log. The evidence-based
-  metadata identity can collide for identical normalized (title, type, year).
+- Library (2F + resume follow-up): items display progress AND resume through
+  the existing pipeline. Watchlist/favorites are not implemented (no affordance
+  populates them). History is a per-identity view over `watch_progress`, not an
+  append-only event log.
+- Resume (2F follow-up): requires stored provenance. Items persisted before the
+  follow-up have none and fail resume HONESTLY until played again. Resume
+  re-fetches metadata and sources every time (never stale sources). The
+  evidence-based metadata identity can collide for identical normalized
+  (title, type, year) — pre-existing, unchanged by resume; a stricter provider
+  identity is a separate architectural task.
 - No CPU/memory ceiling for extension JavaScript (measured limitation).
 - Not an OS-level sandbox; in-process restricted-API boundary.
 - Redirect targets are not re-checked against the scheme allow-list.
@@ -613,9 +647,9 @@ Environment notes:
 8. NEXT RECOMMENDED STEP
 ------------------------
 Phase 2 sub-stage 2G — DOWNLOAD FOUNDATION (queue, pause/resume where
-supported, <=3 default concurrency with a 9 ceiling), OR a 2F follow-up that
-adds resume-by-key (a metadata-by-key lookup so Library/Continue Watching items
-can be opened). Neither is authorized yet. 2F is COMPLETE: persistent watch
-progress, Continue Watching/History/Library surfaces over the schema v3
-`watch_progress` table. Do NOT start 2G/2H until explicitly authorized, and
-do NOT create SPECTA-Extensions.
+supported, <=3 default concurrency with a 9 ceiling). NOT authorized yet.
+2F and its resume follow-up are COMPLETE: persistent watch progress +
+Continue Watching/History/Library surfaces (schema v4: `watch_progress` +
+`media_references`), and items re-open through the existing pipeline.
+Do NOT start 2G/2H until explicitly authorized, and do NOT create
+SPECTA-Extensions.

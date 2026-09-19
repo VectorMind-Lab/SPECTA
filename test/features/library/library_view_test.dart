@@ -107,4 +107,20 @@ void main() {
     expect(find.textContaining('SERIES'), findsWidgets);
     expect(find.textContaining('Season 2 · Episode 5'), findsWidgets);
   });
+
+  testWidgets('tapping an item with no stored provenance fails honestly',
+      (WidgetTester tester) async {
+    final InMemoryLibraryStore store = InMemoryLibraryStore();
+    await store.upsert(
+      _movie(id: 'A|movie|2024', title: 'A Movie'),
+    );
+
+    await _pumpLibrary(tester, store);
+    await tester.tap(find.text('A Movie').first);
+    await tester.pumpAndSettle();
+
+    // No discovery references were ever recorded, so resume must say so
+    // rather than fabricate a source or crash.
+    expect(find.textContaining('can no longer be resolved'), findsOneWidget);
+  });
 }

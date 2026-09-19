@@ -29,6 +29,7 @@ class FakePlaybackEngine implements PlaybackEngine {
   Duration eventDelay = Duration.zero;
 
   final List<ExtensionSource> opened = <ExtensionSource>[];
+  final List<Duration> seeks = <Duration>[];
   int stopCount = 0;
   int disposeCount = 0;
   double? lastRate;
@@ -81,7 +82,7 @@ class FakePlaybackEngine implements PlaybackEngine {
   Future<void> play() async => _events.add(const EnginePlaying());
 
   @override
-  Future<void> seek(Duration position) async {}
+  Future<void> seek(Duration position) async => seeks.add(position);
 
   @override
   Future<void> setRate(double rate) async => lastRate = rate;
@@ -743,6 +744,79 @@ void main() {
       expect(h.state.status, PlaybackStatus.completed);
       expect(h.state.current!.source.url, 'https://a/one');
       expect(h.engine.opened.length, 1);
+    });
+  });
+
+  group('resume position (startPosition)', () {
+    test('seeks to the request start position exactly once', () async {
+      final Harness h = Harness();
+      h.engine.openScripts.add(<PlaybackEngineEvent>[
+        const EnginePlaying(),
+      ]);
+
+      await h.open(
+        PlaybackRequest.direct(
+          <RankedSource>[_source('https://a/720')],
+          startPosition: const Duration(minutes: 5),
+        ),
+      );
+
+      expect(h.state.status, PlaybackStatus.playing);
+      expect(h.engine.seeks, <Duration>[const Duration(minutes: 5)]);
+
+      // Later progress ticks must never re-seek.
+      h.engine.emit(_flowing);
+      await Future<void>.delayed(Duration.zero);
+      expect(h.engine.seeks.length, 1);
+    });
+
+    test('a request with no start position never seeks', () async {
+      final Harness h = Harness();
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
+
+      await h.open(
+        PlaybackRequest.direct(<RankedSource>[_source('https://a/720')]),
+      );
+
+      expect(h.state.status, PlaybackStatus.playing);
+      expect(h.engine.seeks, isEmpty);
+    });
+
+    test('a start position of zero never seeks', () async {
+      final Harness h = Harness();
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
+
+      await h.open(
+        PlaybackRequest.direct(
+          <RankedSource>[_source('https://a/720')],
+          startPosition: Duration.zero,
+        ),
+      );
+
+      expect(h.engine.seeks, isEmpty);
+    });
+
+    test('the seek is applied when a FALLBACK candidate becomes playable',
+        () async {
+      final Harness h = Harness();
+      h.engine.openScripts.add(<PlaybackEngineEvent>[
+        const EngineFailed('dead'),
+      ]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
+
+      await h.open(
+        PlaybackRequest.direct(
+          <RankedSource>[
+            _source('https://a/dead', extensionId: 'extDead'),
+            _source('https://b/live', extensionId: 'extLive'),
+          ],
+          startPosition: const Duration(minutes: 7),
+        ),
+      );
+
+      expect(h.state.status, PlaybackStatus.playing);
+      expect(h.state.current!.extensionId, 'extLive');
+      expect(h.engine.seeks, <Duration>[const Duration(minutes: 7)]);
     });
   });
 

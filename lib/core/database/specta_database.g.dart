@@ -2860,6 +2860,346 @@ class WatchProgressEntriesCompanion extends UpdateCompanion<WatchProgressRow> {
   }
 }
 
+class $MediaReferencesTable extends MediaReferences
+    with TableInfo<$MediaReferencesTable, MediaReferenceRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MediaReferencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _mediaKeyMeta = const VerificationMeta(
+    'mediaKey',
+  );
+  @override
+  late final GeneratedColumn<String> mediaKey = GeneratedColumn<String>(
+    'media_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ordinalMeta = const VerificationMeta(
+    'ordinal',
+  );
+  @override
+  late final GeneratedColumn<int> ordinal = GeneratedColumn<int>(
+    'ordinal',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _extensionIdMeta = const VerificationMeta(
+    'extensionId',
+  );
+  @override
+  late final GeneratedColumn<String> extensionId = GeneratedColumn<String>(
+    'extension_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _referenceUrlMeta = const VerificationMeta(
+    'referenceUrl',
+  );
+  @override
+  late final GeneratedColumn<String> referenceUrl = GeneratedColumn<String>(
+    'reference_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    mediaKey,
+    ordinal,
+    extensionId,
+    referenceUrl,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'media_references';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MediaReferenceRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('media_key')) {
+      context.handle(
+        _mediaKeyMeta,
+        mediaKey.isAcceptableOrUnknown(data['media_key']!, _mediaKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mediaKeyMeta);
+    }
+    if (data.containsKey('ordinal')) {
+      context.handle(
+        _ordinalMeta,
+        ordinal.isAcceptableOrUnknown(data['ordinal']!, _ordinalMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ordinalMeta);
+    }
+    if (data.containsKey('extension_id')) {
+      context.handle(
+        _extensionIdMeta,
+        extensionId.isAcceptableOrUnknown(
+          data['extension_id']!,
+          _extensionIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_extensionIdMeta);
+    }
+    if (data.containsKey('reference_url')) {
+      context.handle(
+        _referenceUrlMeta,
+        referenceUrl.isAcceptableOrUnknown(
+          data['reference_url']!,
+          _referenceUrlMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_referenceUrlMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {mediaKey, ordinal};
+  @override
+  MediaReferenceRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MediaReferenceRow(
+      mediaKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}media_key'],
+      )!,
+      ordinal: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ordinal'],
+      )!,
+      extensionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}extension_id'],
+      )!,
+      referenceUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reference_url'],
+      )!,
+    );
+  }
+
+  @override
+  $MediaReferencesTable createAlias(String alias) {
+    return $MediaReferencesTable(attachedDatabase, alias);
+  }
+}
+
+class MediaReferenceRow extends DataClass
+    implements Insertable<MediaReferenceRow> {
+  /// The work's canonical metadata key (the same identity watch progress uses).
+  final String mediaKey;
+
+  /// First-seen order, preserved so resume re-queries references in the same
+  /// order discovery observed them.
+  final int ordinal;
+
+  /// The contributing extension's registry id.
+  final String extensionId;
+
+  /// The extension-internal reference the extension expects back through
+  /// `details(url)`. Never a playback URL.
+  final String referenceUrl;
+  const MediaReferenceRow({
+    required this.mediaKey,
+    required this.ordinal,
+    required this.extensionId,
+    required this.referenceUrl,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['media_key'] = Variable<String>(mediaKey);
+    map['ordinal'] = Variable<int>(ordinal);
+    map['extension_id'] = Variable<String>(extensionId);
+    map['reference_url'] = Variable<String>(referenceUrl);
+    return map;
+  }
+
+  MediaReferencesCompanion toCompanion(bool nullToAbsent) {
+    return MediaReferencesCompanion(
+      mediaKey: Value(mediaKey),
+      ordinal: Value(ordinal),
+      extensionId: Value(extensionId),
+      referenceUrl: Value(referenceUrl),
+    );
+  }
+
+  factory MediaReferenceRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MediaReferenceRow(
+      mediaKey: serializer.fromJson<String>(json['mediaKey']),
+      ordinal: serializer.fromJson<int>(json['ordinal']),
+      extensionId: serializer.fromJson<String>(json['extensionId']),
+      referenceUrl: serializer.fromJson<String>(json['referenceUrl']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'mediaKey': serializer.toJson<String>(mediaKey),
+      'ordinal': serializer.toJson<int>(ordinal),
+      'extensionId': serializer.toJson<String>(extensionId),
+      'referenceUrl': serializer.toJson<String>(referenceUrl),
+    };
+  }
+
+  MediaReferenceRow copyWith({
+    String? mediaKey,
+    int? ordinal,
+    String? extensionId,
+    String? referenceUrl,
+  }) => MediaReferenceRow(
+    mediaKey: mediaKey ?? this.mediaKey,
+    ordinal: ordinal ?? this.ordinal,
+    extensionId: extensionId ?? this.extensionId,
+    referenceUrl: referenceUrl ?? this.referenceUrl,
+  );
+  MediaReferenceRow copyWithCompanion(MediaReferencesCompanion data) {
+    return MediaReferenceRow(
+      mediaKey: data.mediaKey.present ? data.mediaKey.value : this.mediaKey,
+      ordinal: data.ordinal.present ? data.ordinal.value : this.ordinal,
+      extensionId: data.extensionId.present
+          ? data.extensionId.value
+          : this.extensionId,
+      referenceUrl: data.referenceUrl.present
+          ? data.referenceUrl.value
+          : this.referenceUrl,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MediaReferenceRow(')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('ordinal: $ordinal, ')
+          ..write('extensionId: $extensionId, ')
+          ..write('referenceUrl: $referenceUrl')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(mediaKey, ordinal, extensionId, referenceUrl);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MediaReferenceRow &&
+          other.mediaKey == this.mediaKey &&
+          other.ordinal == this.ordinal &&
+          other.extensionId == this.extensionId &&
+          other.referenceUrl == this.referenceUrl);
+}
+
+class MediaReferencesCompanion extends UpdateCompanion<MediaReferenceRow> {
+  final Value<String> mediaKey;
+  final Value<int> ordinal;
+  final Value<String> extensionId;
+  final Value<String> referenceUrl;
+  final Value<int> rowid;
+  const MediaReferencesCompanion({
+    this.mediaKey = const Value.absent(),
+    this.ordinal = const Value.absent(),
+    this.extensionId = const Value.absent(),
+    this.referenceUrl = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MediaReferencesCompanion.insert({
+    required String mediaKey,
+    required int ordinal,
+    required String extensionId,
+    required String referenceUrl,
+    this.rowid = const Value.absent(),
+  }) : mediaKey = Value(mediaKey),
+       ordinal = Value(ordinal),
+       extensionId = Value(extensionId),
+       referenceUrl = Value(referenceUrl);
+  static Insertable<MediaReferenceRow> custom({
+    Expression<String>? mediaKey,
+    Expression<int>? ordinal,
+    Expression<String>? extensionId,
+    Expression<String>? referenceUrl,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (mediaKey != null) 'media_key': mediaKey,
+      if (ordinal != null) 'ordinal': ordinal,
+      if (extensionId != null) 'extension_id': extensionId,
+      if (referenceUrl != null) 'reference_url': referenceUrl,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MediaReferencesCompanion copyWith({
+    Value<String>? mediaKey,
+    Value<int>? ordinal,
+    Value<String>? extensionId,
+    Value<String>? referenceUrl,
+    Value<int>? rowid,
+  }) {
+    return MediaReferencesCompanion(
+      mediaKey: mediaKey ?? this.mediaKey,
+      ordinal: ordinal ?? this.ordinal,
+      extensionId: extensionId ?? this.extensionId,
+      referenceUrl: referenceUrl ?? this.referenceUrl,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (mediaKey.present) {
+      map['media_key'] = Variable<String>(mediaKey.value);
+    }
+    if (ordinal.present) {
+      map['ordinal'] = Variable<int>(ordinal.value);
+    }
+    if (extensionId.present) {
+      map['extension_id'] = Variable<String>(extensionId.value);
+    }
+    if (referenceUrl.present) {
+      map['reference_url'] = Variable<String>(referenceUrl.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MediaReferencesCompanion(')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('ordinal: $ordinal, ')
+          ..write('extensionId: $extensionId, ')
+          ..write('referenceUrl: $referenceUrl, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$SpectaDatabase extends GeneratedDatabase {
   _$SpectaDatabase(QueryExecutor e) : super(e);
   $SpectaDatabaseManager get managers => $SpectaDatabaseManager(this);
@@ -2873,6 +3213,9 @@ abstract class _$SpectaDatabase extends GeneratedDatabase {
       $ExtensionFailureLogsTable(this);
   late final $WatchProgressEntriesTable watchProgressEntries =
       $WatchProgressEntriesTable(this);
+  late final $MediaReferencesTable mediaReferences = $MediaReferencesTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2883,6 +3226,7 @@ abstract class _$SpectaDatabase extends GeneratedDatabase {
     extensionVersions,
     extensionFailureLogs,
     watchProgressEntries,
+    mediaReferences,
   ];
 }
 
@@ -4795,6 +5139,210 @@ typedef $$WatchProgressEntriesTableProcessedTableManager =
       WatchProgressRow,
       PrefetchHooks Function()
     >;
+typedef $$MediaReferencesTableCreateCompanionBuilder =
+    MediaReferencesCompanion Function({
+      required String mediaKey,
+      required int ordinal,
+      required String extensionId,
+      required String referenceUrl,
+      Value<int> rowid,
+    });
+typedef $$MediaReferencesTableUpdateCompanionBuilder =
+    MediaReferencesCompanion Function({
+      Value<String> mediaKey,
+      Value<int> ordinal,
+      Value<String> extensionId,
+      Value<String> referenceUrl,
+      Value<int> rowid,
+    });
+
+class $$MediaReferencesTableFilterComposer
+    extends Composer<_$SpectaDatabase, $MediaReferencesTable> {
+  $$MediaReferencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ordinal => $composableBuilder(
+    column: $table.ordinal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get extensionId => $composableBuilder(
+    column: $table.extensionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get referenceUrl => $composableBuilder(
+    column: $table.referenceUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MediaReferencesTableOrderingComposer
+    extends Composer<_$SpectaDatabase, $MediaReferencesTable> {
+  $$MediaReferencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ordinal => $composableBuilder(
+    column: $table.ordinal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get extensionId => $composableBuilder(
+    column: $table.extensionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get referenceUrl => $composableBuilder(
+    column: $table.referenceUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MediaReferencesTableAnnotationComposer
+    extends Composer<_$SpectaDatabase, $MediaReferencesTable> {
+  $$MediaReferencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get mediaKey =>
+      $composableBuilder(column: $table.mediaKey, builder: (column) => column);
+
+  GeneratedColumn<int> get ordinal =>
+      $composableBuilder(column: $table.ordinal, builder: (column) => column);
+
+  GeneratedColumn<String> get extensionId => $composableBuilder(
+    column: $table.extensionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get referenceUrl => $composableBuilder(
+    column: $table.referenceUrl,
+    builder: (column) => column,
+  );
+}
+
+class $$MediaReferencesTableTableManager
+    extends
+        RootTableManager<
+          _$SpectaDatabase,
+          $MediaReferencesTable,
+          MediaReferenceRow,
+          $$MediaReferencesTableFilterComposer,
+          $$MediaReferencesTableOrderingComposer,
+          $$MediaReferencesTableAnnotationComposer,
+          $$MediaReferencesTableCreateCompanionBuilder,
+          $$MediaReferencesTableUpdateCompanionBuilder,
+          (
+            MediaReferenceRow,
+            BaseReferences<
+              _$SpectaDatabase,
+              $MediaReferencesTable,
+              MediaReferenceRow
+            >,
+          ),
+          MediaReferenceRow,
+          PrefetchHooks Function()
+        > {
+  $$MediaReferencesTableTableManager(
+    _$SpectaDatabase db,
+    $MediaReferencesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MediaReferencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MediaReferencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MediaReferencesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> mediaKey = const Value.absent(),
+                Value<int> ordinal = const Value.absent(),
+                Value<String> extensionId = const Value.absent(),
+                Value<String> referenceUrl = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MediaReferencesCompanion(
+                mediaKey: mediaKey,
+                ordinal: ordinal,
+                extensionId: extensionId,
+                referenceUrl: referenceUrl,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String mediaKey,
+                required int ordinal,
+                required String extensionId,
+                required String referenceUrl,
+                Value<int> rowid = const Value.absent(),
+              }) => MediaReferencesCompanion.insert(
+                mediaKey: mediaKey,
+                ordinal: ordinal,
+                extensionId: extensionId,
+                referenceUrl: referenceUrl,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$MediaReferencesTable, MediaReferenceRow>(table),
+                  BaseReferences<
+                    _$SpectaDatabase,
+                    $MediaReferencesTable,
+                    MediaReferenceRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MediaReferencesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$SpectaDatabase,
+      $MediaReferencesTable,
+      MediaReferenceRow,
+      $$MediaReferencesTableFilterComposer,
+      $$MediaReferencesTableOrderingComposer,
+      $$MediaReferencesTableAnnotationComposer,
+      $$MediaReferencesTableCreateCompanionBuilder,
+      $$MediaReferencesTableUpdateCompanionBuilder,
+      (
+        MediaReferenceRow,
+        BaseReferences<
+          _$SpectaDatabase,
+          $MediaReferencesTable,
+          MediaReferenceRow
+        >,
+      ),
+      MediaReferenceRow,
+      PrefetchHooks Function()
+    >;
 
 class $SpectaDatabaseManager {
   final _$SpectaDatabase _db;
@@ -4809,4 +5357,6 @@ class $SpectaDatabaseManager {
       $$ExtensionFailureLogsTableTableManager(_db, _db.extensionFailureLogs);
   $$WatchProgressEntriesTableTableManager get watchProgressEntries =>
       $$WatchProgressEntriesTableTableManager(_db, _db.watchProgressEntries);
+  $$MediaReferencesTableTableManager get mediaReferences =>
+      $$MediaReferencesTableTableManager(_db, _db.mediaReferences);
 }

@@ -7,9 +7,9 @@ source failures.
 ## Status
 
 **Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
-**Phase 2 — application build-out: sub-stages 2A–2F COMPLETE; 2G–2H open.**
+**Phase 2 — application build-out: sub-stages 2A–2F (and the 2F resume follow-up) COMPLETE; 2G–2H open.**
 
-`flutter analyze` reports no issues and **475 tests pass** (9 skipped: the
+`flutter analyze` reports no issues and **503 tests pass** (9 skipped: the
 real-engine group needs the JS bridge on `PATH`, `tool/run_tests_real_js.sh`).
 The full extension runtime was executed inside the app process on a physical
 device — Samsung Galaxy A06, Android 16 — with four consecutive 10/10
@@ -20,7 +20,11 @@ registry-recorded failures. The Phase 2E player was verified the same way
 (5/5 on the same device, including real MP4 and HLS playback and ordered
 source fallback), and Phase 2F was verified on the same device too — the
 schema v2 → v3 migration ran against the real installed database and the
-persistent progress sink wrote and read real rows (2/2). See
+persistent progress sink wrote and read real rows (2/2). The 2F resume
+follow-up verified the same way (3/3): the schema v2 → v3 → v4 migrations and
+the durable resume provenance on the real installed database. Continue
+Watching and Library items now re-open through the existing pipeline. See
+[`docs/PHASE_2F_RESUME_FOLLOWUP_REPORT.md`](docs/PHASE_2F_RESUME_FOLLOWUP_REPORT.md),
 [`docs/PHASE_2F_REPORT.md`](docs/PHASE_2F_REPORT.md),
 [`docs/PHASE_2E_REPORT.md`](docs/PHASE_2E_REPORT.md),
 [`docs/PHASE_1_CLOSURE_REPORT.txt`](docs/PHASE_1_CLOSURE_REPORT.txt) — section
@@ -180,6 +184,7 @@ into the running app.
 | File | Purpose |
 | --- | --- |
 | `PROJECT_STATE.txt` | Handover state: phase, work done, verification, blockers |
+| `docs/PHASE_2F_RESUME_FOLLOWUP_REPORT.md` | 2F resume-by-key follow-up: identity audit, schema v4 provenance, device verification |
 | `docs/PHASE_2F_REPORT.md` | Phase 2F (library / history / watch progress) report: schema v3 migration, persistence path, device verification |
 | `docs/PHASE_2E_REPORT.md` | Phase 2E (player integration) report: source pipeline, fallback, refresh, device verification |
 | `docs/PHASE_2D_REPORT.md` | Phase 2D (source manager) report |

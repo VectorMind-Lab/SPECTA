@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/specta_colors.dart';
+import '../../core/discovery/discovery_models.dart';
 import '../../core/extensions/contract/result_models.dart';
 import '../../core/library/library_providers.dart';
 import '../../core/library/watch_progress.dart';
+import '../../core/metadata/metadata_models.dart';
 import '../../ui/widgets/specta_empty_state.dart';
 import '../../ui/widgets/specta_focus_wrapper.dart';
+import '../playback/playback_entry.dart';
+import '../playback/resume_entry.dart';
 
 /// Library view: Continue Watching and watch history.
 ///
@@ -15,10 +19,9 @@ import '../../ui/widgets/specta_focus_wrapper.dart';
 /// the player has reported on, most recent first. Both are focusable so the
 /// surface stays usable from a TV D-pad.
 ///
-/// NOTE: opening an item would require re-resolving sources from a persisted
-/// key, which the current architecture cannot do without a metadata-by-key
-/// lookup (not built yet). Items therefore display progress but do not resume;
-/// that is recorded as a known limitation rather than faked.
+/// Tapping an item resumes it: the persisted identity + discovery provenance
+/// are rebuilt into the existing details/metadata/source/player pipeline. No
+/// source URL is stored or reused, and nothing is fabricated on failure.
 class LibraryView extends ConsumerWidget {
   const LibraryView({super.key});
 
@@ -57,13 +60,52 @@ class LibraryView extends ConsumerWidget {
       children: <Widget>[
         if (inProgress.isNotEmpty) ...<Widget>[
           const _SectionHeader(title: 'Continue Watching'),
-          for (final WatchProgress p in inProgress) _ProgressTile(progress: p),
+          for (final WatchProgress p in inProgress)
+            _ProgressTile(progress: p, onTap: () => _resume(context, ref, p)),
           const SizedBox(height: 16),
         ],
         const _SectionHeader(title: 'History'),
         for (final WatchProgress p in all)
-          _ProgressTile(progress: p, showCompleted: true),
+          _ProgressTile(
+            progress: p,
+            showCompleted: true,
+            onTap: () => _resume(context, ref, p),
+          ),
       ],
+    );
+  }
+
+  /// Re-opens [progress] through the existing pipeline; failures are honest
+  /// and non-throwing.
+  Future<void> _resume(
+    BuildContext context,
+    WidgetRef ref,
+    WatchProgress progress,
+  ) async {
+    if (!context.mounted) return;
+    final ResumeResult result = await resumeWatchProgress(
+      ref: ref,
+      progress: progress,
+      starter: ({
+        required MetadataItem metadata,
+        required DiscoveryItem item,
+        SeriesEpisode? episode,
+        Duration? startPosition,
+      }) => startPlayback(
+        context,
+        ref: ref,
+        metadata: metadata,
+        item: item,
+        episode: episode,
+        startPosition: startPosition,
+      ),
+    );
+    if (!context.mounted || result.started) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(result.message),
+      ),
     );
   }
 }
@@ -92,9 +134,16 @@ class _SectionHeader extends StatelessWidget {
 
 /// One persisted progress item, rendered with the SPECTA card language.
 class _ProgressTile extends StatelessWidget {
-  const _ProgressTile({required this.progress, this.showCompleted = false});
+  const _ProgressTile({
+    required this.progress,
+    required this.onTap,
+    this.showCompleted = false,
+  });
 
   final WatchProgress progress;
+
+  /// Opens the item through the resume pipeline (D-pad/TV safe).
+  final VoidCallback onTap;
 
   /// History rows show a "Watched" marker for finished items.
   final bool showCompleted;
@@ -112,6 +161,7 @@ class _ProgressTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: SpectaFocusWrapper(
         borderRadius: SpectaMetrics.cardRadius,
+        onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import 'package:specta/core/database/specta_database.dart';
+import 'package:specta/core/discovery/discovery_models.dart';
 import 'package:specta/core/extensions/contract/result_models.dart';
 
 import 'library_store.dart';
@@ -88,6 +89,48 @@ class LibraryDao implements LibraryStore {
   @override
   Future<void> clear() async {
     await _db.delete(_db.watchProgressEntries).go();
+  }
+
+  @override
+  Future<void> saveReferences(
+    String mediaKey,
+    List<DiscoveryReference> references,
+  ) async {
+    await _db.transaction(() async {
+      await (_db.delete(_db.mediaReferences)
+            ..where(($MediaReferencesTable t) => t.mediaKey.equals(mediaKey)))
+          .go();
+      for (int i = 0; i < references.length; i++) {
+        final DiscoveryReference ref = references[i];
+        await _db.into(_db.mediaReferences).insert(
+              MediaReferencesCompanion.insert(
+                mediaKey: mediaKey,
+                ordinal: i,
+                extensionId: ref.extensionId,
+                referenceUrl: ref.url,
+              ),
+            );
+      }
+    });
+  }
+
+  @override
+  Future<List<DiscoveryReference>> referencesFor(String mediaKey) async {
+    final List<MediaReferenceRow> rows =
+        await (_db.select(_db.mediaReferences)
+              ..where(($MediaReferencesTable t) => t.mediaKey.equals(mediaKey))
+              ..orderBy(<OrderingTerm Function($MediaReferencesTable)>[
+                ($MediaReferencesTable t) => OrderingTerm.asc(t.ordinal),
+              ]))
+            .get();
+    return rows
+        .map(
+          (MediaReferenceRow r) => DiscoveryReference(
+            extensionId: r.extensionId,
+            url: r.referenceUrl,
+          ),
+        )
+        .toList(growable: false);
   }
 
   WatchProgress _toModel(WatchProgressRow row) => WatchProgress(

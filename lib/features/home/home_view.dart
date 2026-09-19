@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/platform/form_factor.dart';
 import '../../app/theme/specta_colors.dart';
+import '../../core/discovery/discovery_models.dart';
 import '../../core/extensions/contract/result_models.dart' as contract;
 import '../../core/library/library_providers.dart';
 import '../../core/library/watch_progress.dart';
+import '../../core/metadata/metadata_models.dart';
 import '../../ui/widgets/specta_badge.dart';
 import '../../ui/widgets/specta_focus_wrapper.dart';
+import '../playback/playback_entry.dart';
+import '../playback/resume_entry.dart';
 import 'models/media_item.dart';
 import 'state/home_state.dart';
 import 'widgets/hero_spotlight_banner.dart';
@@ -150,21 +154,65 @@ class _ContinueWatchingRail extends ConsumerWidget {
             itemCount: real.length,
             separatorBuilder: (BuildContext context, int index) =>
                 const SizedBox(width: 12),
-            itemBuilder: (BuildContext context, int index) =>
-                _ProgressCard(progress: real[index], width: itemWidth),
+            itemBuilder: (BuildContext context, int index) => _ProgressCard(
+              progress: real[index],
+              width: itemWidth,
+              onTap: () => _resume(context, ref, real[index]),
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  /// Re-opens a persisted item through the existing pipeline (see
+  /// [resumeWatchProgress]); failures are honest and non-throwing.
+  Future<void> _resume(
+    BuildContext context,
+    WidgetRef ref,
+    WatchProgress progress,
+  ) async {
+    if (!context.mounted) return;
+    final ResumeResult result = await resumeWatchProgress(
+      ref: ref,
+      progress: progress,
+      starter: ({
+        required MetadataItem metadata,
+        required DiscoveryItem item,
+        SeriesEpisode? episode,
+        Duration? startPosition,
+      }) => startPlayback(
+        context,
+        ref: ref,
+        metadata: metadata,
+        item: item,
+        episode: episode,
+        startPosition: startPosition,
+      ),
+    );
+    if (!context.mounted || result.started) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(result.message),
+      ),
     );
   }
 }
 
 /// One real persisted Continue Watching card.
 class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({required this.progress, required this.width});
+  const _ProgressCard({
+    required this.progress,
+    required this.width,
+    required this.onTap,
+  });
 
   final WatchProgress progress;
   final double width;
+
+  /// Opens the item through the resume pipeline (D-pad/TV safe).
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -173,6 +221,7 @@ class _ProgressCard extends StatelessWidget {
 
     return SpectaFocusWrapper(
       borderRadius: SpectaMetrics.cardRadius,
+      onTap: onTap,
       child: SizedBox(
         width: width,
         child: Column(
