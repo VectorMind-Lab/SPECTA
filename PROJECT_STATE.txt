@@ -2,12 +2,14 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-19 — Phase 2E (player integration) complete, documented
-and verified on a REAL DEVICE (recovery session: the previous AI implemented
-most of 2E, then ended without documenting, committing or device-verifying it).
+Last updated: 2026-09-19 — Phase 2F (library / history / watch-progress
+persistence) complete, documented and verified on a REAL DEVICE (the schema
+v2 -> v3 migration ran against the real installed database; the persistent
+sink wrote and read real rows).
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
-PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D + 2E done; 2F–2H open).
-Next: Phase 2 sub-stage 2F (library / history / watch-progress persistence).
+PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D + 2E + 2F done; 2G–2H open).
+Next: Phase 2 sub-stage 2G (download foundation), or a 2F follow-up
+(resume-by-key), on explicit authorization.
 
 GitHub checkpoint (2026-09-17, completed and VERIFIED by a second
 investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
@@ -84,12 +86,30 @@ Phase 2 (authorized 2026-09-17):
   fallback, progress sink; log docs/evidence_p2e_device_run_2026-09-19.log.
   APK build: SUCCESS. No database change; no new dependency; no
   SPECTA-Extensions; README corrected (see report §10).
-- Sub-stages 2F–2H NOT started.
+- Sub-stage 2F (library / history / watch-progress persistence) COMPLETE —
+  see docs/PHASE_2F_REPORT.md. lib/core/library/ (WatchProgress model,
+  LibraryStore contract, Drift LibraryDao, Riverpod providers) and
+  lib/core/playback/'s PersistentPlaybackProgressSink; the 2E
+  PlaybackProgressSink seam was extended with OPTIONAL descriptive fields and
+  rebound to persistence — the player itself was NOT rewritten. Schema v3:
+  one additive, registered migration step creating `watch_progress` keyed by
+  the player's own identity (movie key, or `key|s<S>e<E>` for an episode, so
+  Episode 2 can never update Episode 1). Library and Home Continue Watching
+  read real data; History is a per-identity view over the same table (no
+  duplicated watch_history table). NO 2G downloads, NO 2H catalogue, no new
+  dependency. flutter analyze: No issues found. flutter test: 475 passed,
+  9 skipped, 0 failed; real JS bridge 484 passed, 0 skipped. DEVICE: 2/2 PASS
+  (SM-A065F, Android 16) — on-device PRAGMA user_version = 3, settings and
+  watch_progress reachable, persistent sink round trip, verification rows
+  removed; log docs/evidence_p2f_device_run_2026-09-19.log. APK build:
+  SUCCESS (277,511,502 bytes).
+- Sub-stages 2G–2H NOT started.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
 
 Documents, in order of recency (newest wins where they disagree):
+  0. docs/PHASE_2F_REPORT.md           (Phase 2 sub-stage record — 2F)
   1. docs/PHASE_2E_REPORT.md           (Phase 2 sub-stage record — 2E;
                                         includes the recovery audit and the
                                         device-verification record)
@@ -104,11 +124,11 @@ Documents, in order of recency (newest wins where they disagree):
 1. CURRENT PHASE
 ----------------
 Phase 2 — now AUTHORIZED (2026-09-17) and IN PROGRESS, executed in controlled
-sub-stages (2A UI foundation → 2H extension catalogue). Sub-stages 2A–2E are
+sub-stages (2A UI foundation → 2H extension catalogue). Sub-stages 2A–2F are
 complete and verified (docs/PHASE_2_REPORT.md, docs/PHASE_2B_REPORT.md,
-docs/PHASE_2C_REPORT.md, docs/PHASE_2D_REPORT.md, docs/PHASE_2E_REPORT.md);
-2F–2H are open. 2E is the only sub-stage besides Phase 1 verified on a real
-device.
+docs/PHASE_2C_REPORT.md, docs/PHASE_2D_REPORT.md, docs/PHASE_2E_REPORT.md,
+docs/PHASE_2F_REPORT.md); 2G–2H are open. 2E and 2F are verified on a real
+device (the 2F run also exercised the on-device schema migration).
 
 Phase 1 — Extension Foundation. Implemented, audited, corrected, tested,
 buildable, and VERIFIED ON A REAL ANDROID DEVICE (2026-09-16).
@@ -358,6 +378,16 @@ flutter build apk --debug                 | SUCCESS — app-debug.apk,
 integration test on device (SM-A065F)     | 5/5 passed, 0 failed, 0 skipped
                                           | (docs/evidence_p2e_device_run_2026-09-19.log)
 
+Phase 2F verification (2026-09-19):
+flutter analyze                           | No issues found
+flutter test (no bridge, plain)           | 475 passed, 9 skipped, 0 failed
+flutter test (real JS bridge)             | 484 passed, 0 skipped, 0 failed
+flutter build apk --debug                 | SUCCESS — app-debug.apk,
+                                          | 277,511,502 bytes, 2026-09-19 03:48
+integration test on device (SM-A065F)     | 2/2 passed, 0 failed, 0 skipped
+                                          | on-device user_version = 3;
+                                          | (docs/evidence_p2f_device_run_2026-09-19.log)
+
 Phase 2E device record (2026-09-19):
   Device        Samsung SM-A065F (Galaxy A06), arm64-v8a, USB
   OS            Android 16 (API 36), One UI
@@ -445,7 +475,11 @@ Phase 2 sub-stages (authorized, in the approved order):
     34 focused tests, analyze clean, full suite 446+9/0, DEVICE 5/5 PASS,
     APK build SUCCESS. No database change; no new dependency. See
     docs/PHASE_2E_REPORT.md.
-[ ] 2F Library / history / watch progress persistence (local only).
+[x] 2F Library / history / watch progress persistence — DONE 2026-09-19:
+    schema v3 (`watch_progress`) with a registered additive migration, 2E sink
+    extended + rebound to persistent storage, Library/Home wired to real data,
+    19 new tests (DAO, sink, migration, library UI), analyze clean, full suite
+    475+9/0, DEVICE 2/2 PASS, APK built. No new dependency; no 2G/2H work.
 [ ] 2G Download foundation (queue, pause/resume where supported, <=3 default
     concurrency, 9 ceiling).
 [ ] 2H Extension catalogue integration (separate SPECTA-Extensions repository;
@@ -514,9 +548,15 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
   open/stall timeouts (45 s / 30 s, provider-overridable). Device tests use
   public third-party test streams; a host that stalls is honestly failed and
   the session advances (measured 2026-09-19).
-- Player: watch progress is in-memory for the process lifetime only (2F owns
-  persistence). Quality selection remains 2D's ranking decision; the player
-  never second-guesses it, and 4K smoothness is not promised on every device.
+- Player: watch progress is now PERSISTED (2F). The player reports through the
+  same seam; a persistent LibraryStore row is written per playback identity.
+  Quality selection remains 2D's ranking decision; the player never
+  second-guesses it, and 4K smoothness is not promised on every device.
+- Library (2F): items DISPLAY progress but do not RESUME — opening one needs a
+  metadata-by-key lookup the architecture does not have yet. Watchlist/favorites
+  are not implemented (no affordance populates them). History is a per-identity
+  view over `watch_progress`, not an append-only event log. The evidence-based
+  metadata identity can collide for identical normalized (title, type, year).
 - No CPU/memory ceiling for extension JavaScript (measured limitation).
 - Not an OS-level sandbox; in-process restricted-API boundary.
 - Redirect targets are not re-checked against the scheme allow-list.
@@ -556,8 +596,9 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
 
 7. BLOCKERS
 -----------
-None. No Phase 2A–2D defect is known to remain, and no Phase 1 regression
-was introduced (full suite green on the 2D tree).
+None. No Phase 2A–2E defect is known to remain, and no Phase 1 regression was
+introduced (full suite green on the 2F tree: 475 passed / 9 skipped / 0
+failed).
 
 Environment notes:
 - The pub cache resolves under C:\Users\PORTCR\AppData\Local\Pub\Cache, not
@@ -571,11 +612,10 @@ Environment notes:
 
 8. NEXT RECOMMENDED STEP
 ------------------------
-Phase 2 sub-stage 2F — LIBRARY / HISTORY / WATCH-PROGRESS PERSISTENCE, per the
-authorized order in docs/PHASE_2_REPORT.md section 10. 2E left the seam ready:
-bind a persistent implementation of `PlaybackProgressSink` (the player already
-reports honest elapsed/position/completed per playback key) and add the Drift
-schema for it — that is the point where a database change becomes appropriate,
-and it must follow the registered-migration discipline. Test, verify,
-document, commit after the sub-stage; continue to 2G/2H only within the
-Phase 2 authorization.
+Phase 2 sub-stage 2G — DOWNLOAD FOUNDATION (queue, pause/resume where
+supported, <=3 default concurrency with a 9 ceiling), OR a 2F follow-up that
+adds resume-by-key (a metadata-by-key lookup so Library/Continue Watching items
+can be opened). Neither is authorized yet. 2F is COMPLETE: persistent watch
+progress, Continue Watching/History/Library surfaces over the schema v3
+`watch_progress` table. Do NOT start 2G/2H until explicitly authorized, and
+do NOT create SPECTA-Extensions.

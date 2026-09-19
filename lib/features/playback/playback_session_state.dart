@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors/specta_failure.dart';
 import '../../core/extensions/contract/extension_source.dart';
+import '../../core/extensions/contract/result_models.dart';
+import '../../core/library/library_providers.dart';
 import '../../core/playback/media_kit_engine.dart';
 import '../../core/playback/playback_engine.dart';
 import '../../core/playback/playback_progress_sink.dart';
@@ -19,6 +21,10 @@ final class PlaybackRequest {
     this.playbackKey,
     this.title,
     this.subtitle,
+    this.mediaKey,
+    this.mediaType,
+    this.seasonNumber,
+    this.episodeNumber,
   });
 
   /// Opens playback from a resolved 2D pool: its selection first, then its
@@ -28,12 +34,20 @@ final class PlaybackRequest {
     String? playbackKey,
     String? title,
     String? subtitle,
+    String? mediaKey,
+    MediaType? mediaType,
+    int? seasonNumber,
+    int? episodeNumber,
   }) =>
       PlaybackRequest(
         candidates: pool.ranked,
         playbackKey: playbackKey,
         title: title,
         subtitle: subtitle,
+        mediaKey: mediaKey,
+        mediaType: mediaType,
+        seasonNumber: seasonNumber,
+        episodeNumber: episodeNumber,
       );
 
   /// Opens a direct candidate list (already-ordered RankedSources). Used for
@@ -43,13 +57,17 @@ final class PlaybackRequest {
     this.playbackKey,
     this.title,
     this.subtitle,
+    this.mediaKey,
+    this.mediaType,
+    this.seasonNumber,
+    this.episodeNumber,
   }) : candidates = ranked;
 
   /// Ordered best-first. Every entry carries its provenance.
   final List<RankedSource> candidates;
 
-  /// Progress-reporting identity (in-memory sink in 2E; 2F persists it).
-  /// Null disables progress reporting for the session.
+  /// Progress-reporting identity (persisted in 2F). Null disables progress
+  /// reporting for the session.
   final String? playbackKey;
 
   /// Display title. Never a provider URL or extension label.
@@ -57,6 +75,18 @@ final class PlaybackRequest {
 
   /// Optional second display line (e.g. `Season 1 · Episode 2`).
   final String? subtitle;
+
+  /// The parent work's canonical metadata key (progress identity). Defaults
+  /// to [playbackKey] when omitted.
+  final String? mediaKey;
+
+  /// Movie or series — carried so persistence never has to guess.
+  final MediaType? mediaType;
+
+  /// Series episode numbers, preserved so a completed Episode 2 can never
+  /// update Episode 1.
+  final int? seasonNumber;
+  final int? episodeNumber;
 }
 
 /// How long one candidate may take to reach a playable state.
@@ -74,9 +104,18 @@ final Provider<PlaybackEngine Function()> playbackEngineFactoryProvider =
   (Ref ref) => MediaKitPlaybackEngine.new,
 );
 
-/// The in-memory progress sink binding (2E). 2F swaps the implementation.
+/// The progress sink binding.
+///
+/// Phase 2F binds the session's honest progress reports to persistent storage
+/// through [libraryStoreProvider]; overwriting the sink is the ONLY change the
+/// player needed. Tests override this with an in-memory sink (or a fake).
 final Provider<PlaybackProgressSink> playbackProgressSinkProvider =
-    Provider<PlaybackProgressSink>((Ref ref) => InMemoryPlaybackProgressSink());
+    Provider<PlaybackProgressSink>((Ref ref) {
+  return PersistentPlaybackProgressSink(
+    ref.watch(libraryStoreProvider),
+    onChanged: () => ref.read(libraryRevisionProvider.notifier).bump(),
+  );
+});
 
 /// Drives one playback session over the engine seam.
 ///
@@ -151,6 +190,7 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
       _progressKey = request.playbackKey;
       _title = request.title;
       _subtitleLine = request.subtitle;
+      _applyIdentity(request);
       _refreshedOnce = false;
       _elapsedWatch = Duration.zero;
       _failures.clear();
@@ -180,6 +220,7 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
     _progressKey = request.playbackKey;
     _title = request.title;
     _subtitleLine = request.subtitle;
+    _applyIdentity(request);
     _failures.clear();
 
     final bool wasActive = switch (state.status) {
@@ -283,8 +324,20 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
         playbackKey: _progressKey,
         title: _title,
         subtitle: _subtitleLine,
+        mediaKey: _mediaKey,
+        mediaType: _mediaType,
+        seasonNumber: _seasonNumber,
+        episodeNumber: _episodeNumber,
       ),
     );
+  }
+
+  /// Records the persistence identity a request carried (2F).
+  void _applyIdentity(PlaybackRequest request) {
+    _mediaKey = request.mediaKey ?? request.playbackKey;
+    _mediaType = request.mediaType;
+    _seasonNumber = request.seasonNumber;
+    _episodeNumber = request.episodeNumber;
   }
 
   // ---------------------------------------------------------------------------
@@ -679,7 +732,15 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
             targetKey: key,
             elapsed: _elapsedWatch,
             position: state.position,
+            // An unknown duration is reported as null, never as a fake zero.
+            duration: state.duration == Duration.zero ? null : state.duration,
             completed: completed,
+            mediaKey: _mediaKey,
+            mediaType: _mediaType?.code,
+            title: _title,
+            subtitleLine: _subtitleLine,
+            seasonNumber: _seasonNumber,
+            episodeNumber: _episodeNumber,
           );
     } on Object {
       // Progress reporting must never affect playback.
@@ -694,6 +755,10 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
   String? _progressKey;
   String? _title;
   String? _subtitleLine;
+  String? _mediaKey;
+  MediaType? _mediaType;
+  int? _seasonNumber;
+  int? _episodeNumber;
   final List<PlaybackAttempt> _failures = <PlaybackAttempt>[];
   bool _playedThisCandidate = false;
 

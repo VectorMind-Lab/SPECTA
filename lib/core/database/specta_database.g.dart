@@ -2117,6 +2117,749 @@ class ExtensionFailureLogsCompanion
   }
 }
 
+class $WatchProgressEntriesTable extends WatchProgressEntries
+    with TableInfo<$WatchProgressEntriesTable, WatchProgressRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WatchProgressEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mediaKeyMeta = const VerificationMeta(
+    'mediaKey',
+  );
+  @override
+  late final GeneratedColumn<String> mediaKey = GeneratedColumn<String>(
+    'media_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mediaTypeMeta = const VerificationMeta(
+    'mediaType',
+  );
+  @override
+  late final GeneratedColumn<String> mediaType = GeneratedColumn<String>(
+    'media_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _subtitleLineMeta = const VerificationMeta(
+    'subtitleLine',
+  );
+  @override
+  late final GeneratedColumn<String> subtitleLine = GeneratedColumn<String>(
+    'subtitle_line',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _seasonNumberMeta = const VerificationMeta(
+    'seasonNumber',
+  );
+  @override
+  late final GeneratedColumn<int> seasonNumber = GeneratedColumn<int>(
+    'season_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _episodeNumberMeta = const VerificationMeta(
+    'episodeNumber',
+  );
+  @override
+  late final GeneratedColumn<int> episodeNumber = GeneratedColumn<int>(
+    'episode_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _positionMsMeta = const VerificationMeta(
+    'positionMs',
+  );
+  @override
+  late final GeneratedColumn<int> positionMs = GeneratedColumn<int>(
+    'position_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _durationMsMeta = const VerificationMeta(
+    'durationMs',
+  );
+  @override
+  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
+    'duration_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _elapsedMsMeta = const VerificationMeta(
+    'elapsedMs',
+  );
+  @override
+  late final GeneratedColumn<int> elapsedMs = GeneratedColumn<int>(
+    'elapsed_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _completedMeta = const VerificationMeta(
+    'completed',
+  );
+  @override
+  late final GeneratedColumn<int> completed = GeneratedColumn<int>(
+    'completed',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    mediaKey,
+    mediaType,
+    title,
+    subtitleLine,
+    seasonNumber,
+    episodeNumber,
+    positionMs,
+    durationMs,
+    elapsedMs,
+    completed,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'watch_progress';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WatchProgressRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('media_key')) {
+      context.handle(
+        _mediaKeyMeta,
+        mediaKey.isAcceptableOrUnknown(data['media_key']!, _mediaKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mediaKeyMeta);
+    }
+    if (data.containsKey('media_type')) {
+      context.handle(
+        _mediaTypeMeta,
+        mediaType.isAcceptableOrUnknown(data['media_type']!, _mediaTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mediaTypeMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('subtitle_line')) {
+      context.handle(
+        _subtitleLineMeta,
+        subtitleLine.isAcceptableOrUnknown(
+          data['subtitle_line']!,
+          _subtitleLineMeta,
+        ),
+      );
+    }
+    if (data.containsKey('season_number')) {
+      context.handle(
+        _seasonNumberMeta,
+        seasonNumber.isAcceptableOrUnknown(
+          data['season_number']!,
+          _seasonNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('episode_number')) {
+      context.handle(
+        _episodeNumberMeta,
+        episodeNumber.isAcceptableOrUnknown(
+          data['episode_number']!,
+          _episodeNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('position_ms')) {
+      context.handle(
+        _positionMsMeta,
+        positionMs.isAcceptableOrUnknown(data['position_ms']!, _positionMsMeta),
+      );
+    }
+    if (data.containsKey('duration_ms')) {
+      context.handle(
+        _durationMsMeta,
+        durationMs.isAcceptableOrUnknown(data['duration_ms']!, _durationMsMeta),
+      );
+    }
+    if (data.containsKey('elapsed_ms')) {
+      context.handle(
+        _elapsedMsMeta,
+        elapsedMs.isAcceptableOrUnknown(data['elapsed_ms']!, _elapsedMsMeta),
+      );
+    }
+    if (data.containsKey('completed')) {
+      context.handle(
+        _completedMeta,
+        completed.isAcceptableOrUnknown(data['completed']!, _completedMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WatchProgressRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WatchProgressRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      mediaKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}media_key'],
+      )!,
+      mediaType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}media_type'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      subtitleLine: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subtitle_line'],
+      ),
+      seasonNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}season_number'],
+      ),
+      episodeNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}episode_number'],
+      ),
+      positionMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position_ms'],
+      )!,
+      durationMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_ms'],
+      ),
+      elapsedMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}elapsed_ms'],
+      )!,
+      completed: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}completed'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WatchProgressEntriesTable createAlias(String alias) {
+    return $WatchProgressEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class WatchProgressRow extends DataClass
+    implements Insertable<WatchProgressRow> {
+  /// Stable playback identity (see the class comment). Primary key.
+  final String id;
+
+  /// The parent work's canonical 2C metadata key (normalized title|type|year).
+  final String mediaKey;
+
+  /// `MediaType.code` from the extension contract: `movie` or `series`.
+  final String mediaType;
+
+  /// Display title as the player knew it. Never a provider URL or extension id.
+  final String title;
+
+  /// Optional second display line, e.g. `Season 1 · Episode 2`.
+  final String? subtitleLine;
+
+  /// Season / episode numbers for a series episode; null for a movie.
+  final int? seasonNumber;
+  final int? episodeNumber;
+
+  /// Last observed playback position.
+  final int positionMs;
+
+  /// Total media duration when the engine reported one.
+  final int? durationMs;
+
+  /// Accumulated watch time the player measured this session.
+  final int elapsedMs;
+
+  /// 0/1 — the player reported playback reached the end.
+  final int completed;
+
+  /// Last time the player reported progress for this identity.
+  final DateTime updatedAt;
+  const WatchProgressRow({
+    required this.id,
+    required this.mediaKey,
+    required this.mediaType,
+    required this.title,
+    this.subtitleLine,
+    this.seasonNumber,
+    this.episodeNumber,
+    required this.positionMs,
+    this.durationMs,
+    required this.elapsedMs,
+    required this.completed,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['media_key'] = Variable<String>(mediaKey);
+    map['media_type'] = Variable<String>(mediaType);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || subtitleLine != null) {
+      map['subtitle_line'] = Variable<String>(subtitleLine);
+    }
+    if (!nullToAbsent || seasonNumber != null) {
+      map['season_number'] = Variable<int>(seasonNumber);
+    }
+    if (!nullToAbsent || episodeNumber != null) {
+      map['episode_number'] = Variable<int>(episodeNumber);
+    }
+    map['position_ms'] = Variable<int>(positionMs);
+    if (!nullToAbsent || durationMs != null) {
+      map['duration_ms'] = Variable<int>(durationMs);
+    }
+    map['elapsed_ms'] = Variable<int>(elapsedMs);
+    map['completed'] = Variable<int>(completed);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  WatchProgressEntriesCompanion toCompanion(bool nullToAbsent) {
+    return WatchProgressEntriesCompanion(
+      id: Value(id),
+      mediaKey: Value(mediaKey),
+      mediaType: Value(mediaType),
+      title: Value(title),
+      subtitleLine: subtitleLine == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subtitleLine),
+      seasonNumber: seasonNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(seasonNumber),
+      episodeNumber: episodeNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(episodeNumber),
+      positionMs: Value(positionMs),
+      durationMs: durationMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMs),
+      elapsedMs: Value(elapsedMs),
+      completed: Value(completed),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory WatchProgressRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WatchProgressRow(
+      id: serializer.fromJson<String>(json['id']),
+      mediaKey: serializer.fromJson<String>(json['mediaKey']),
+      mediaType: serializer.fromJson<String>(json['mediaType']),
+      title: serializer.fromJson<String>(json['title']),
+      subtitleLine: serializer.fromJson<String?>(json['subtitleLine']),
+      seasonNumber: serializer.fromJson<int?>(json['seasonNumber']),
+      episodeNumber: serializer.fromJson<int?>(json['episodeNumber']),
+      positionMs: serializer.fromJson<int>(json['positionMs']),
+      durationMs: serializer.fromJson<int?>(json['durationMs']),
+      elapsedMs: serializer.fromJson<int>(json['elapsedMs']),
+      completed: serializer.fromJson<int>(json['completed']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'mediaKey': serializer.toJson<String>(mediaKey),
+      'mediaType': serializer.toJson<String>(mediaType),
+      'title': serializer.toJson<String>(title),
+      'subtitleLine': serializer.toJson<String?>(subtitleLine),
+      'seasonNumber': serializer.toJson<int?>(seasonNumber),
+      'episodeNumber': serializer.toJson<int?>(episodeNumber),
+      'positionMs': serializer.toJson<int>(positionMs),
+      'durationMs': serializer.toJson<int?>(durationMs),
+      'elapsedMs': serializer.toJson<int>(elapsedMs),
+      'completed': serializer.toJson<int>(completed),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  WatchProgressRow copyWith({
+    String? id,
+    String? mediaKey,
+    String? mediaType,
+    String? title,
+    Value<String?> subtitleLine = const Value.absent(),
+    Value<int?> seasonNumber = const Value.absent(),
+    Value<int?> episodeNumber = const Value.absent(),
+    int? positionMs,
+    Value<int?> durationMs = const Value.absent(),
+    int? elapsedMs,
+    int? completed,
+    DateTime? updatedAt,
+  }) => WatchProgressRow(
+    id: id ?? this.id,
+    mediaKey: mediaKey ?? this.mediaKey,
+    mediaType: mediaType ?? this.mediaType,
+    title: title ?? this.title,
+    subtitleLine: subtitleLine.present ? subtitleLine.value : this.subtitleLine,
+    seasonNumber: seasonNumber.present ? seasonNumber.value : this.seasonNumber,
+    episodeNumber: episodeNumber.present
+        ? episodeNumber.value
+        : this.episodeNumber,
+    positionMs: positionMs ?? this.positionMs,
+    durationMs: durationMs.present ? durationMs.value : this.durationMs,
+    elapsedMs: elapsedMs ?? this.elapsedMs,
+    completed: completed ?? this.completed,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  WatchProgressRow copyWithCompanion(WatchProgressEntriesCompanion data) {
+    return WatchProgressRow(
+      id: data.id.present ? data.id.value : this.id,
+      mediaKey: data.mediaKey.present ? data.mediaKey.value : this.mediaKey,
+      mediaType: data.mediaType.present ? data.mediaType.value : this.mediaType,
+      title: data.title.present ? data.title.value : this.title,
+      subtitleLine: data.subtitleLine.present
+          ? data.subtitleLine.value
+          : this.subtitleLine,
+      seasonNumber: data.seasonNumber.present
+          ? data.seasonNumber.value
+          : this.seasonNumber,
+      episodeNumber: data.episodeNumber.present
+          ? data.episodeNumber.value
+          : this.episodeNumber,
+      positionMs: data.positionMs.present
+          ? data.positionMs.value
+          : this.positionMs,
+      durationMs: data.durationMs.present
+          ? data.durationMs.value
+          : this.durationMs,
+      elapsedMs: data.elapsedMs.present ? data.elapsedMs.value : this.elapsedMs,
+      completed: data.completed.present ? data.completed.value : this.completed,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchProgressRow(')
+          ..write('id: $id, ')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('mediaType: $mediaType, ')
+          ..write('title: $title, ')
+          ..write('subtitleLine: $subtitleLine, ')
+          ..write('seasonNumber: $seasonNumber, ')
+          ..write('episodeNumber: $episodeNumber, ')
+          ..write('positionMs: $positionMs, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('elapsedMs: $elapsedMs, ')
+          ..write('completed: $completed, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    mediaKey,
+    mediaType,
+    title,
+    subtitleLine,
+    seasonNumber,
+    episodeNumber,
+    positionMs,
+    durationMs,
+    elapsedMs,
+    completed,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WatchProgressRow &&
+          other.id == this.id &&
+          other.mediaKey == this.mediaKey &&
+          other.mediaType == this.mediaType &&
+          other.title == this.title &&
+          other.subtitleLine == this.subtitleLine &&
+          other.seasonNumber == this.seasonNumber &&
+          other.episodeNumber == this.episodeNumber &&
+          other.positionMs == this.positionMs &&
+          other.durationMs == this.durationMs &&
+          other.elapsedMs == this.elapsedMs &&
+          other.completed == this.completed &&
+          other.updatedAt == this.updatedAt);
+}
+
+class WatchProgressEntriesCompanion extends UpdateCompanion<WatchProgressRow> {
+  final Value<String> id;
+  final Value<String> mediaKey;
+  final Value<String> mediaType;
+  final Value<String> title;
+  final Value<String?> subtitleLine;
+  final Value<int?> seasonNumber;
+  final Value<int?> episodeNumber;
+  final Value<int> positionMs;
+  final Value<int?> durationMs;
+  final Value<int> elapsedMs;
+  final Value<int> completed;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const WatchProgressEntriesCompanion({
+    this.id = const Value.absent(),
+    this.mediaKey = const Value.absent(),
+    this.mediaType = const Value.absent(),
+    this.title = const Value.absent(),
+    this.subtitleLine = const Value.absent(),
+    this.seasonNumber = const Value.absent(),
+    this.episodeNumber = const Value.absent(),
+    this.positionMs = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.elapsedMs = const Value.absent(),
+    this.completed = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WatchProgressEntriesCompanion.insert({
+    required String id,
+    required String mediaKey,
+    required String mediaType,
+    required String title,
+    this.subtitleLine = const Value.absent(),
+    this.seasonNumber = const Value.absent(),
+    this.episodeNumber = const Value.absent(),
+    this.positionMs = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.elapsedMs = const Value.absent(),
+    this.completed = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       mediaKey = Value(mediaKey),
+       mediaType = Value(mediaType),
+       title = Value(title),
+       updatedAt = Value(updatedAt);
+  static Insertable<WatchProgressRow> custom({
+    Expression<String>? id,
+    Expression<String>? mediaKey,
+    Expression<String>? mediaType,
+    Expression<String>? title,
+    Expression<String>? subtitleLine,
+    Expression<int>? seasonNumber,
+    Expression<int>? episodeNumber,
+    Expression<int>? positionMs,
+    Expression<int>? durationMs,
+    Expression<int>? elapsedMs,
+    Expression<int>? completed,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (mediaKey != null) 'media_key': mediaKey,
+      if (mediaType != null) 'media_type': mediaType,
+      if (title != null) 'title': title,
+      if (subtitleLine != null) 'subtitle_line': subtitleLine,
+      if (seasonNumber != null) 'season_number': seasonNumber,
+      if (episodeNumber != null) 'episode_number': episodeNumber,
+      if (positionMs != null) 'position_ms': positionMs,
+      if (durationMs != null) 'duration_ms': durationMs,
+      if (elapsedMs != null) 'elapsed_ms': elapsedMs,
+      if (completed != null) 'completed': completed,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WatchProgressEntriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? mediaKey,
+    Value<String>? mediaType,
+    Value<String>? title,
+    Value<String?>? subtitleLine,
+    Value<int?>? seasonNumber,
+    Value<int?>? episodeNumber,
+    Value<int>? positionMs,
+    Value<int?>? durationMs,
+    Value<int>? elapsedMs,
+    Value<int>? completed,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return WatchProgressEntriesCompanion(
+      id: id ?? this.id,
+      mediaKey: mediaKey ?? this.mediaKey,
+      mediaType: mediaType ?? this.mediaType,
+      title: title ?? this.title,
+      subtitleLine: subtitleLine ?? this.subtitleLine,
+      seasonNumber: seasonNumber ?? this.seasonNumber,
+      episodeNumber: episodeNumber ?? this.episodeNumber,
+      positionMs: positionMs ?? this.positionMs,
+      durationMs: durationMs ?? this.durationMs,
+      elapsedMs: elapsedMs ?? this.elapsedMs,
+      completed: completed ?? this.completed,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (mediaKey.present) {
+      map['media_key'] = Variable<String>(mediaKey.value);
+    }
+    if (mediaType.present) {
+      map['media_type'] = Variable<String>(mediaType.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (subtitleLine.present) {
+      map['subtitle_line'] = Variable<String>(subtitleLine.value);
+    }
+    if (seasonNumber.present) {
+      map['season_number'] = Variable<int>(seasonNumber.value);
+    }
+    if (episodeNumber.present) {
+      map['episode_number'] = Variable<int>(episodeNumber.value);
+    }
+    if (positionMs.present) {
+      map['position_ms'] = Variable<int>(positionMs.value);
+    }
+    if (durationMs.present) {
+      map['duration_ms'] = Variable<int>(durationMs.value);
+    }
+    if (elapsedMs.present) {
+      map['elapsed_ms'] = Variable<int>(elapsedMs.value);
+    }
+    if (completed.present) {
+      map['completed'] = Variable<int>(completed.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WatchProgressEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('mediaType: $mediaType, ')
+          ..write('title: $title, ')
+          ..write('subtitleLine: $subtitleLine, ')
+          ..write('seasonNumber: $seasonNumber, ')
+          ..write('episodeNumber: $episodeNumber, ')
+          ..write('positionMs: $positionMs, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('elapsedMs: $elapsedMs, ')
+          ..write('completed: $completed, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$SpectaDatabase extends GeneratedDatabase {
   _$SpectaDatabase(QueryExecutor e) : super(e);
   $SpectaDatabaseManager get managers => $SpectaDatabaseManager(this);
@@ -2128,6 +2871,8 @@ abstract class _$SpectaDatabase extends GeneratedDatabase {
       $ExtensionVersionsTable(this);
   late final $ExtensionFailureLogsTable extensionFailureLogs =
       $ExtensionFailureLogsTable(this);
+  late final $WatchProgressEntriesTable watchProgressEntries =
+      $WatchProgressEntriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2137,6 +2882,7 @@ abstract class _$SpectaDatabase extends GeneratedDatabase {
     extensions,
     extensionVersions,
     extensionFailureLogs,
+    watchProgressEntries,
   ];
 }
 
@@ -3679,6 +4425,376 @@ typedef $$ExtensionFailureLogsTableProcessedTableManager =
       ExtensionFailureLog,
       PrefetchHooks Function({bool extensionId})
     >;
+typedef $$WatchProgressEntriesTableCreateCompanionBuilder =
+    WatchProgressEntriesCompanion Function({
+      required String id,
+      required String mediaKey,
+      required String mediaType,
+      required String title,
+      Value<String?> subtitleLine,
+      Value<int?> seasonNumber,
+      Value<int?> episodeNumber,
+      Value<int> positionMs,
+      Value<int?> durationMs,
+      Value<int> elapsedMs,
+      Value<int> completed,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$WatchProgressEntriesTableUpdateCompanionBuilder =
+    WatchProgressEntriesCompanion Function({
+      Value<String> id,
+      Value<String> mediaKey,
+      Value<String> mediaType,
+      Value<String> title,
+      Value<String?> subtitleLine,
+      Value<int?> seasonNumber,
+      Value<int?> episodeNumber,
+      Value<int> positionMs,
+      Value<int?> durationMs,
+      Value<int> elapsedMs,
+      Value<int> completed,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$WatchProgressEntriesTableFilterComposer
+    extends Composer<_$SpectaDatabase, $WatchProgressEntriesTable> {
+  $$WatchProgressEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mediaType => $composableBuilder(
+    column: $table.mediaType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get subtitleLine => $composableBuilder(
+    column: $table.subtitleLine,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get seasonNumber => $composableBuilder(
+    column: $table.seasonNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get positionMs => $composableBuilder(
+    column: $table.positionMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get elapsedMs => $composableBuilder(
+    column: $table.elapsedMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get completed => $composableBuilder(
+    column: $table.completed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WatchProgressEntriesTableOrderingComposer
+    extends Composer<_$SpectaDatabase, $WatchProgressEntriesTable> {
+  $$WatchProgressEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mediaType => $composableBuilder(
+    column: $table.mediaType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get subtitleLine => $composableBuilder(
+    column: $table.subtitleLine,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get seasonNumber => $composableBuilder(
+    column: $table.seasonNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get positionMs => $composableBuilder(
+    column: $table.positionMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get elapsedMs => $composableBuilder(
+    column: $table.elapsedMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get completed => $composableBuilder(
+    column: $table.completed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WatchProgressEntriesTableAnnotationComposer
+    extends Composer<_$SpectaDatabase, $WatchProgressEntriesTable> {
+  $$WatchProgressEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaKey =>
+      $composableBuilder(column: $table.mediaKey, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaType =>
+      $composableBuilder(column: $table.mediaType, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get subtitleLine => $composableBuilder(
+    column: $table.subtitleLine,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get seasonNumber => $composableBuilder(
+    column: $table.seasonNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get positionMs => $composableBuilder(
+    column: $table.positionMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get elapsedMs =>
+      $composableBuilder(column: $table.elapsedMs, builder: (column) => column);
+
+  GeneratedColumn<int> get completed =>
+      $composableBuilder(column: $table.completed, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$WatchProgressEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$SpectaDatabase,
+          $WatchProgressEntriesTable,
+          WatchProgressRow,
+          $$WatchProgressEntriesTableFilterComposer,
+          $$WatchProgressEntriesTableOrderingComposer,
+          $$WatchProgressEntriesTableAnnotationComposer,
+          $$WatchProgressEntriesTableCreateCompanionBuilder,
+          $$WatchProgressEntriesTableUpdateCompanionBuilder,
+          (
+            WatchProgressRow,
+            BaseReferences<
+              _$SpectaDatabase,
+              $WatchProgressEntriesTable,
+              WatchProgressRow
+            >,
+          ),
+          WatchProgressRow,
+          PrefetchHooks Function()
+        > {
+  $$WatchProgressEntriesTableTableManager(
+    _$SpectaDatabase db,
+    $WatchProgressEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WatchProgressEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WatchProgressEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$WatchProgressEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> mediaKey = const Value.absent(),
+                Value<String> mediaType = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> subtitleLine = const Value.absent(),
+                Value<int?> seasonNumber = const Value.absent(),
+                Value<int?> episodeNumber = const Value.absent(),
+                Value<int> positionMs = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<int> elapsedMs = const Value.absent(),
+                Value<int> completed = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WatchProgressEntriesCompanion(
+                id: id,
+                mediaKey: mediaKey,
+                mediaType: mediaType,
+                title: title,
+                subtitleLine: subtitleLine,
+                seasonNumber: seasonNumber,
+                episodeNumber: episodeNumber,
+                positionMs: positionMs,
+                durationMs: durationMs,
+                elapsedMs: elapsedMs,
+                completed: completed,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String mediaKey,
+                required String mediaType,
+                required String title,
+                Value<String?> subtitleLine = const Value.absent(),
+                Value<int?> seasonNumber = const Value.absent(),
+                Value<int?> episodeNumber = const Value.absent(),
+                Value<int> positionMs = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<int> elapsedMs = const Value.absent(),
+                Value<int> completed = const Value.absent(),
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WatchProgressEntriesCompanion.insert(
+                id: id,
+                mediaKey: mediaKey,
+                mediaType: mediaType,
+                title: title,
+                subtitleLine: subtitleLine,
+                seasonNumber: seasonNumber,
+                episodeNumber: episodeNumber,
+                positionMs: positionMs,
+                durationMs: durationMs,
+                elapsedMs: elapsedMs,
+                completed: completed,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$WatchProgressEntriesTable, WatchProgressRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$SpectaDatabase,
+                    $WatchProgressEntriesTable,
+                    WatchProgressRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WatchProgressEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$SpectaDatabase,
+      $WatchProgressEntriesTable,
+      WatchProgressRow,
+      $$WatchProgressEntriesTableFilterComposer,
+      $$WatchProgressEntriesTableOrderingComposer,
+      $$WatchProgressEntriesTableAnnotationComposer,
+      $$WatchProgressEntriesTableCreateCompanionBuilder,
+      $$WatchProgressEntriesTableUpdateCompanionBuilder,
+      (
+        WatchProgressRow,
+        BaseReferences<
+          _$SpectaDatabase,
+          $WatchProgressEntriesTable,
+          WatchProgressRow
+        >,
+      ),
+      WatchProgressRow,
+      PrefetchHooks Function()
+    >;
 
 class $SpectaDatabaseManager {
   final _$SpectaDatabase _db;
@@ -3691,4 +4807,6 @@ class $SpectaDatabaseManager {
       $$ExtensionVersionsTableTableManager(_db, _db.extensionVersions);
   $$ExtensionFailureLogsTableTableManager get extensionFailureLogs =>
       $$ExtensionFailureLogsTableTableManager(_db, _db.extensionFailureLogs);
+  $$WatchProgressEntriesTableTableManager get watchProgressEntries =>
+      $$WatchProgressEntriesTableTableManager(_db, _db.watchProgressEntries);
 }

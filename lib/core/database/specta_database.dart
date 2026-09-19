@@ -3,6 +3,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 
 import 'migrations.dart';
 import 'tables/settings_entries.dart';
+import 'tables/watch_progress_table.dart';
 
 import 'package:specta/core/extensions/manager/tables/extensions_table.dart';
 import 'package:specta/core/extensions/manager/tables/extension_versions_table.dart';
@@ -22,6 +23,7 @@ part 'specta_database.g.dart';
     Extensions,
     ExtensionVersions,
     ExtensionFailureLogs,
+    WatchProgressEntries,
   ],
 )
 class SpectaDatabase extends _$SpectaDatabase {

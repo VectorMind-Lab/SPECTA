@@ -94,6 +94,12 @@ Future<void> startPlayback(
               ? null
               : 'Season ${episode.seasonNumber}'
                   ' · Episode ${episode.episodeNumber}',
+          // Persistence identity (2F): the parent key plus the episode
+          // numbers, so an episode's progress can never land on another one.
+          mediaKey: metadata.key,
+          mediaType: metadata.type,
+          seasonNumber: episode?.seasonNumber,
+          episodeNumber: episode?.episodeNumber,
         ),
       ),
   );

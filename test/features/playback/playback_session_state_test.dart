@@ -135,6 +135,11 @@ class Harness {
     container = ProviderContainer(
       overrides: <Override>[
         playbackEngineFactoryProvider.overrideWith((Ref ref) => () => engine),
+        // Phase 2F binds the progress sink to persistent storage by default;
+        // the session tests stay hermetic with the in-memory sink.
+        playbackProgressSinkProvider.overrideWith(
+          (Ref ref) => InMemoryPlaybackProgressSink(),
+        ),
       ],
     );
     addTearDown(container.dispose);

@@ -11,7 +11,8 @@ abstract final class SpectaMigrations {
   ///
   /// Phase 0 = v1 (settings_entries).
   /// Phase 1 = v2 (extensions, extension_versions, extension_failures).
-  static const int schemaVersion = 2;
+  /// Phase 2F = v3 (watch_progress: library / history / watch progress).
+  static const int schemaVersion = 3;
 
   /// Migration step applied when moving *to* the keyed version.
   static final Map<int, Future<void> Function(Migrator m)> _steps =
@@ -63,6 +64,30 @@ abstract final class SpectaMigrations {
           retryable INTEGER NOT NULL DEFAULT 0,
           PRIMARY KEY (id),
           FOREIGN KEY (extension_id) REFERENCES extensions (id)
+        )
+      ''');
+        },
+        3: (Migrator m) async {
+          // Phase 2F — persistent watch progress. Additive only: no existing
+          // table is touched, so an installed v2 database upgrades in place.
+          // Column names match Drift's generated table exactly (snake_case of
+          // the Dart getters) so both the migration path and the fresh
+          // `createAll()` path produce the same schema.
+          await m.database.customStatement('''
+        CREATE TABLE watch_progress (
+          id TEXT NOT NULL,
+          media_key TEXT NOT NULL,
+          media_type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          subtitle_line TEXT,
+          season_number INTEGER,
+          episode_number INTEGER,
+          position_ms INTEGER NOT NULL DEFAULT 0,
+          duration_ms INTEGER,
+          elapsed_ms INTEGER NOT NULL DEFAULT 0,
+          completed INTEGER NOT NULL DEFAULT 0,
+          updated_at DATETIME NOT NULL,
+          PRIMARY KEY (id)
         )
       ''');
         },

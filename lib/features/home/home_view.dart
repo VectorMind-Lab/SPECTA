@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/platform/form_factor.dart';
 import '../../app/theme/specta_colors.dart';
+import '../../core/extensions/contract/result_models.dart' as contract;
+import '../../core/library/library_providers.dart';
+import '../../core/library/watch_progress.dart';
 import '../../ui/widgets/specta_badge.dart';
 import '../../ui/widgets/specta_focus_wrapper.dart';
 import 'models/media_item.dart';
@@ -44,9 +47,8 @@ class HomeView extends ConsumerWidget {
               ),
 
               const SizedBox(height: 20),
-              _MediaRail(
-                title: 'Continue Watching',
-                items: state.continueWatching,
+              _ContinueWatchingRail(
+                fixtureItems: state.continueWatching,
                 itemWidth: railPosterWidth,
               ),
               _MediaRail(
@@ -95,6 +97,153 @@ class _SpotlightCarouselState extends State<_SpotlightCarousel> {
       onNext: () => setState(() {
         _index = (_index + 1) % _itemCount;
       }),
+    );
+  }
+}
+
+/// Continue Watching, driven by the persisted Phase 2F progress store.
+///
+/// Real data when the viewer has any; the design fixture otherwise (still
+/// fixture content, exactly like the other rails).
+class _ContinueWatchingRail extends ConsumerWidget {
+  const _ContinueWatchingRail({
+    required this.fixtureItems,
+    required this.itemWidth,
+  });
+
+  final List<MediaItem> fixtureItems;
+  final double itemWidth;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final List<WatchProgress> real =
+        ref.watch(continueWatchingProvider).value ?? const <WatchProgress>[];
+
+    if (real.isEmpty) {
+      return _MediaRail(
+        title: 'Continue Watching',
+        items: fixtureItems,
+        itemWidth: itemWidth,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 20, 16, 10),
+          child: Text(
+            'Continue Watching',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+              color: SpectaColors.textPrimary,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 230,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: real.length,
+            separatorBuilder: (BuildContext context, int index) =>
+                const SizedBox(width: 12),
+            itemBuilder: (BuildContext context, int index) =>
+                _ProgressCard(progress: real[index], width: itemWidth),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One real persisted Continue Watching card.
+class _ProgressCard extends StatelessWidget {
+  const _ProgressCard({required this.progress, required this.width});
+
+  final WatchProgress progress;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color accent = Theme.of(context).colorScheme.primary;
+    final double? fraction = progress.fraction;
+
+    return SpectaFocusWrapper(
+      borderRadius: SpectaMetrics.cardRadius,
+      child: SizedBox(
+        width: width,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(SpectaMetrics.cardRadius),
+              child: Container(
+                height: 160,
+                width: double.infinity,
+                color: SpectaColors.surfaceElevated,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    Center(
+                      child: Icon(
+                        progress.mediaType == contract.MediaType.series
+                            ? Icons.tv_rounded
+                            : Icons.movie_rounded,
+                        size: 40,
+                        color: accent.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: SpectaBadge(
+                        label: progress.mediaType == contract.MediaType.series
+                            ? 'SERIES'
+                            : 'MOVIE',
+                      ),
+                    ),
+                    if (fraction != null)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: LinearProgressIndicator(
+                          value: fraction,
+                          minHeight: 3,
+                          backgroundColor: Colors.black26,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              progress.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: SpectaColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              progress.subtitleLine ?? 'Watched recently',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: SpectaColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -7,9 +7,9 @@ source failures.
 ## Status
 
 **Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
-**Phase 2 — application build-out: sub-stages 2A–2E COMPLETE; 2F–2H open.**
+**Phase 2 — application build-out: sub-stages 2A–2F COMPLETE; 2G–2H open.**
 
-`flutter analyze` reports no issues and **446 tests pass** (9 skipped: the
+`flutter analyze` reports no issues and **475 tests pass** (9 skipped: the
 real-engine group needs the JS bridge on `PATH`, `tool/run_tests_real_js.sh`).
 The full extension runtime was executed inside the app process on a physical
 device — Samsung Galaxy A06, Android 16 — with four consecutive 10/10
@@ -18,7 +18,11 @@ FFI sandbox, a controlled HTTPS round trip through the request policy,
 capability-gate and policy refusals, and failure isolation with
 registry-recorded failures. The Phase 2E player was verified the same way
 (5/5 on the same device, including real MP4 and HLS playback and ordered
-source fallback). See [`docs/PHASE_2E_REPORT.md`](docs/PHASE_2E_REPORT.md),
+source fallback), and Phase 2F was verified on the same device too — the
+schema v2 → v3 migration ran against the real installed database and the
+persistent progress sink wrote and read real rows (2/2). See
+[`docs/PHASE_2F_REPORT.md`](docs/PHASE_2F_REPORT.md),
+[`docs/PHASE_2E_REPORT.md`](docs/PHASE_2E_REPORT.md),
 [`docs/PHASE_1_CLOSURE_REPORT.txt`](docs/PHASE_1_CLOSURE_REPORT.txt) — section
 22 is the device verification record — and
 [`PROJECT_STATE.txt`](PROJECT_STATE.txt) for the handover state.
@@ -163,12 +167,12 @@ flutter run
 
 ## Not implemented yet (deliberately)
 
-Sub-stages 2F (library, history and persistent watch progress), 2G (download
-manager) and 2H (extension catalogue in a separate repository) — plus real
-scraper extensions and any external metadata provider (e.g. TMDB). SPECTA
-produces no content of its own: it searches, resolves and plays what the
-extensions you install provide. The extension foundation, discovery pipeline,
-metadata layer, source manager and player surface are all in place and wired
+Sub-stages 2G (download manager) and 2H (extension catalogue in a separate
+repository) — plus real scraper extensions and any external metadata provider
+(e.g. TMDB). SPECTA produces no content of its own: it searches, resolves and
+plays what the extensions you install provide. The extension foundation,
+discovery pipeline, metadata layer, source manager, player surface and the
+persistent library / watch-progress / history layer are all in place and wired
 into the running app.
 
 ## Documents
@@ -176,6 +180,7 @@ into the running app.
 | File | Purpose |
 | --- | --- |
 | `PROJECT_STATE.txt` | Handover state: phase, work done, verification, blockers |
+| `docs/PHASE_2F_REPORT.md` | Phase 2F (library / history / watch progress) report: schema v3 migration, persistence path, device verification |
 | `docs/PHASE_2E_REPORT.md` | Phase 2E (player integration) report: source pipeline, fallback, refresh, device verification |
 | `docs/PHASE_2D_REPORT.md` | Phase 2D (source manager) report |
 | `docs/PHASE_2C_REPORT.md` | Phase 2C (metadata manager / details) report |

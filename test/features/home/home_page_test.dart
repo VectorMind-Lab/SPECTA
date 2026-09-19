@@ -7,9 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:specta/app/navigation/specta_app_shell.dart';
 import 'package:specta/core/database/database_providers.dart';
+import 'package:specta/core/library/library_providers.dart';
 import 'package:specta/core/settings/specta_setting_keys.dart';
 import 'package:specta/features/home/foundation_status.dart';
 
+import '../../support/in_memory_library_store.dart';
 import '../../support/in_memory_settings_store.dart';
 
 Future<void> _pumpShell(WidgetTester tester, InMemorySettingsStore store) async {
@@ -21,6 +23,9 @@ Future<void> _pumpShell(WidgetTester tester, InMemorySettingsStore store) async 
     ProviderScope(
       overrides: <Override>[
         settingsStoreProvider.overrideWith((Ref ref) => store),
+        // Phase 2F: the home Continue Watching rail reads the persisted
+        // library; keep the test hermetic with an in-memory store.
+        libraryStoreProvider.overrideWith((Ref ref) => InMemoryLibraryStore()),
         foundationStatusProvider.overrideWith(
           (Ref ref) async => const <FoundationStatusItem>[
             FoundationStatusItem('SQLite schema', 'v1'),

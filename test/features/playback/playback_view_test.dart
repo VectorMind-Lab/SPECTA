@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:specta/core/extensions/contract/extension_source.dart';
 import 'package:specta/core/playback/playback_engine.dart';
+import 'package:specta/core/playback/playback_progress_sink.dart';
 import 'package:specta/core/sources/source_pool.dart';
 import 'package:specta/features/playback/playback_models.dart';
 import 'package:specta/features/playback/playback_session_state.dart';
@@ -144,6 +145,11 @@ final class _Harness {
   late final ProviderContainer container = ProviderContainer(
     overrides: <Override>[
       playbackEngineFactoryProvider.overrideWith((Ref ref) => () => engine),
+      // Phase 2F binds the progress sink to persistent storage by default;
+      // the widget tests stay hermetic with the in-memory sink.
+      playbackProgressSinkProvider.overrideWith(
+        (Ref ref) => InMemoryPlaybackProgressSink(),
+      ),
     ],
   );
 
