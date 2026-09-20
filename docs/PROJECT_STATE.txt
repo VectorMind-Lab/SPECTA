@@ -2,11 +2,16 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-20 — Phase 2G-A (download foundation stabilization +
-Persistence Contract) and Phase 2G-B (DownloadManager, queue, engine interface,
-providers) are complete, documented and test-verified (617+9sk / real JS 626;
-APK build SUCCESS). The 2G-A/2G-B work is UNCOMMITTED in the working tree by
-design (no commit was authorized during those phases).
+Last updated: 2026-09-20 — Phase 2G-A + 2G-B committed and pushed as
+94f9283 ("Phase 2G-A/2G-B: download foundation, manager, queue and engine
+seam", 26 files, +7833/-237). Push verified: origin/master == 94f9283;
+working tree CLEAN. Pre-commit safety: secret scan of all committed files
+CLEAN; no downloader dependency; no credentials/tokens in git config or
+sources; build artifacts ignored. Verified before commit: analyze clean,
+617 passed / 9 skipped, real JS 626, debug APK SUCCESS.
+Previous handover state: Phase 2G-A (download foundation stabilization +
+Persistence Contract) and Phase 2G-B (DownloadManager, queue, engine
+interface, providers) were completed and documented earlier the same day.
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
 PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D + 2E + 2F + 2F-resume + 2G-A + 2G-B
 done; 2G-C–2G-? and 2H open).
