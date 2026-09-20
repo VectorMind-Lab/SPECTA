@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Declared explicitly: until 2026-09-20 INTERNET only arrived via a
+         transitive plugin manifest merge, so swapping that plugin would
+         silently strip networking from release builds. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- SPECTA ships one APK for Android phones and Android TV. A TV has no
          touch screen and SPECTA is driven by D-pad/remote, so both features are
          declared explicitly. -->
