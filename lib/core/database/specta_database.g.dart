@@ -3200,6 +3200,1245 @@ class MediaReferencesCompanion extends UpdateCompanion<MediaReferenceRow> {
   }
 }
 
+class $DownloadsTable extends Downloads
+    with TableInfo<$DownloadsTable, DownloadRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DownloadsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mediaKeyMeta = const VerificationMeta(
+    'mediaKey',
+  );
+  @override
+  late final GeneratedColumn<String> mediaKey = GeneratedColumn<String>(
+    'media_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mediaTypeMeta = const VerificationMeta(
+    'mediaType',
+  );
+  @override
+  late final GeneratedColumn<String> mediaType = GeneratedColumn<String>(
+    'media_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _subtitleLineMeta = const VerificationMeta(
+    'subtitleLine',
+  );
+  @override
+  late final GeneratedColumn<String> subtitleLine = GeneratedColumn<String>(
+    'subtitle_line',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _seasonNumberMeta = const VerificationMeta(
+    'seasonNumber',
+  );
+  @override
+  late final GeneratedColumn<int> seasonNumber = GeneratedColumn<int>(
+    'season_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _episodeNumberMeta = const VerificationMeta(
+    'episodeNumber',
+  );
+  @override
+  late final GeneratedColumn<int> episodeNumber = GeneratedColumn<int>(
+    'episode_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _waitReasonMeta = const VerificationMeta(
+    'waitReason',
+  );
+  @override
+  late final GeneratedColumn<String> waitReason = GeneratedColumn<String>(
+    'wait_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bytesDownloadedMeta = const VerificationMeta(
+    'bytesDownloaded',
+  );
+  @override
+  late final GeneratedColumn<int> bytesDownloaded = GeneratedColumn<int>(
+    'bytes_downloaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _totalBytesMeta = const VerificationMeta(
+    'totalBytes',
+  );
+  @override
+  late final GeneratedColumn<int> totalBytes = GeneratedColumn<int>(
+    'total_bytes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _filePathMeta = const VerificationMeta(
+    'filePath',
+  );
+  @override
+  late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
+    'file_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceExtensionIdMeta = const VerificationMeta(
+    'sourceExtensionId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceExtensionId =
+      GeneratedColumn<String>(
+        'source_extension_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _sourceReferenceMeta = const VerificationMeta(
+    'sourceReference',
+  );
+  @override
+  late final GeneratedColumn<String> sourceReference = GeneratedColumn<String>(
+    'source_reference',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceLabelMeta = const VerificationMeta(
+    'sourceLabel',
+  );
+  @override
+  late final GeneratedColumn<String> sourceLabel = GeneratedColumn<String>(
+    'source_label',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _attemptMeta = const VerificationMeta(
+    'attempt',
+  );
+  @override
+  late final GeneratedColumn<int> attempt = GeneratedColumn<int>(
+    'attempt',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _errorCodeMeta = const VerificationMeta(
+    'errorCode',
+  );
+  @override
+  late final GeneratedColumn<String> errorCode = GeneratedColumn<String>(
+    'error_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _errorMessageMeta = const VerificationMeta(
+    'errorMessage',
+  );
+  @override
+  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
+    'error_message',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+    'completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    mediaKey,
+    mediaType,
+    title,
+    subtitleLine,
+    seasonNumber,
+    episodeNumber,
+    state,
+    waitReason,
+    bytesDownloaded,
+    totalBytes,
+    filePath,
+    sourceExtensionId,
+    sourceReference,
+    sourceLabel,
+    attempt,
+    errorCode,
+    errorMessage,
+    createdAt,
+    updatedAt,
+    completedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'downloads';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DownloadRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('media_key')) {
+      context.handle(
+        _mediaKeyMeta,
+        mediaKey.isAcceptableOrUnknown(data['media_key']!, _mediaKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mediaKeyMeta);
+    }
+    if (data.containsKey('media_type')) {
+      context.handle(
+        _mediaTypeMeta,
+        mediaType.isAcceptableOrUnknown(data['media_type']!, _mediaTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mediaTypeMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('subtitle_line')) {
+      context.handle(
+        _subtitleLineMeta,
+        subtitleLine.isAcceptableOrUnknown(
+          data['subtitle_line']!,
+          _subtitleLineMeta,
+        ),
+      );
+    }
+    if (data.containsKey('season_number')) {
+      context.handle(
+        _seasonNumberMeta,
+        seasonNumber.isAcceptableOrUnknown(
+          data['season_number']!,
+          _seasonNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('episode_number')) {
+      context.handle(
+        _episodeNumberMeta,
+        episodeNumber.isAcceptableOrUnknown(
+          data['episode_number']!,
+          _episodeNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateMeta);
+    }
+    if (data.containsKey('wait_reason')) {
+      context.handle(
+        _waitReasonMeta,
+        waitReason.isAcceptableOrUnknown(data['wait_reason']!, _waitReasonMeta),
+      );
+    }
+    if (data.containsKey('bytes_downloaded')) {
+      context.handle(
+        _bytesDownloadedMeta,
+        bytesDownloaded.isAcceptableOrUnknown(
+          data['bytes_downloaded']!,
+          _bytesDownloadedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_bytes')) {
+      context.handle(
+        _totalBytesMeta,
+        totalBytes.isAcceptableOrUnknown(data['total_bytes']!, _totalBytesMeta),
+      );
+    }
+    if (data.containsKey('file_path')) {
+      context.handle(
+        _filePathMeta,
+        filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_filePathMeta);
+    }
+    if (data.containsKey('source_extension_id')) {
+      context.handle(
+        _sourceExtensionIdMeta,
+        sourceExtensionId.isAcceptableOrUnknown(
+          data['source_extension_id']!,
+          _sourceExtensionIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source_reference')) {
+      context.handle(
+        _sourceReferenceMeta,
+        sourceReference.isAcceptableOrUnknown(
+          data['source_reference']!,
+          _sourceReferenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source_label')) {
+      context.handle(
+        _sourceLabelMeta,
+        sourceLabel.isAcceptableOrUnknown(
+          data['source_label']!,
+          _sourceLabelMeta,
+        ),
+      );
+    }
+    if (data.containsKey('attempt')) {
+      context.handle(
+        _attemptMeta,
+        attempt.isAcceptableOrUnknown(data['attempt']!, _attemptMeta),
+      );
+    }
+    if (data.containsKey('error_code')) {
+      context.handle(
+        _errorCodeMeta,
+        errorCode.isAcceptableOrUnknown(data['error_code']!, _errorCodeMeta),
+      );
+    }
+    if (data.containsKey('error_message')) {
+      context.handle(
+        _errorMessageMeta,
+        errorMessage.isAcceptableOrUnknown(
+          data['error_message']!,
+          _errorMessageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DownloadRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DownloadRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      mediaKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}media_key'],
+      )!,
+      mediaType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}media_type'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      subtitleLine: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subtitle_line'],
+      ),
+      seasonNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}season_number'],
+      ),
+      episodeNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}episode_number'],
+      ),
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      waitReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wait_reason'],
+      ),
+      bytesDownloaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}bytes_downloaded'],
+      )!,
+      totalBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_bytes'],
+      ),
+      filePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_path'],
+      )!,
+      sourceExtensionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_extension_id'],
+      ),
+      sourceReference: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_reference'],
+      ),
+      sourceLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_label'],
+      ),
+      attempt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}attempt'],
+      )!,
+      errorCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}error_code'],
+      ),
+      errorMessage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}error_message'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      ),
+    );
+  }
+
+  @override
+  $DownloadsTable createAlias(String alias) {
+    return $DownloadsTable(attachedDatabase, alias);
+  }
+}
+
+class DownloadRow extends DataClass implements Insertable<DownloadRow> {
+  /// Stable download identity (the playback identity). Primary key.
+  final String id;
+
+  /// The parent work's canonical 2C metadata key (normalized title|type|year).
+  final String mediaKey;
+
+  /// `MediaType.code` from the extension contract: `movie` or `series`.
+  final String mediaType;
+
+  /// Display title as the user saw it in details. Never a provider URL.
+  final String title;
+
+  /// Optional second display line, e.g. `Season 1 · Episode 2`.
+  final String? subtitleLine;
+
+  /// Season / episode numbers for a series episode; null for a movie.
+  final int? seasonNumber;
+  final int? episodeNumber;
+
+  /// `queued` / `downloading` / `paused` / `completed` / `failed` /
+  /// `cancelled` — the explicit, testable state machine (see
+  /// `DownloadStatus`). Cancelled rows are kept so the user can retry them
+  /// intentionally; removal is the user's explicit delete.
+  final String state;
+
+  /// Why the queue is not starting this job right now (e.g. "waiting for
+  /// Wi-Fi", "not enough free storage"). Descriptive data, not a state.
+  final String? waitReason;
+
+  /// Bytes safely written to the partial file so far (persisted in bounded
+  /// steps, and always on every state transition).
+  final int bytesDownloaded;
+
+  /// Declared total size, or null when the server did not declare one.
+  final int? totalBytes;
+
+  /// Final, completed-media path (planned at enqueue time). Only the
+  /// completed download is ever found at this path; incomplete data lives in
+  /// the derived `.part` file and is atomically moved here on completion.
+  final String filePath;
+
+  /// Provenance of the last attempt: the contributing extension's registry
+  /// id and the extension-internal reference it was asked about. Recovery
+  /// re-resolves through these — never through a stored URL.
+  final String? sourceExtensionId;
+  final String? sourceReference;
+
+  /// Neutral user-facing label of the last attempt (e.g. `Server 1`), kept
+  /// for honest display. Provider domain names are never stored here.
+  final String? sourceLabel;
+
+  /// Completed auto-retry budget used so far for the current run.
+  final int attempt;
+
+  /// Structured failure code + message of the last failure. Only for
+  /// `failed` (kept until the record is retried or removed).
+  final String? errorCode;
+  final String? errorMessage;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  /// When the download reached `completed`. Null until then.
+  final DateTime? completedAt;
+  const DownloadRow({
+    required this.id,
+    required this.mediaKey,
+    required this.mediaType,
+    required this.title,
+    this.subtitleLine,
+    this.seasonNumber,
+    this.episodeNumber,
+    required this.state,
+    this.waitReason,
+    required this.bytesDownloaded,
+    this.totalBytes,
+    required this.filePath,
+    this.sourceExtensionId,
+    this.sourceReference,
+    this.sourceLabel,
+    required this.attempt,
+    this.errorCode,
+    this.errorMessage,
+    required this.createdAt,
+    required this.updatedAt,
+    this.completedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['media_key'] = Variable<String>(mediaKey);
+    map['media_type'] = Variable<String>(mediaType);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || subtitleLine != null) {
+      map['subtitle_line'] = Variable<String>(subtitleLine);
+    }
+    if (!nullToAbsent || seasonNumber != null) {
+      map['season_number'] = Variable<int>(seasonNumber);
+    }
+    if (!nullToAbsent || episodeNumber != null) {
+      map['episode_number'] = Variable<int>(episodeNumber);
+    }
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || waitReason != null) {
+      map['wait_reason'] = Variable<String>(waitReason);
+    }
+    map['bytes_downloaded'] = Variable<int>(bytesDownloaded);
+    if (!nullToAbsent || totalBytes != null) {
+      map['total_bytes'] = Variable<int>(totalBytes);
+    }
+    map['file_path'] = Variable<String>(filePath);
+    if (!nullToAbsent || sourceExtensionId != null) {
+      map['source_extension_id'] = Variable<String>(sourceExtensionId);
+    }
+    if (!nullToAbsent || sourceReference != null) {
+      map['source_reference'] = Variable<String>(sourceReference);
+    }
+    if (!nullToAbsent || sourceLabel != null) {
+      map['source_label'] = Variable<String>(sourceLabel);
+    }
+    map['attempt'] = Variable<int>(attempt);
+    if (!nullToAbsent || errorCode != null) {
+      map['error_code'] = Variable<String>(errorCode);
+    }
+    if (!nullToAbsent || errorMessage != null) {
+      map['error_message'] = Variable<String>(errorMessage);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    return map;
+  }
+
+  DownloadsCompanion toCompanion(bool nullToAbsent) {
+    return DownloadsCompanion(
+      id: Value(id),
+      mediaKey: Value(mediaKey),
+      mediaType: Value(mediaType),
+      title: Value(title),
+      subtitleLine: subtitleLine == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subtitleLine),
+      seasonNumber: seasonNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(seasonNumber),
+      episodeNumber: episodeNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(episodeNumber),
+      state: Value(state),
+      waitReason: waitReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(waitReason),
+      bytesDownloaded: Value(bytesDownloaded),
+      totalBytes: totalBytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(totalBytes),
+      filePath: Value(filePath),
+      sourceExtensionId: sourceExtensionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceExtensionId),
+      sourceReference: sourceReference == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceReference),
+      sourceLabel: sourceLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceLabel),
+      attempt: Value(attempt),
+      errorCode: errorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorCode),
+      errorMessage: errorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorMessage),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+    );
+  }
+
+  factory DownloadRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DownloadRow(
+      id: serializer.fromJson<String>(json['id']),
+      mediaKey: serializer.fromJson<String>(json['mediaKey']),
+      mediaType: serializer.fromJson<String>(json['mediaType']),
+      title: serializer.fromJson<String>(json['title']),
+      subtitleLine: serializer.fromJson<String?>(json['subtitleLine']),
+      seasonNumber: serializer.fromJson<int?>(json['seasonNumber']),
+      episodeNumber: serializer.fromJson<int?>(json['episodeNumber']),
+      state: serializer.fromJson<String>(json['state']),
+      waitReason: serializer.fromJson<String?>(json['waitReason']),
+      bytesDownloaded: serializer.fromJson<int>(json['bytesDownloaded']),
+      totalBytes: serializer.fromJson<int?>(json['totalBytes']),
+      filePath: serializer.fromJson<String>(json['filePath']),
+      sourceExtensionId: serializer.fromJson<String?>(
+        json['sourceExtensionId'],
+      ),
+      sourceReference: serializer.fromJson<String?>(json['sourceReference']),
+      sourceLabel: serializer.fromJson<String?>(json['sourceLabel']),
+      attempt: serializer.fromJson<int>(json['attempt']),
+      errorCode: serializer.fromJson<String?>(json['errorCode']),
+      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'mediaKey': serializer.toJson<String>(mediaKey),
+      'mediaType': serializer.toJson<String>(mediaType),
+      'title': serializer.toJson<String>(title),
+      'subtitleLine': serializer.toJson<String?>(subtitleLine),
+      'seasonNumber': serializer.toJson<int?>(seasonNumber),
+      'episodeNumber': serializer.toJson<int?>(episodeNumber),
+      'state': serializer.toJson<String>(state),
+      'waitReason': serializer.toJson<String?>(waitReason),
+      'bytesDownloaded': serializer.toJson<int>(bytesDownloaded),
+      'totalBytes': serializer.toJson<int?>(totalBytes),
+      'filePath': serializer.toJson<String>(filePath),
+      'sourceExtensionId': serializer.toJson<String?>(sourceExtensionId),
+      'sourceReference': serializer.toJson<String?>(sourceReference),
+      'sourceLabel': serializer.toJson<String?>(sourceLabel),
+      'attempt': serializer.toJson<int>(attempt),
+      'errorCode': serializer.toJson<String?>(errorCode),
+      'errorMessage': serializer.toJson<String?>(errorMessage),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+    };
+  }
+
+  DownloadRow copyWith({
+    String? id,
+    String? mediaKey,
+    String? mediaType,
+    String? title,
+    Value<String?> subtitleLine = const Value.absent(),
+    Value<int?> seasonNumber = const Value.absent(),
+    Value<int?> episodeNumber = const Value.absent(),
+    String? state,
+    Value<String?> waitReason = const Value.absent(),
+    int? bytesDownloaded,
+    Value<int?> totalBytes = const Value.absent(),
+    String? filePath,
+    Value<String?> sourceExtensionId = const Value.absent(),
+    Value<String?> sourceReference = const Value.absent(),
+    Value<String?> sourceLabel = const Value.absent(),
+    int? attempt,
+    Value<String?> errorCode = const Value.absent(),
+    Value<String?> errorMessage = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> completedAt = const Value.absent(),
+  }) => DownloadRow(
+    id: id ?? this.id,
+    mediaKey: mediaKey ?? this.mediaKey,
+    mediaType: mediaType ?? this.mediaType,
+    title: title ?? this.title,
+    subtitleLine: subtitleLine.present ? subtitleLine.value : this.subtitleLine,
+    seasonNumber: seasonNumber.present ? seasonNumber.value : this.seasonNumber,
+    episodeNumber: episodeNumber.present
+        ? episodeNumber.value
+        : this.episodeNumber,
+    state: state ?? this.state,
+    waitReason: waitReason.present ? waitReason.value : this.waitReason,
+    bytesDownloaded: bytesDownloaded ?? this.bytesDownloaded,
+    totalBytes: totalBytes.present ? totalBytes.value : this.totalBytes,
+    filePath: filePath ?? this.filePath,
+    sourceExtensionId: sourceExtensionId.present
+        ? sourceExtensionId.value
+        : this.sourceExtensionId,
+    sourceReference: sourceReference.present
+        ? sourceReference.value
+        : this.sourceReference,
+    sourceLabel: sourceLabel.present ? sourceLabel.value : this.sourceLabel,
+    attempt: attempt ?? this.attempt,
+    errorCode: errorCode.present ? errorCode.value : this.errorCode,
+    errorMessage: errorMessage.present ? errorMessage.value : this.errorMessage,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+  );
+  DownloadRow copyWithCompanion(DownloadsCompanion data) {
+    return DownloadRow(
+      id: data.id.present ? data.id.value : this.id,
+      mediaKey: data.mediaKey.present ? data.mediaKey.value : this.mediaKey,
+      mediaType: data.mediaType.present ? data.mediaType.value : this.mediaType,
+      title: data.title.present ? data.title.value : this.title,
+      subtitleLine: data.subtitleLine.present
+          ? data.subtitleLine.value
+          : this.subtitleLine,
+      seasonNumber: data.seasonNumber.present
+          ? data.seasonNumber.value
+          : this.seasonNumber,
+      episodeNumber: data.episodeNumber.present
+          ? data.episodeNumber.value
+          : this.episodeNumber,
+      state: data.state.present ? data.state.value : this.state,
+      waitReason: data.waitReason.present
+          ? data.waitReason.value
+          : this.waitReason,
+      bytesDownloaded: data.bytesDownloaded.present
+          ? data.bytesDownloaded.value
+          : this.bytesDownloaded,
+      totalBytes: data.totalBytes.present
+          ? data.totalBytes.value
+          : this.totalBytes,
+      filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      sourceExtensionId: data.sourceExtensionId.present
+          ? data.sourceExtensionId.value
+          : this.sourceExtensionId,
+      sourceReference: data.sourceReference.present
+          ? data.sourceReference.value
+          : this.sourceReference,
+      sourceLabel: data.sourceLabel.present
+          ? data.sourceLabel.value
+          : this.sourceLabel,
+      attempt: data.attempt.present ? data.attempt.value : this.attempt,
+      errorCode: data.errorCode.present ? data.errorCode.value : this.errorCode,
+      errorMessage: data.errorMessage.present
+          ? data.errorMessage.value
+          : this.errorMessage,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadRow(')
+          ..write('id: $id, ')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('mediaType: $mediaType, ')
+          ..write('title: $title, ')
+          ..write('subtitleLine: $subtitleLine, ')
+          ..write('seasonNumber: $seasonNumber, ')
+          ..write('episodeNumber: $episodeNumber, ')
+          ..write('state: $state, ')
+          ..write('waitReason: $waitReason, ')
+          ..write('bytesDownloaded: $bytesDownloaded, ')
+          ..write('totalBytes: $totalBytes, ')
+          ..write('filePath: $filePath, ')
+          ..write('sourceExtensionId: $sourceExtensionId, ')
+          ..write('sourceReference: $sourceReference, ')
+          ..write('sourceLabel: $sourceLabel, ')
+          ..write('attempt: $attempt, ')
+          ..write('errorCode: $errorCode, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('completedAt: $completedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    id,
+    mediaKey,
+    mediaType,
+    title,
+    subtitleLine,
+    seasonNumber,
+    episodeNumber,
+    state,
+    waitReason,
+    bytesDownloaded,
+    totalBytes,
+    filePath,
+    sourceExtensionId,
+    sourceReference,
+    sourceLabel,
+    attempt,
+    errorCode,
+    errorMessage,
+    createdAt,
+    updatedAt,
+    completedAt,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DownloadRow &&
+          other.id == this.id &&
+          other.mediaKey == this.mediaKey &&
+          other.mediaType == this.mediaType &&
+          other.title == this.title &&
+          other.subtitleLine == this.subtitleLine &&
+          other.seasonNumber == this.seasonNumber &&
+          other.episodeNumber == this.episodeNumber &&
+          other.state == this.state &&
+          other.waitReason == this.waitReason &&
+          other.bytesDownloaded == this.bytesDownloaded &&
+          other.totalBytes == this.totalBytes &&
+          other.filePath == this.filePath &&
+          other.sourceExtensionId == this.sourceExtensionId &&
+          other.sourceReference == this.sourceReference &&
+          other.sourceLabel == this.sourceLabel &&
+          other.attempt == this.attempt &&
+          other.errorCode == this.errorCode &&
+          other.errorMessage == this.errorMessage &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.completedAt == this.completedAt);
+}
+
+class DownloadsCompanion extends UpdateCompanion<DownloadRow> {
+  final Value<String> id;
+  final Value<String> mediaKey;
+  final Value<String> mediaType;
+  final Value<String> title;
+  final Value<String?> subtitleLine;
+  final Value<int?> seasonNumber;
+  final Value<int?> episodeNumber;
+  final Value<String> state;
+  final Value<String?> waitReason;
+  final Value<int> bytesDownloaded;
+  final Value<int?> totalBytes;
+  final Value<String> filePath;
+  final Value<String?> sourceExtensionId;
+  final Value<String?> sourceReference;
+  final Value<String?> sourceLabel;
+  final Value<int> attempt;
+  final Value<String?> errorCode;
+  final Value<String?> errorMessage;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> completedAt;
+  final Value<int> rowid;
+  const DownloadsCompanion({
+    this.id = const Value.absent(),
+    this.mediaKey = const Value.absent(),
+    this.mediaType = const Value.absent(),
+    this.title = const Value.absent(),
+    this.subtitleLine = const Value.absent(),
+    this.seasonNumber = const Value.absent(),
+    this.episodeNumber = const Value.absent(),
+    this.state = const Value.absent(),
+    this.waitReason = const Value.absent(),
+    this.bytesDownloaded = const Value.absent(),
+    this.totalBytes = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.sourceExtensionId = const Value.absent(),
+    this.sourceReference = const Value.absent(),
+    this.sourceLabel = const Value.absent(),
+    this.attempt = const Value.absent(),
+    this.errorCode = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DownloadsCompanion.insert({
+    required String id,
+    required String mediaKey,
+    required String mediaType,
+    required String title,
+    this.subtitleLine = const Value.absent(),
+    this.seasonNumber = const Value.absent(),
+    this.episodeNumber = const Value.absent(),
+    required String state,
+    this.waitReason = const Value.absent(),
+    this.bytesDownloaded = const Value.absent(),
+    this.totalBytes = const Value.absent(),
+    required String filePath,
+    this.sourceExtensionId = const Value.absent(),
+    this.sourceReference = const Value.absent(),
+    this.sourceLabel = const Value.absent(),
+    this.attempt = const Value.absent(),
+    this.errorCode = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.completedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       mediaKey = Value(mediaKey),
+       mediaType = Value(mediaType),
+       title = Value(title),
+       state = Value(state),
+       filePath = Value(filePath),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DownloadRow> custom({
+    Expression<String>? id,
+    Expression<String>? mediaKey,
+    Expression<String>? mediaType,
+    Expression<String>? title,
+    Expression<String>? subtitleLine,
+    Expression<int>? seasonNumber,
+    Expression<int>? episodeNumber,
+    Expression<String>? state,
+    Expression<String>? waitReason,
+    Expression<int>? bytesDownloaded,
+    Expression<int>? totalBytes,
+    Expression<String>? filePath,
+    Expression<String>? sourceExtensionId,
+    Expression<String>? sourceReference,
+    Expression<String>? sourceLabel,
+    Expression<int>? attempt,
+    Expression<String>? errorCode,
+    Expression<String>? errorMessage,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? completedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (mediaKey != null) 'media_key': mediaKey,
+      if (mediaType != null) 'media_type': mediaType,
+      if (title != null) 'title': title,
+      if (subtitleLine != null) 'subtitle_line': subtitleLine,
+      if (seasonNumber != null) 'season_number': seasonNumber,
+      if (episodeNumber != null) 'episode_number': episodeNumber,
+      if (state != null) 'state': state,
+      if (waitReason != null) 'wait_reason': waitReason,
+      if (bytesDownloaded != null) 'bytes_downloaded': bytesDownloaded,
+      if (totalBytes != null) 'total_bytes': totalBytes,
+      if (filePath != null) 'file_path': filePath,
+      if (sourceExtensionId != null) 'source_extension_id': sourceExtensionId,
+      if (sourceReference != null) 'source_reference': sourceReference,
+      if (sourceLabel != null) 'source_label': sourceLabel,
+      if (attempt != null) 'attempt': attempt,
+      if (errorCode != null) 'error_code': errorCode,
+      if (errorMessage != null) 'error_message': errorMessage,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DownloadsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? mediaKey,
+    Value<String>? mediaType,
+    Value<String>? title,
+    Value<String?>? subtitleLine,
+    Value<int?>? seasonNumber,
+    Value<int?>? episodeNumber,
+    Value<String>? state,
+    Value<String?>? waitReason,
+    Value<int>? bytesDownloaded,
+    Value<int?>? totalBytes,
+    Value<String>? filePath,
+    Value<String?>? sourceExtensionId,
+    Value<String?>? sourceReference,
+    Value<String?>? sourceLabel,
+    Value<int>? attempt,
+    Value<String?>? errorCode,
+    Value<String?>? errorMessage,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? completedAt,
+    Value<int>? rowid,
+  }) {
+    return DownloadsCompanion(
+      id: id ?? this.id,
+      mediaKey: mediaKey ?? this.mediaKey,
+      mediaType: mediaType ?? this.mediaType,
+      title: title ?? this.title,
+      subtitleLine: subtitleLine ?? this.subtitleLine,
+      seasonNumber: seasonNumber ?? this.seasonNumber,
+      episodeNumber: episodeNumber ?? this.episodeNumber,
+      state: state ?? this.state,
+      waitReason: waitReason ?? this.waitReason,
+      bytesDownloaded: bytesDownloaded ?? this.bytesDownloaded,
+      totalBytes: totalBytes ?? this.totalBytes,
+      filePath: filePath ?? this.filePath,
+      sourceExtensionId: sourceExtensionId ?? this.sourceExtensionId,
+      sourceReference: sourceReference ?? this.sourceReference,
+      sourceLabel: sourceLabel ?? this.sourceLabel,
+      attempt: attempt ?? this.attempt,
+      errorCode: errorCode ?? this.errorCode,
+      errorMessage: errorMessage ?? this.errorMessage,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      completedAt: completedAt ?? this.completedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (mediaKey.present) {
+      map['media_key'] = Variable<String>(mediaKey.value);
+    }
+    if (mediaType.present) {
+      map['media_type'] = Variable<String>(mediaType.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (subtitleLine.present) {
+      map['subtitle_line'] = Variable<String>(subtitleLine.value);
+    }
+    if (seasonNumber.present) {
+      map['season_number'] = Variable<int>(seasonNumber.value);
+    }
+    if (episodeNumber.present) {
+      map['episode_number'] = Variable<int>(episodeNumber.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (waitReason.present) {
+      map['wait_reason'] = Variable<String>(waitReason.value);
+    }
+    if (bytesDownloaded.present) {
+      map['bytes_downloaded'] = Variable<int>(bytesDownloaded.value);
+    }
+    if (totalBytes.present) {
+      map['total_bytes'] = Variable<int>(totalBytes.value);
+    }
+    if (filePath.present) {
+      map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (sourceExtensionId.present) {
+      map['source_extension_id'] = Variable<String>(sourceExtensionId.value);
+    }
+    if (sourceReference.present) {
+      map['source_reference'] = Variable<String>(sourceReference.value);
+    }
+    if (sourceLabel.present) {
+      map['source_label'] = Variable<String>(sourceLabel.value);
+    }
+    if (attempt.present) {
+      map['attempt'] = Variable<int>(attempt.value);
+    }
+    if (errorCode.present) {
+      map['error_code'] = Variable<String>(errorCode.value);
+    }
+    if (errorMessage.present) {
+      map['error_message'] = Variable<String>(errorMessage.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadsCompanion(')
+          ..write('id: $id, ')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('mediaType: $mediaType, ')
+          ..write('title: $title, ')
+          ..write('subtitleLine: $subtitleLine, ')
+          ..write('seasonNumber: $seasonNumber, ')
+          ..write('episodeNumber: $episodeNumber, ')
+          ..write('state: $state, ')
+          ..write('waitReason: $waitReason, ')
+          ..write('bytesDownloaded: $bytesDownloaded, ')
+          ..write('totalBytes: $totalBytes, ')
+          ..write('filePath: $filePath, ')
+          ..write('sourceExtensionId: $sourceExtensionId, ')
+          ..write('sourceReference: $sourceReference, ')
+          ..write('sourceLabel: $sourceLabel, ')
+          ..write('attempt: $attempt, ')
+          ..write('errorCode: $errorCode, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$SpectaDatabase extends GeneratedDatabase {
   _$SpectaDatabase(QueryExecutor e) : super(e);
   $SpectaDatabaseManager get managers => $SpectaDatabaseManager(this);
@@ -3216,6 +4455,7 @@ abstract class _$SpectaDatabase extends GeneratedDatabase {
   late final $MediaReferencesTable mediaReferences = $MediaReferencesTable(
     this,
   );
+  late final $DownloadsTable downloads = $DownloadsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3227,6 +4467,7 @@ abstract class _$SpectaDatabase extends GeneratedDatabase {
     extensionFailureLogs,
     watchProgressEntries,
     mediaReferences,
+    downloads,
   ];
 }
 
@@ -5343,6 +6584,539 @@ typedef $$MediaReferencesTableProcessedTableManager =
       MediaReferenceRow,
       PrefetchHooks Function()
     >;
+typedef $$DownloadsTableCreateCompanionBuilder = DownloadsCompanion Function({
+  required String id,
+  required String mediaKey,
+  required String mediaType,
+  required String title,
+  Value<String?> subtitleLine,
+  Value<int?> seasonNumber,
+  Value<int?> episodeNumber,
+  required String state,
+  Value<String?> waitReason,
+  Value<int> bytesDownloaded,
+  Value<int?> totalBytes,
+  required String filePath,
+  Value<String?> sourceExtensionId,
+  Value<String?> sourceReference,
+  Value<String?> sourceLabel,
+  Value<int> attempt,
+  Value<String?> errorCode,
+  Value<String?> errorMessage,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<DateTime?> completedAt,
+  Value<int> rowid,
+});
+typedef $$DownloadsTableUpdateCompanionBuilder = DownloadsCompanion Function({
+  Value<String> id,
+  Value<String> mediaKey,
+  Value<String> mediaType,
+  Value<String> title,
+  Value<String?> subtitleLine,
+  Value<int?> seasonNumber,
+  Value<int?> episodeNumber,
+  Value<String> state,
+  Value<String?> waitReason,
+  Value<int> bytesDownloaded,
+  Value<int?> totalBytes,
+  Value<String> filePath,
+  Value<String?> sourceExtensionId,
+  Value<String?> sourceReference,
+  Value<String?> sourceLabel,
+  Value<int> attempt,
+  Value<String?> errorCode,
+  Value<String?> errorMessage,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<DateTime?> completedAt,
+  Value<int> rowid,
+});
+
+class $$DownloadsTableFilterComposer
+    extends Composer<_$SpectaDatabase, $DownloadsTable> {
+  $$DownloadsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mediaType => $composableBuilder(
+    column: $table.mediaType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get subtitleLine => $composableBuilder(
+    column: $table.subtitleLine,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get seasonNumber => $composableBuilder(
+    column: $table.seasonNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get waitReason => $composableBuilder(
+    column: $table.waitReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get bytesDownloaded => $composableBuilder(
+    column: $table.bytesDownloaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceExtensionId => $composableBuilder(
+    column: $table.sourceExtensionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceReference => $composableBuilder(
+    column: $table.sourceReference,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceLabel => $composableBuilder(
+    column: $table.sourceLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get attempt => $composableBuilder(
+    column: $table.attempt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get errorCode => $composableBuilder(
+    column: $table.errorCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DownloadsTableOrderingComposer
+    extends Composer<_$SpectaDatabase, $DownloadsTable> {
+  $$DownloadsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mediaType => $composableBuilder(
+    column: $table.mediaType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get subtitleLine => $composableBuilder(
+    column: $table.subtitleLine,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get seasonNumber => $composableBuilder(
+    column: $table.seasonNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get waitReason => $composableBuilder(
+    column: $table.waitReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get bytesDownloaded => $composableBuilder(
+    column: $table.bytesDownloaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceExtensionId => $composableBuilder(
+    column: $table.sourceExtensionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceReference => $composableBuilder(
+    column: $table.sourceReference,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceLabel => $composableBuilder(
+    column: $table.sourceLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get attempt => $composableBuilder(
+    column: $table.attempt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get errorCode => $composableBuilder(
+    column: $table.errorCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DownloadsTableAnnotationComposer
+    extends Composer<_$SpectaDatabase, $DownloadsTable> {
+  $$DownloadsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaKey =>
+      $composableBuilder(column: $table.mediaKey, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaType =>
+      $composableBuilder(column: $table.mediaType, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get subtitleLine => $composableBuilder(
+    column: $table.subtitleLine,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get seasonNumber => $composableBuilder(
+    column: $table.seasonNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get episodeNumber => $composableBuilder(
+    column: $table.episodeNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get waitReason => $composableBuilder(
+    column: $table.waitReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get bytesDownloaded => $composableBuilder(
+    column: $table.bytesDownloaded,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get filePath =>
+      $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceExtensionId => $composableBuilder(
+    column: $table.sourceExtensionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceReference => $composableBuilder(
+    column: $table.sourceReference,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceLabel => $composableBuilder(
+    column: $table.sourceLabel,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get attempt =>
+      $composableBuilder(column: $table.attempt, builder: (column) => column);
+
+  GeneratedColumn<String> get errorCode =>
+      $composableBuilder(column: $table.errorCode, builder: (column) => column);
+
+  GeneratedColumn<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$DownloadsTableTableManager
+    extends
+        RootTableManager<
+          _$SpectaDatabase,
+          $DownloadsTable,
+          DownloadRow,
+          $$DownloadsTableFilterComposer,
+          $$DownloadsTableOrderingComposer,
+          $$DownloadsTableAnnotationComposer,
+          $$DownloadsTableCreateCompanionBuilder,
+          $$DownloadsTableUpdateCompanionBuilder,
+          (
+            DownloadRow,
+            BaseReferences<_$SpectaDatabase, $DownloadsTable, DownloadRow>,
+          ),
+          DownloadRow,
+          PrefetchHooks Function()
+        > {
+  $$DownloadsTableTableManager(_$SpectaDatabase db, $DownloadsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DownloadsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DownloadsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DownloadsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> mediaKey = const Value.absent(),
+                Value<String> mediaType = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> subtitleLine = const Value.absent(),
+                Value<int?> seasonNumber = const Value.absent(),
+                Value<int?> episodeNumber = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> waitReason = const Value.absent(),
+                Value<int> bytesDownloaded = const Value.absent(),
+                Value<int?> totalBytes = const Value.absent(),
+                Value<String> filePath = const Value.absent(),
+                Value<String?> sourceExtensionId = const Value.absent(),
+                Value<String?> sourceReference = const Value.absent(),
+                Value<String?> sourceLabel = const Value.absent(),
+                Value<int> attempt = const Value.absent(),
+                Value<String?> errorCode = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DownloadsCompanion(
+                id: id,
+                mediaKey: mediaKey,
+                mediaType: mediaType,
+                title: title,
+                subtitleLine: subtitleLine,
+                seasonNumber: seasonNumber,
+                episodeNumber: episodeNumber,
+                state: state,
+                waitReason: waitReason,
+                bytesDownloaded: bytesDownloaded,
+                totalBytes: totalBytes,
+                filePath: filePath,
+                sourceExtensionId: sourceExtensionId,
+                sourceReference: sourceReference,
+                sourceLabel: sourceLabel,
+                attempt: attempt,
+                errorCode: errorCode,
+                errorMessage: errorMessage,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                completedAt: completedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String mediaKey,
+                required String mediaType,
+                required String title,
+                Value<String?> subtitleLine = const Value.absent(),
+                Value<int?> seasonNumber = const Value.absent(),
+                Value<int?> episodeNumber = const Value.absent(),
+                required String state,
+                Value<String?> waitReason = const Value.absent(),
+                Value<int> bytesDownloaded = const Value.absent(),
+                Value<int?> totalBytes = const Value.absent(),
+                required String filePath,
+                Value<String?> sourceExtensionId = const Value.absent(),
+                Value<String?> sourceReference = const Value.absent(),
+                Value<String?> sourceLabel = const Value.absent(),
+                Value<int> attempt = const Value.absent(),
+                Value<String?> errorCode = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DownloadsCompanion.insert(
+                id: id,
+                mediaKey: mediaKey,
+                mediaType: mediaType,
+                title: title,
+                subtitleLine: subtitleLine,
+                seasonNumber: seasonNumber,
+                episodeNumber: episodeNumber,
+                state: state,
+                waitReason: waitReason,
+                bytesDownloaded: bytesDownloaded,
+                totalBytes: totalBytes,
+                filePath: filePath,
+                sourceExtensionId: sourceExtensionId,
+                sourceReference: sourceReference,
+                sourceLabel: sourceLabel,
+                attempt: attempt,
+                errorCode: errorCode,
+                errorMessage: errorMessage,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                completedAt: completedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DownloadsTable, DownloadRow>(table),
+                  BaseReferences<
+                    _$SpectaDatabase,
+                    $DownloadsTable,
+                    DownloadRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DownloadsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$SpectaDatabase,
+      $DownloadsTable,
+      DownloadRow,
+      $$DownloadsTableFilterComposer,
+      $$DownloadsTableOrderingComposer,
+      $$DownloadsTableAnnotationComposer,
+      $$DownloadsTableCreateCompanionBuilder,
+      $$DownloadsTableUpdateCompanionBuilder,
+      (
+        DownloadRow,
+        BaseReferences<_$SpectaDatabase, $DownloadsTable, DownloadRow>,
+      ),
+      DownloadRow,
+      PrefetchHooks Function()
+    >;
 
 class $SpectaDatabaseManager {
   final _$SpectaDatabase _db;
@@ -5359,4 +7133,6 @@ class $SpectaDatabaseManager {
       $$WatchProgressEntriesTableTableManager(_db, _db.watchProgressEntries);
   $$MediaReferencesTableTableManager get mediaReferences =>
       $$MediaReferencesTableTableManager(_db, _db.mediaReferences);
+  $$DownloadsTableTableManager get downloads =>
+      $$DownloadsTableTableManager(_db, _db.downloads);
 }

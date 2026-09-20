@@ -13,7 +13,8 @@ abstract final class SpectaMigrations {
   /// Phase 1 = v2 (extensions, extension_versions, extension_failures).
   /// Phase 2F = v3 (watch_progress: library / history / watch progress).
   /// Phase 2F resume follow-up = v4 (media_references: durable provenance).
-  static const int schemaVersion = 4;
+  /// Phase 2G = v5 (downloads: durable download records / queue).
+  static const int schemaVersion = 5;
 
   /// Migration step applied when moving *to* the keyed version.
   static final Map<int, Future<void> Function(Migrator m)> _steps =
@@ -103,6 +104,43 @@ abstract final class SpectaMigrations {
           extension_id TEXT NOT NULL,
           reference_url TEXT NOT NULL,
           PRIMARY KEY (media_key, ordinal)
+        )
+      ''');
+        },
+        5: (Migrator m) async {
+          // Phase 2G — durable download records. Additive only: no existing
+          // table is touched, so an installed v4 database upgrades in place.
+          // Column names match Drift's generated table exactly (snake_case of
+          // the Dart getters) so both the migration path and the fresh
+          // `createAll()` path produce the same schema.
+          //
+          // Identity = the playback identity (media key, episode-qualified for
+          // episodes). No source URL is stored: recovery re-resolves through
+          // the current SourceManager using the stored provenance.
+          await m.database.customStatement('''
+        CREATE TABLE downloads (
+          id TEXT NOT NULL,
+          media_key TEXT NOT NULL,
+          media_type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          subtitle_line TEXT,
+          season_number INTEGER,
+          episode_number INTEGER,
+          state TEXT NOT NULL,
+          wait_reason TEXT,
+          bytes_downloaded INTEGER NOT NULL DEFAULT 0,
+          total_bytes INTEGER,
+          file_path TEXT NOT NULL,
+          source_extension_id TEXT,
+          source_reference TEXT,
+          source_label TEXT,
+          attempt INTEGER NOT NULL DEFAULT 0,
+          error_code TEXT,
+          error_message TEXT,
+          created_at DATETIME NOT NULL,
+          updated_at DATETIME NOT NULL,
+          completed_at DATETIME,
+          PRIMARY KEY (id)
         )
       ''');
         },

@@ -181,3 +181,121 @@ final class CapabilityFailure extends SpectaFailure {
   @override
   String toString() => 'CapabilityFailure($extensionId: $capability) $message';
 }
+
+/// A download attempt failed in a controlled, structured way (Phase 2G).
+///
+/// The download system converts every transport/storage/policy problem into
+/// one of these instead of letting an exception escape into the UI. The
+/// failure mirrors the [ExtensionFailure] / [PlaybackFailure] discipline:
+/// categories are data, each with an honest user-facing default message and
+/// an explicit retryability verdict.
+///
+/// This class lives in THIS library — next to every other [SpectaFailure]
+/// subtype — because [SpectaFailure] is sealed and can only be extended
+/// here. The download models reference it; they must not redefine it.
+enum DownloadFailureType {
+  /// Network failed mid-transfer or the request could not connect.
+  networkError('NETWORK_ERROR', retryable: true),
+
+  /// The transfer stalled past the engine's idle timeout.
+  timeout('TIMEOUT', retryable: true),
+
+  /// The server answered with a 5xx — plausibly transient.
+  serverError('SERVER_ERROR', retryable: true),
+
+  /// The server answered with a 4xx — the URL/attempt is not usable.
+  httpError('HTTP_ERROR'),
+
+  /// The response was not a usable progressive media stream.
+  invalidResponse('INVALID_RESPONSE'),
+
+  /// The device ran out of storage (checked up front or hit mid-download).
+  insufficientStorage('INSUFFICIENT_STORAGE'),
+
+  /// The download could not be safely continued/restarted on disk.
+  storageFailure('STORAGE_FAILURE', retryable: true),
+
+  /// The attempt did not survive a process/app interruption (device restart,
+  /// process death). Auto-retryable under the bounded budget — the download
+  /// itself did nothing wrong.
+  interrupted('INTERRUPTED', retryable: true),
+
+  /// No downloadable source for this item (e.g. HLS-only pool — V1 is MP4
+  /// first; the playlist is never saved as if it were the media).
+  unsupportedSource('UNSUPPORTED_SOURCE'),
+
+  /// Resolution itself could not produce a pool (no sources / refresh
+  /// unavailable / provenance gone).
+  sourcesExhausted('SOURCES_EXHAUSTED'),
+
+  /// The engine violated its contract (threw instead of reporting a
+  /// structured result). Never retryable on its own — a broken engine is not
+  /// fixed by re-running the same transfer.
+  engineFailure('ENGINE_FAILURE');
+
+  const DownloadFailureType(this.code, {this.retryable = false});
+
+  /// Canonical, stable name for diagnostics.
+  final String code;
+
+  /// Whether retrying the same source can plausibly succeed.
+  final bool retryable;
+
+  static DownloadFailureType? fromCode(String? code) {
+    for (final DownloadFailureType t in DownloadFailureType.values) {
+      if (t.code == code) return t;
+    }
+    return null;
+  }
+
+  /// User-facing, non-technical wording.
+  String get message => switch (this) {
+        DownloadFailureType.networkError =>
+          'The network dropped during the download.',
+        DownloadFailureType.timeout => 'The download stalled for too long.',
+        DownloadFailureType.serverError =>
+          'The server had a problem while serving the file.',
+        DownloadFailureType.httpError =>
+          'The server refused this download (source unavailable).',
+        DownloadFailureType.invalidResponse =>
+          'The server did not return a downloadable file.',
+        DownloadFailureType.insufficientStorage =>
+          'There is not enough free storage for this download.',
+        DownloadFailureType.storageFailure =>
+          'The download could not be written to storage.',
+        DownloadFailureType.interrupted =>
+          'The download was interrupted and can be resumed.',
+        DownloadFailureType.unsupportedSource =>
+          'Only direct file downloads are supported right now; this item '
+              'only offers a streaming source.',
+        DownloadFailureType.sourcesExhausted =>
+          'No downloadable source could be found for this item.',
+        DownloadFailureType.engineFailure =>
+          'The download engine reported an unexpected problem.',
+      };
+}
+
+final class DownloadFailure extends SpectaFailure {
+  // Not const: the default retryability is read from [type] at runtime.
+  DownloadFailure({
+    required this.type,
+    required String message,
+    this.detail,
+    bool? isRetryable,
+  }) : super(message, isRetryable: isRetryable ?? type.retryable);
+
+  final DownloadFailureType type;
+
+  /// Developer-only diagnostics. Never rendered on an ordinary user screen.
+  final String? detail;
+
+  /// Structured diagnostics record for internal logging.
+  Map<String, Object?> toDiagnostics() => <String, Object?>{
+        'errorType': type.code,
+        'message': message,
+        if (detail != null) 'detail': detail,
+      };
+
+  @override
+  String toString() => '${type.code} $message';
+}

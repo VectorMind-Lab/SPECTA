@@ -2,13 +2,17 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-19 — Phase 2F and the 2F RESUME-BY-KEY FOLLOW-UP are
-complete, documented and verified on a REAL DEVICE (schema v2 -> v3 -> v4
-migrations ran against the real installed database; progress and durable
-provenance were written and read back).
+Last updated: 2026-09-20 — Phase 2G-A (download foundation stabilization +
+Persistence Contract) and Phase 2G-B (DownloadManager, queue, engine interface,
+providers) are complete, documented and test-verified (617+9sk / real JS 626;
+APK build SUCCESS). The 2G-A/2G-B work is UNCOMMITTED in the working tree by
+design (no commit was authorized during those phases).
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
-PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D + 2E + 2F + 2F-resume done; 2G–2H open).
-Next: Phase 2 sub-stage 2G (download foundation), on explicit authorization.
+PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D + 2E + 2F + 2F-resume + 2G-A + 2G-B
+done; 2G-C–2G-? and 2H open).
+Next: Phase 2 sub-stage 2G-C (background_downloader adapter, real MP4
+transfer, .part/Range, source refresh, engine reconciliation), on explicit
+authorization.
 
 GitHub checkpoint (2026-09-17, completed and VERIFIED by a second
 investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
@@ -121,12 +125,51 @@ Phase 2 (authorized 2026-09-17):
   PRAGMA user_version = 4, media_references reachable, provenance round trip;
   log docs/evidence_p2f_resume_device_run_2026-09-19.log. APK build: SUCCESS
   (277,535,750 bytes). No new dependency; no 2G/2H work.
-- Sub-stages 2G–2H NOT started.
+- Sub-stage 2G-A (download foundation stabilization + Persistence Contract)
+  COMPLETE — see docs/PHASE_2G_A_REPORT.md. Forensic audit of the pre-existing
+  uncommitted download work classified it PARTIAL_PHASE_2G_WORK; four
+  corrections applied (failure model moved into the sealed SpectaFailure
+  hierarchy, NetworkPolicyVerdict.allowed → isAllowed, analyzer issues, real
+  v4→v5 migration test + fresh-install test). Persistence Contract audited
+  clause-by-clause; the one genuine gap (no .part path derivation in code) was
+  fixed with downloadPartPathFor(); 7 contract tests run against real SQLite
+  files. Download architecture decision approved: SPECTA DownloadManager →
+  DownloadEngine interface → replaceable engine (background_downloader chosen
+  as the first adapter, 2G-C); MP4-only for V1, HLS offline explicitly future.
+  flutter analyze: No issues found. flutter test: 557 passed, 9 skipped,
+  0 failed; real JS 566 passed, 0 skipped. No manager, engine, package, UI,
+  or commit created in 2G-A.
+- Sub-stage 2G-B (DownloadManager, queue & providers) COMPLETE — see
+  docs/PHASE_2G_B_REPORT.md. lib/core/downloads/ now contains the full
+  SPECTA-owned orchestration layer: DownloadManager (941 lines: FIFO queue
+  pump, concurrency 3 default/9 max with clamping, persist-before-engine,
+  chained-future serialized scheduling, state-machine enforcement,
+  pause/resume/cancel/retry/remove, documented duplicate semantics, two-layer
+  stale-callback protection, startup reconciliation via the engine seam,
+  coalesced progress persistence, source-recovery and storage pre-flight
+  seams), the SPECTA-owned DownloadEngine interface (zero third-party types),
+  a bounded retry policy with injectable clock (budget 3, exponential 2s→60s),
+  Riverpod providers (per-status filters, by-identity family, queue status,
+  active count, honest unconfigured engine seam), and a deterministic fake
+  engine/clock for tests. 60 new tests (manager 38, providers 9, retry 13).
+  Six real defects found and fixed during implementation, including a
+  concurrency slot leak that could deadlock the queue and a queue stall on
+  pause/cancel/remove. flutter analyze: No issues found. flutter test:
+  617 passed, 9 skipped, 0 failed; real JS 626 passed, 0 skipped, 0 failed.
+  APK build: SUCCESS. No real downloading, no downloader package, no UI, no
+  commit. The manager is intentionally unreachable from the app until 2G-C
+  provides the engine adapter.
+- Sub-stages 2G-C (engine adapter + real transfer) and 2H NOT started.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
 
 Documents, in order of recency (newest wins where they disagree):
+  -1. docs/PHASE_2G_B_REPORT.md         (2G-B: DownloadManager, queue,
+                                        providers — newest record)
+  -2. docs/PHASE_2G_A_REPORT.md         (2G-A: foundation stabilization,
+                                        Persistence Contract, architecture
+                                        decision)
   0. docs/PHASE_2F_RESUME_FOLLOWUP_REPORT.md (2F resume-by-key follow-up)
   0b. docs/PHASE_2F_REPORT.md          (Phase 2 sub-stage record — 2F)
   1. docs/PHASE_2E_REPORT.md           (Phase 2 sub-stage record — 2E;
@@ -509,8 +552,16 @@ Phase 2 sub-stages (authorized, in the approved order):
     extended + rebound to persistent storage, Library/Home wired to real data,
     19 new tests (DAO, sink, migration, library UI), analyze clean, full suite
     475+9/0, DEVICE 2/2 PASS, APK built. No new dependency; no 2G/2H work.
-[ ] 2G Download foundation (queue, pause/resume where supported, <=3 default
-    concurrency, 9 ceiling).
+[x] 2G Download foundation — DONE 2026-09-20 (2G-A + 2G-B; uncommitted by
+    design): schema v5 (`downloads`) with a tested v4→v5 migration, download
+    identity = 2F media key (+`|s<S>e<E>` for episodes), sealed-failure
+    integration, Persistence Contract implemented and test-proven,
+    DownloadManager with FIFO queue/concurrency 3-9/persist-before-engine/
+    stale protection, SPECTA-owned DownloadEngine interface, bounded retry
+    policy, Riverpod providers. 110+ download tests across 6 files; full
+    suite 617+9sk / real JS 626; APK build SUCCESS. NO real transfer, NO
+    downloader dependency, NO UI yet — that is 2G-C. See
+    docs/PHASE_2G_A_REPORT.md and docs/PHASE_2G_B_REPORT.md.
 [ ] 2H Extension catalogue integration (separate SPECTA-Extensions repository;
     creation deferred until this stage actually requires it).
 

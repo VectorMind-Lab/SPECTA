@@ -7,10 +7,19 @@ source failures.
 ## Status
 
 **Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
-**Phase 2 — application build-out: sub-stages 2A–2F (and the 2F resume follow-up) COMPLETE; 2G–2H open.**
+**Phase 2 — application build-out: sub-stages 2A–2F (incl. the 2F resume follow-up) plus 2G-A/2G-B (download foundation + orchestration) COMPLETE; 2G-C (real engine) and 2H open.**
 
-`flutter analyze` reports no issues and **503 tests pass** (9 skipped: the
-real-engine group needs the JS bridge on `PATH`, `tool/run_tests_real_js.sh`).
+`flutter analyze` reports no issues and **617 tests pass** (9 skipped: the
+real-engine group needs the JS bridge on `PATH`, `tool/run_tests_real_js.sh`;
+the real-JS run passes 626). The download domain is now SPECTA-owned end to
+end: schema v5 `downloads` table with a tested v4→v5 migration, an
+authoritative Drift store, the Persistence Contract (state survives restart,
+no stored streaming URLs, no engine artifacts), a `DownloadManager` with FIFO
+queue, concurrency 3 (max 9), persist-before-engine scheduling, bounded retry
+with exponential backoff, stale-callback protection, and a replaceable
+`DownloadEngine` interface. No real transfer happens yet — the engine adapter
+is Phase 2G-C, so the manager is intentionally unreachable from the UI until
+then.
 The full extension runtime was executed inside the app process on a physical
 device — Samsung Galaxy A06, Android 16 — with four consecutive 10/10
 integration-test runs: app startup, Drift/SQLite on device, the real QuickJS
@@ -74,8 +83,9 @@ UI (phone / TV)  →  Riverpod state  →  Core services
                                                               Offline playback
 ```
 
-Only the extension foundation layer exists so far. The metadata manager, source
-manager, player and download manager are future work.
+The extension foundation, discovery, metadata, source manager, player and the
+download orchestration layer exist and are wired; the download engine (actual
+byte transfer) is future work behind the `DownloadEngine` interface.
 
 ### Extension trust and execution
 
@@ -171,8 +181,11 @@ flutter run
 
 ## Not implemented yet (deliberately)
 
-Sub-stages 2G (download manager) and 2H (extension catalogue in a separate
-repository) — plus real scraper extensions and any external metadata provider
+Sub-stage 2G-C (the real download engine adapter — `background_downloader`
+behind the SPECTA `DownloadEngine` interface, actual MP4 transfer, `.part`
+handling, Range resume, source refresh) and 2H (extension catalogue in a
+separate repository) — plus real scraper extensions and any external metadata
+provider
 (e.g. TMDB). SPECTA produces no content of its own: it searches, resolves and
 plays what the extensions you install provide. The extension foundation,
 discovery pipeline, metadata layer, source manager, player surface and the
@@ -184,6 +197,8 @@ into the running app.
 | File | Purpose |
 | --- | --- |
 | `PROJECT_STATE.txt` | Handover state: phase, work done, verification, blockers |
+| `docs/PHASE_2G_B_REPORT.md` | 2G-B report: DownloadManager, queue/concurrency, engine interface, providers, tests |
+| `docs/PHASE_2G_A_REPORT.md` | 2G-A report: foundation corrections, Persistence Contract, download architecture decision |
 | `docs/PHASE_2F_RESUME_FOLLOWUP_REPORT.md` | 2F resume-by-key follow-up: identity audit, schema v4 provenance, device verification |
 | `docs/PHASE_2F_REPORT.md` | Phase 2F (library / history / watch progress) report: schema v3 migration, persistence path, device verification |
 | `docs/PHASE_2E_REPORT.md` | Phase 2E (player integration) report: source pipeline, fallback, refresh, device verification |
