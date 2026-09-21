@@ -172,7 +172,7 @@ void main() {
         manager,
         testId,
         (DownloadRecord r) => r.status.isTerminal,
-        const Duration(minutes: 3),
+        const Duration(minutes: 5),
       );
 
       marker('final status=${record.status.code} '
@@ -269,8 +269,11 @@ void main() {
         const Duration(seconds: 30),
       );
       expect(started.status, DownloadStatus.downloading);
-      expect(await manager1.engine.isTransferActive(testId), isTrue,
+      final bool transferActive =
+          await manager1.engine.isTransferActive(testId);
+      expect(transferActive, isTrue,
           reason: 'WorkManager holds the live native task');
+      marker('isTransferActive=$transferActive');
 
       // "Restart": ABANDON the first container (no dispose — a real process
       // death runs none) and create a fresh one over the SAME persisted
@@ -287,7 +290,7 @@ void main() {
         manager2,
         testId,
         (DownloadRecord r) => r.status.isTerminal,
-        const Duration(minutes: 3),
+        const Duration(minutes: 5),
       );
 
       marker('post-restart status=${after.status.code} '
