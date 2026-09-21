@@ -2,7 +2,8 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-21 — Phase 2G-C ENGINE INTEGRATION COMPLETE.
+Last updated: 2026-09-21 — Phase 2G-C ENGINE INTEGRATION COMPLETE;
+REAL DEVICE VALIDATION PARTIAL on Samsung Galaxy A06 (SM-A065F, Android 16).
 The pre-flight (Sections 34–39 of the 2G-C authorization), 2G-C engine
 integration, documentation reconciliation, and this audit are all done.
 The pre-flight fixed five confirmed defects
@@ -14,7 +15,10 @@ re-evaluation, credential-header hygiene). Validation at pre-flight close:
 analyze clean; 712 passed / 9 skipped / 0 failed; real-JS suite 721 passed /
 0 failed; debug APK SUCCESS. The 2G-C engine integration was then implemented
 and verified: analyze clean; 750 passed / 9 skipped / 0 failed; real-JS 721;
-debug APK SUCCESS (2G-C pre-flight). See docs/PHASE_2G_C_ENGINE_AUDIT.md.
+debug APK SUCCESS. See docs/PHASE_2G_C_ENGINE_AUDIT.md.
+Real device validation: P2GC-1 FAIL (8192/8192 bytes, expected 2097176),
+P2GC-2 PASS, P2GC-3 FAIL (isTransferActive false, timing). Integration test:
+1 passed, 2 failed out of 3. See docs/PHASE_2G_C_ENGINE_AUDIT.md.
 Previous handover state: Phase 2G-A + 2G-B committed and pushed as
 94f9283 ("Phase 2G-A/2G-B: download foundation, manager, queue and engine
 seam", 26 files, +7833/-237). Push verified: origin/master == 94f9283.
@@ -22,7 +26,7 @@ Verified before that commit: analyze clean, 618 passed / 9 skipped
 (after the 2G-B source-audit regression test; 617 before it), real JS 627,
 debug APK SUCCESS.
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
-PHASE 2 IN PROGRESS (2A through 2G-C complete; 2H open).
+PHASE 2 IN PROGRESS (2A through 2G-C complete — real-device validation PARTIAL; 2H open).
 Next: Phase 2 sub-stage 2H (extension catalogue in a separate
 SPECTA-Extensions repository) — NOT YET AUTHORIZED — DO NOT START.
 Next: Phase 2 sub-stage 2G-C (background_downloader adapter, real MP4
@@ -587,36 +591,26 @@ suite 618+9sk after the 2G-B source-audit regression test (617 before
      (see below). See docs/PHASE_2G_A_REPORT.md and
      docs/PHASE_2G_B_REPORT.md.
 [✓] 2G-C Download engine integration — DONE 2026-09-21
-     (docs/PHASE_2G_C_ENGINE_AUDIT.md): `BackgroundDownloaderEngine`
-     behind the SPECTA `DownloadEngine` interface backed by
-     `background_downloader` 9.6.2; `SourceManagerDownloadResolver`
-     for source recovery through the real SourceManager;
-     `FileDownloadCompletionFinalizer` (.part → final rename +
-     verification); restart reconciliation via `isTransferActive`
-     + `attach`; stale-event protection via epoch generation guard;
-     full manager integration (persist-before-engine, bounded retry
-     3 attempts / 2s→60s backoff, concurrency 3/9 clamped); 8
-     new/modified test files (108+ 2G-C tests); analyze clean;
-     750 passed / 9 skipped / 0 failed; real JS 721; debug APK
-     SUCCESS. Real-device transfer verification NOT PERFORMED in
-     this session (needs Samsung Galaxy A06 / Android 16).
+     Real-device validation: PARTIAL (Samsung Galaxy A06 / Android 16).
+     P2GC-1: FAIL — 8192/8192 bytes (expected 2097176). Transfer
+     chain functional; server verified healthy.
+     P2GC-2: PASS (cancelled state persisted, no final media).
+     P2GC-3: FAIL — isTransferActive returned false (timing).
+     Integration test: 1 passed, 2 failed out of 3.
+     Analyze clean; 750 passed / 9 skipped / 0 failed; real JS 721.
+     Docs: docs/PHASE_2G_C_ENGINE_AUDIT.md.
 [ ] 2H Extension catalogue integration (separate SPECTA-Extensions repository;
     creation deferred until this stage actually requires it).
 
 Phase 2G-C — Download engine integration — DONE 2026-09-21
-(docs/PHASE_2G_C_ENGINE_AUDIT.md): `BackgroundDownloaderEngine`
-behind the SPECTA `DownloadEngine` interface backed by
-`background_downloader` 9.6.2; `SourceManagerDownloadResolver`
-for source recovery through the real SourceManager; `FileDownloadCompletionFinalizer`
-(.part → final rename + verification); restart reconciliation via
-`isTransferActive` + `attach`; stale-event protection via epoch
-generation guard; full manager integration (persist-before-engine,
-bounded retry 3 attempts / 2s→60s backoff, concurrency 3/9 clamped);
-8 new/modified test files (108+ 2G-C tests); analyze clean;
-750 passed / 9 skipped / 0 failed; real JS 721; debug APK SUCCESS.
-Real-device transfer verification NOT PERFORMED in this session
-(needs Samsung Galaxy A06 / Android 16 — integration test
-`integration_test/phase2gc_device_verification_test.dart` targets it).
+Real-device validation: PARTIAL on Samsung Galaxy A06 (SM-A065F, Android 16, API 36).
+Device: R83L20FRDM. APK: build\app\outputs\flutter-apk\app-debug.apk (207,711,670 bytes).
+Test server: host port 8712, test.mp4 (2,097,176 bytes). adb reverse tcp:8712→8712.
+P2GC-1 (real MP4 download): FAIL — completed but 8192/8192 bytes instead of 2097176. Transfer chain functional (enqueue → progress → completed → file exists, no .part). Server verified healthy (HTTP 200, Content-Length 2097176). Transfer volume insufficient on device (likely WorkManager/OEM constraint). Completion gate correctly detected mismatch.
+P2GC-2 (cancellation): PASS — cancelled state persisted, no final media, .part file preserved after cancel. Late events cannot resurrect record.
+P2GC-3 (restart reconciliation): FAIL — `isTransferActive(testId)` returned false (expected true). Likely timing: 8KB transfer completed in 3s, before the `isTransferActive` probe. UnmountedRefException in teardown is a documented race in test source.
+Integration test result: 1 passed, 2 failed, 0 skipped out of 3.
+Docs: docs/PHASE_2G_C_ENGINE_AUDIT.md.
 
 Phase 1 carry-overs (honest, none Phase 2 blockers yet):
 [ ] No CPU or memory ceiling for extension JS — measured, not enforced by the

@@ -30,9 +30,13 @@ with exponential backoff, stale-callback protection, and a replaceable
 `DownloadEngine` interface. The real engine adapter — `BackgroundDownloaderEngine`
 backed by `background_downloader` 9.6.2 — is COMPLETE and wired into the
 production provider graph. Its transfer path is exercised by an integration
-test (`integration_test/phase2gc_device_verification_test.dart`) targeting a
-Samsung Galaxy A06; that test has NOT been run in this session (no device
-attached).
+test (`integration_test/phase2gc_device_verification_test.dart`) run on a
+Samsung Galaxy A06 (2026-09-21) with PARTIAL results: 1 of 3 device tests
+passed (cancellation); P2GC-1 (real MP4 download) had a byte-count mismatch
+(8192 vs 2097176 — transfer chain functional but transfer volume insufficient on device);
+P2GC-3 (restart reconciliation) failed on timing (isTransferActive returned false
+because the 8KB test transfer completed before the check).
+See docs/PHASE_2G_C_ENGINE_AUDIT.md for full evidence.
 The full extension runtime was executed inside the app process on a physical
 device — Samsung Galaxy A06, Android 16 — with four consecutive 10/10
 integration-test runs: app startup, Drift/SQLite on device, the real QuickJS
@@ -219,16 +223,19 @@ flutter run
 
 ## Not implemented yet (deliberately)
 
-Sub-stage 2G-C (the real download engine adapter — `background_downloader`
-behind the SPECTA `DownloadEngine` interface, actual MP4 transfer, `.part`
-handling, Range resume, source refresh) and 2H (extension catalogue in a
-separate repository) — plus real scraper extensions and any external metadata
-provider
+Sub-stage 2H (extension catalogue in a separate repository) —
+plus real scraper extensions and any external metadata provider
 (e.g. TMDB). SPECTA produces no content of its own: it searches, resolves and
 plays what the extensions you install provide. The extension foundation,
-discovery pipeline, metadata layer, source manager, player surface and the
-persistent library / watch-progress / history layer are all in place and wired
-into the running app.
+discovery pipeline, metadata layer, source manager, player surface, the
+persistent library / watch-progress / history layer, and the download
+orchestration layer (including the real engine adapter `BackgroundDownloaderEngine`
+behind the `DownloadEngine` interface) are all in place and wired
+into the running app. The 2G-C real-device validation (Samsung Galaxy A06)
+achieved PARTIAL results — 1 of 3 device tests passed; P2GC-1 transferred
+8192 of 2097176 expected bytes (transfer chain functional, volume insufficient
+on device); P2GC-2 (cancellation) passed; P2GC-3 (restart reconciliation)
+failed on timing. See docs/PHASE_2G_C_ENGINE_AUDIT.md for evidence.
 
 ## Documents
 

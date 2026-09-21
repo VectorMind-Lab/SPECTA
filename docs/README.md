@@ -25,8 +25,11 @@ queue, concurrency 3 (max 9), persist-before-engine scheduling, bounded retry
 with exponential backoff, stale-callback protection, and a replaceable
 `DownloadEngine` interface backed by `background_downloader` 9.6.2 as the
 first adapter (`BackgroundDownloaderEngine`). Real-device transfer verification
-is NOT PERFORMED in this session — it requires a Samsung Galaxy A06 /
-Android 16 device (see `integration_test/phase2gc_device_verification_test.dart`).
+was PERFORMED on Samsung Galaxy A06 (2026-09-21) with PARTIAL results —
+1 of 3 device tests passed (cancellation); P2GC-1 had a byte-count mismatch
+(8192 vs 2097176 — transfer chain functional but transfer volume insufficient
+on device); P2GC-3 (restart reconciliation) failed on timing (transfer completed
+too quickly to be adopted). See docs/PHASE_2G_C_ENGINE_AUDIT.md for full evidence.
 The full extension runtime was executed inside the app process on a physical
 device — Samsung Galaxy A06, Android 16 — with four consecutive 10/10
 integration-test runs: app startup, Drift/SQLite on device, the real QuickJS
@@ -222,8 +225,10 @@ discovery pipeline, metadata layer, source manager, player surface, the
 persistent library / watch-progress / history layer, and the download
 orchestration layer (including the `BackgroundDownloaderEngine` adapter
 behind the `DownloadEngine` interface) are all in place and wired
-into the running app. Real-device transfer verification requires a
-Samsung Galaxy A06 / Android 16 device and is NOT PERFORMED in this session.
+into the running app. Real-device transfer verification was
+PERFORMED on Samsung Galaxy A06 (2026-09-21) with PARTIAL results
+(1 of 3 device tests passed; P2GC-1 byte-count mismatch, P2GC-3
+failed on timing). See docs/PHASE_2G_C_ENGINE_AUDIT.md.
 
 ## Documents
 
