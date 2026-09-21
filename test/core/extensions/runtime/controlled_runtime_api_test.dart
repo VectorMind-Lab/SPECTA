@@ -54,6 +54,14 @@ ExtensionRequest _request({
   timeout: timeout,
 );
 
+// §37.5 (2G-C pre-flight): the ONLY sanctioned test-only policy override.
+// These tests exercise API mapping/logging/latency logic with fake transports
+// and fake hostnames; they must not resolve real hosts. Production wiring
+// keeps host blocking ON (proven in request_policy_hardening_test.dart).
+const ExtensionRequestPolicy _testPolicy = ExtensionRequestPolicy(
+  blockPrivateHosts: false,
+);
+
 void main() {
   group('ControlledExtensionRuntimeApi — allowed request', () {
     test('a 2xx response is structured, decoded and timed', () async {
@@ -65,6 +73,7 @@ void main() {
         ),
       );
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: transport,
       );
 
@@ -87,6 +96,7 @@ void main() {
 
     test('a non-JSON body is returned with json left null', () async {
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: _ScriptedTransport(
           (Uri uri) async => const ExtensionHttpResult(
             statusCode: 200,
@@ -114,6 +124,7 @@ void main() {
             defaultTimeout: Duration(seconds: 7),
             maxResponseBytes: 1234,
             maxRedirects: 2,
+            blockPrivateHosts: false,
           ),
           transport: transport,
         );
@@ -134,6 +145,7 @@ void main() {
           (Uri uri) async => const ExtensionHttpResult(statusCode: 204),
         );
         final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+          policy: _testPolicy,
           transport: transport,
         );
 
@@ -153,6 +165,7 @@ void main() {
             const ExtensionHttpResult(statusCode: 200, body: '{}'),
       );
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: transport,
       );
 
@@ -170,6 +183,7 @@ void main() {
   group('ControlledExtensionRuntimeApi — structured failures', () {
     test('a non-2xx response is a structured HTTP failure', () async {
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: _ScriptedTransport(
           (Uri uri) async =>
               const ExtensionHttpResult(statusCode: 503, body: 'unavailable'),
@@ -188,6 +202,7 @@ void main() {
 
     test('a transport timeout surfaces as TIMEOUT', () async {
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: _ScriptedTransport(
           (Uri uri) async => const ExtensionHttpResult(
             failureType: ExtensionFailureType.timeout,
@@ -206,6 +221,7 @@ void main() {
 
     test('a transport network failure surfaces as NETWORK_ERROR', () async {
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: _ScriptedTransport(
           (Uri uri) async => const ExtensionHttpResult(
             failureType: ExtensionFailureType.networkError,
@@ -223,6 +239,7 @@ void main() {
 
     test('oversize response handling surfaces the transport failure', () async {
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: _ScriptedTransport(
           (Uri uri) async => const ExtensionHttpResult(
             failureType: ExtensionFailureType.invalidResult,
@@ -241,6 +258,7 @@ void main() {
 
     test('an untagged transport failure still yields a failure type', () async {
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: _ScriptedTransport(
           (Uri uri) async => const ExtensionHttpResult(),
         ),
@@ -258,6 +276,7 @@ void main() {
         (Uri uri) async => const ExtensionHttpResult(statusCode: 200),
       );
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: transport,
       );
 
@@ -280,6 +299,7 @@ void main() {
         (Uri uri) async => const ExtensionHttpResult(statusCode: 200),
       );
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: transport,
       );
 
@@ -294,6 +314,7 @@ void main() {
 
     test('counters separate dispatched from denied requests', () async {
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: _ScriptedTransport(
           (Uri uri) async =>
               const ExtensionHttpResult(statusCode: 200, body: '{}'),
@@ -317,6 +338,7 @@ void main() {
         final List<(ExtensionLogLevel, String)> lines =
             <(ExtensionLogLevel, String)>[];
         final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+          policy: _testPolicy,
           transport: _ScriptedTransport(
             (Uri uri) async => const ExtensionHttpResult(statusCode: 200),
           ),
@@ -339,6 +361,7 @@ void main() {
     test('log() is forwarded to the sink and silenceable', () async {
       final List<String> messages = <String>[];
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: _ScriptedTransport(
           (Uri uri) async => const ExtensionHttpResult(statusCode: 200),
         ),
@@ -352,6 +375,7 @@ void main() {
       // The default constructor discards logs without failing.
       final ControlledExtensionRuntimeApi silent =
           ControlledExtensionRuntimeApi(
+            policy: _testPolicy,
             transport: _ScriptedTransport(
               (Uri uri) async => const ExtensionHttpResult(statusCode: 200),
             ),
@@ -364,6 +388,7 @@ void main() {
     test('requests are never logged with a credential-bearing URL', () async {
       final List<String> messages = <String>[];
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: _ScriptedTransport(
           (Uri uri) async =>
               const ExtensionHttpResult(statusCode: 200, body: '{}'),
@@ -513,6 +538,7 @@ void main() {
             const ExtensionHttpResult(statusCode: 200, body: '{}'),
       );
       final ControlledExtensionRuntimeApi api = ControlledExtensionRuntimeApi(
+        policy: _testPolicy,
         transport: transport,
       );
 

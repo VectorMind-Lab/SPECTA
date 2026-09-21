@@ -60,29 +60,156 @@ final class EnqueueResult {
 ///
 /// Recovery seam (2G-A §23): the resolved URL belongs to an individual
 /// attempt and is never persisted; recovery re-resolves through SPECTA's
-/// existing layers. Phase 2G-B ships the session resolver (pools captured at
-/// enqueue); Phase 2G-C replaces it with real re-resolution through the
-/// SourceManager using the persisted provenance.
+/// existing layers. Phase 2G-B shipped a session-only resolver; Phase 2G-C's
+/// production resolver ([SourceManagerDownloadResolver]) re-resolves through
+/// the real [SourceManager] using the persisted provenance whenever the
+/// session holds no pool or the last attempt failed with a source-type
+/// failure (the captured URL itself is not trusted after that).
 abstract interface class DownloadSourceResolver {
+  /// Failure types that mean "the SOURCE/URL itself became unusable" —
+  /// after any of these, a captured pool must not be reused (the stale-pool
+  /// requeue hazard): the captured URL is precisely the one that just failed.
+  /// Engine/network/storage failures do NOT invalidate the source; the
+  /// captured pool stays authoritative for the next attempt.
+  ///
+  /// Canonical definition, shared by every resolver implementation so the
+  /// classifications can never drift apart.
+  static const Set<DownloadFailureType> sourceInvalidatingFailures =
+      <DownloadFailureType>{
+    DownloadFailureType.httpError,
+    DownloadFailureType.invalidResponse,
+    DownloadFailureType.unsupportedSource,
+    DownloadFailureType.sourcesExhausted,
+  };
+
   /// The pool for [record]'s next attempt, or null when it cannot be
   /// resolved right now.
-  Future<SourcePool?> resolveSource(DownloadRecord record);
+  ///
+  /// [lastFailure] is the failure of the PREVIOUS attempt of this download
+  /// when that attempt ended in a source-classified failure (the manager
+  /// keeps it in memory for exactly one recovery decision). Resolvers that
+  /// hold a captured pool MUST NOT reuse it when [lastFailure] indicates the
+  /// source itself became unusable — that is the stale-pool requeue hazard.
+  Future<SourcePool?> resolveSource(
+    DownloadRecord record, {
+    DownloadFailure? lastFailure,
+  });
+
+  /// Remembers the pool captured at enqueue/re-enqueue time for [id] (the
+  /// user's freshest resolution inputs — a re-request must consume these,
+  /// never a stale pool from a previous run).
+  void rememberPool(String id, SourcePool pool);
+
+  /// Forgets any pool held for [id] (record removed / run superseded).
+  void forgetPool(String id);
 }
 
-/// 2G-B resolver: returns the pool captured at enqueue time within this
-/// manager session. After a restart no pool is held — the honest answer is
-/// null and the attempt fails `sourcesExhausted` until 2G-C implements real
-/// source recovery through the SourceManager.
+/// 2G-B-style session resolver: returns the pool captured at enqueue time
+/// within this manager session. Still the constructor default so plain unit
+/// tests need no extension infrastructure; production wiring installs
+/// [SourceManagerDownloadResolver] instead. After a restart no pool is held
+/// and the honest answer is null (the attempt fails `sourcesExhausted`).
+///
+/// Source-invalidation discipline (2G-C §25, same rule the production
+/// resolver implements): a captured pool is NEVER served for an attempt whose
+/// predecessor failed with a source-classified failure — the captured URL is
+/// precisely the one that just proved unusable, and re-serving it would be
+/// the stale-pool requeue hazard. The session resolver has no re-resolution
+/// path (that is the production resolver's job), so the honest answer after
+/// such a failure is null — the manager classifies that as
+/// `sourcesExhausted` under its bounded retry budget.
 final class SessionDownloadSourceResolver implements DownloadSourceResolver {
   final Map<String, SourcePool> _pools = <String, SourcePool>{};
 
-  void remember(String id, SourcePool pool) => _pools[id] = pool;
-
-  void forget(String id) => _pools.remove(id);
+  @override
+  void rememberPool(String id, SourcePool pool) => _pools[id] = pool;
 
   @override
-  Future<SourcePool?> resolveSource(DownloadRecord record) async =>
-      _pools[record.id];
+  void forgetPool(String id) => _pools.remove(id);
+
+  @override
+  Future<SourcePool?> resolveSource(
+    DownloadRecord record, {
+    DownloadFailure? lastFailure,
+  }) async {
+    final bool sourceInvalidated = lastFailure != null &&
+        DownloadSourceResolver.sourceInvalidatingFailures
+            .contains(lastFailure.type);
+    if (sourceInvalidated) {
+      // The captured URL just failed as unusable. Drop it — never re-serve
+      // the dead URL, and never let a later attempt inherit it silently.
+      _pools.remove(record.id);
+      return null;
+    }
+    return _pools[record.id];
+  }
+}
+
+/// Verifies and finalizes an engine-reported completion (2G-C §40: a
+/// transfer is not `completed` merely because a callback said so).
+///
+/// The finalizer owns the `.part` → final rename: the engine writes into the
+/// part path only; the final media path exists exactly when the manager has
+/// verified the transfer. It returns the verified byte count (the engine's
+/// count when it reported one — the byte-count audit is the engine's own
+/// transfer accounting; the file size is the fallback when it did not) and
+/// throws a structured [DownloadFailure] when no valid final file exists.
+///
+/// Injectable for the same reason as [DownloadClock]: deterministic tests
+/// and production share the manager, never the filesystem assumptions.
+abstract interface class DownloadCompletionFinalizer {
+  Future<int> finalize(DownloadRecord record, int engineBytes);
+}
+
+/// The production finalizer: real filesystem verification.
+///
+/// - part file exists → rename onto the final path (SPECTA's own derived
+///   path for this download id — any stale file there is this download's
+///   own previous artifact, never an unrelated user file) and verify.
+/// - part file absent but a non-empty final exists (e.g. an adopted transfer
+///   whose rename already happened) → accept with its size as fallback.
+/// - neither → the engine reported completion without producing a file: an
+///   honest `engineFailure` (never masked as success).
+final class FileDownloadCompletionFinalizer
+    implements DownloadCompletionFinalizer {
+  const FileDownloadCompletionFinalizer();
+
+  @override
+  Future<int> finalize(DownloadRecord record, int engineBytes) async {
+    final File part = File(downloadPartPathFor(record.filePath));
+    final File finalFile = File(record.filePath);
+    if (await part.exists()) {
+      try {
+        await finalFile.parent.create(recursive: true);
+        if (await finalFile.exists()) {
+          await finalFile.delete(); // this download's own stale artifact
+        }
+        await part.rename(finalFile.path);
+      } on Object {
+        throw DownloadFailure(
+          type: DownloadFailureType.storageFailure,
+          message: DownloadFailureType.storageFailure.message,
+          detail: 'The completed transfer could not be moved into place.',
+        );
+      }
+    }
+    if (!await finalFile.exists()) {
+      throw DownloadFailure(
+        type: DownloadFailureType.engineFailure,
+        message: DownloadFailureType.engineFailure.message,
+        detail: 'The engine reported completion but produced no file.',
+      );
+    }
+    final int size = await finalFile.length();
+    if (size <= 0) {
+      throw DownloadFailure(
+        type: DownloadFailureType.storageFailure,
+        message: DownloadFailureType.storageFailure.message,
+        detail: 'The completed transfer produced an empty file.',
+      );
+    }
+    return engineBytes > 0 ? engineBytes : size;
+  }
 }
 
 /// Decides when a live progress tick is worth a SQLite write (persistence
@@ -140,6 +267,7 @@ final class DownloadManager {
     required this.engine,
     required this.environment,
     DownloadSourceResolver? sourceResolver,
+    DownloadCompletionFinalizer? completionFinalizer,
     this.retryPolicy = const DownloadRetryPolicy(),
     this.progressPolicy = const DownloadProgressPersistPolicy(),
     this.clock = const SystemDownloadClock(),
@@ -149,6 +277,8 @@ final class DownloadManager {
     this.onChanged,
   })  : _sourceResolver =
             sourceResolver ?? SessionDownloadSourceResolver(),
+        _completionFinalizer =
+            completionFinalizer ?? const FileDownloadCompletionFinalizer(),
         _mediaDirectory = mediaDirectory ?? _defaultMediaDirectory {
     _concurrency = _clampConcurrency(concurrency);
   }
@@ -163,6 +293,10 @@ final class DownloadManager {
   final DownloadEngine engine;
   final DeviceEnvironment environment;
   final DownloadSourceResolver _sourceResolver;
+
+  /// Verifies engine-reported completions and owns the final rename
+  /// (persistence contract: only the manager turns a transfer into media).
+  final DownloadCompletionFinalizer _completionFinalizer;
   final DownloadRetryPolicy retryPolicy;
   final DownloadProgressPersistPolicy progressPolicy;
   final DownloadClock clock;
@@ -189,6 +323,13 @@ final class DownloadManager {
   final Map<String, DownloadProgress> _liveProgress = <String, DownloadProgress>{};
   final Map<String, int> _lastPersistedBytes = <String, int>{};
   final Map<String, DateTime> _lastPersistedAt = <String, DateTime>{};
+
+  /// The failure that ended the previous attempt of a download, kept for the
+  /// one recovery decision that follows it (source-classified failures must
+  /// trigger fresh resolution, not a stale captured pool). Cleared when a
+  /// new attempt starts.
+  final Map<String, DownloadFailure> _lastSourceFailure =
+      <String, DownloadFailure>{};
 
   StreamSubscription<DownloadEngineEvent>? _eventsSubscription;
 
@@ -274,7 +415,28 @@ final class DownloadManager {
       final List<DownloadRecord> records = await store.all();
       for (final DownloadRecord record in records) {
         if (_disposed) return;
-        if (record.status != DownloadStatus.downloading) continue;
+        if (record.status != DownloadStatus.downloading) {
+          // A paused record whose transfer survived under the engine is
+          // STALE engine work: SPECTA says paused, so nothing may keep
+          // transferring, and a later resume must enqueue fresh without
+          // colliding with the old native task (the plugin has no
+          // re-enqueue guard — a surviving task would duplicate work).
+          // Best-effort cancel; SPECTA's paused state never depended on it.
+          if (record.status == DownloadStatus.paused) {
+            bool staleEngineWork = false;
+            try {
+              staleEngineWork = await engine.isTransferActive(record.id);
+            } on Object {
+              staleEngineWork = false;
+            }
+            if (staleEngineWork) {
+              try {
+                await engine.cancel(record.id);
+              } on Object {/* best-effort cleanup */}
+            }
+          }
+          continue;
+        }
 
         // §31: a persisted `downloading` record is neither proof that a
         // transfer survived nor a candidate for a blind failure. Ask the
@@ -288,9 +450,19 @@ final class DownloadManager {
         }
         if (_disposed) return;
         if (engineActive) {
-          // The transfer survived (future engine adapters). Leave the record
-          // downloading; 2G-C adopts the live transfer. Not counted active
-          // in THIS manager (we hold no attempt for it).
+          // 2G-C reconciliation: the transfer survived under the engine
+          // (WorkManager). ADOPT it — the engine re-attaches to the existing
+          // native task (never re-enqueues: the SPECTA download id IS the
+          // deterministic plugin task id) and the attempt result reconciles
+          // through the same epoch-protected path as any other attempt.
+          // The engine does NOT become the authority: a terminal engine
+          // answer is applied through the usual completion gate / failure
+          // translation, and the engine's own records stay bookkeeping.
+          final int epoch = ++_epochCounter;
+          _activeEpoch[record.id] = epoch;
+          _lastPersistedBytes[record.id] = record.bytesDownloaded;
+          _lastPersistedAt[record.id] = clock.now();
+          unawaited(_runAdoptedAttempt(record, epoch));
           continue;
         }
         await _applyFailure(
@@ -365,6 +537,15 @@ final class DownloadManager {
               updatedAt: clock.now(),
             );
             await _persist(requeued);
+            // A deliberate re-request is user-initiated and carries fresh
+            // resolution inputs: the previous run's source failure no longer
+            // constrains resolution.
+            _lastSourceFailure.remove(request.id);
+            // The re-request carries the user's FRESH resolution inputs; the
+            // next attempt must consume them, not the stale pool captured
+            // for the dead run (or nothing at all when the first enqueue
+            // never started an attempt, e.g. unsupportedSource).
+            _sourceResolver.rememberPool(request.id, request.pool);
             return EnqueueResult(
               record: requeued,
               action: existing.status == DownloadStatus.failed
@@ -430,9 +611,7 @@ final class DownloadManager {
         updatedAt: clock.now(),
       );
       await _persist(record);
-      if (_sourceResolver case final SessionDownloadSourceResolver session) {
-        session.remember(request.id, request.pool);
-      }
+      _sourceResolver.rememberPool(request.id, request.pool);
       return EnqueueResult(
           record: record, action: DownloadEnqueueAction.created);
     });
@@ -565,6 +744,12 @@ final class DownloadManager {
         waitReason: null,
         updatedAt: clock.now(),
       ));
+      // 2G-C §25 (stale-pool protection): a manual retry of a FAILED
+      // download keeps the previous run's failure in memory so the resolver
+      // can re-resolve FRESHLY when that failure was source-invalidating —
+      // the captured pool must not serve the same expired URL again. (An
+      // enqueue-based re-request supersedes this with the user's fresh pool
+      // and clears the memory explicitly.)
       return true;
     });
     _triggerPump();
@@ -583,9 +768,8 @@ final class DownloadManager {
       _liveProgress.remove(id);
       _lastPersistedBytes.remove(id);
       _lastPersistedAt.remove(id);
-      if (_sourceResolver case final SessionDownloadSourceResolver session) {
-        session.forget(id);
-      }
+      _lastSourceFailure.remove(id);
+      _sourceResolver.forgetPool(id);
       if (record == null) return (false, false); // idempotent
       await store.remove(id);
       onChanged?.call();
@@ -673,7 +857,18 @@ final class DownloadManager {
   Future<void> _runAttempt(DownloadRecord starting, int epoch) async {
     DownloadAttemptResult result;
     try {
-      final SourcePool? pool = await _sourceResolver.resolveSource(starting);
+      // Recovery-aware resolution: the resolver receives the failure that
+      // ended the previous attempt (if any). A source-classified failure
+      // FORBIDS reusing any captured pool — the URL itself is suspect — so
+      // the resolver must re-resolve through the source architecture (or
+      // answer null and let the budget run out honestly). This is the
+      // manager-owned recovery decision (2G-C §12/§13): never an unbounded
+      // refresh loop, never an attempt-budget reset.
+      final SourcePool? pool = await _sourceResolver.resolveSource(
+        starting,
+        lastFailure: _lastSourceFailure[starting.id],
+      );
+      _lastSourceFailure.remove(starting.id);
       final RankedSource? candidate =
           pool == null ? null : _pickDownloadable(pool);
       if (candidate == null) {
@@ -708,6 +903,27 @@ final class DownloadManager {
     await _serialized(() => _reconcileResult(starting.id, epoch, result));
   }
 
+  /// Runs an ADOPTED attempt (restart reconciliation): the transfer survived
+  /// under the engine and is already addressed by SPECTA identity — no
+  /// source resolution, no new engine work. The result reconciles through
+  /// the same epoch-protected path as a fresh attempt.
+  Future<void> _runAdoptedAttempt(DownloadRecord record, int epoch) async {
+    DownloadAttemptResult result;
+    try {
+      result = await engine.attach(record.id);
+    } on Object catch (error) {
+      result = DownloadAttemptResult.failed(
+        DownloadFailure(
+          type: DownloadFailureType.engineFailure,
+          message: DownloadFailureType.engineFailure.message,
+          detail: '$error',
+        ),
+        record.bytesDownloaded,
+      );
+    }
+    await _serialized(() => _reconcileResult(record.id, epoch, result));
+  }
+
   /// Applies an attempt's terminal result to CURRENT persisted state, with
   /// stale-result protection at two layers: the attempt generation must
   /// still be active, and the persisted record must still be in the state
@@ -726,15 +942,27 @@ final class DownloadManager {
     switch (result.kind) {
       case DownloadAttemptOutcomeKind.completed:
         if (current.status != DownloadStatus.downloading) return; // stale
+        // Completion gate (2G-C §40): the engine's word alone does not make
+        // media. The transfer is verified on disk and the final rename is
+        // performed by the finalizer; a gate failure becomes an honest
+        // failure through the retry policy — never a masked success.
         final int bytes = _maxBytes(
             current.bytesDownloaded,
             _maxBytes(result.bytesOnDisk, _liveProgress[id]?.bytesOnDisk));
+        final int verifiedBytes;
+        try {
+          verifiedBytes = await _completionFinalizer.finalize(current, bytes);
+        } on DownloadFailure catch (gateFailure) {
+          _lastSourceFailure[id] = gateFailure;
+          await _applyFailure(current, gateFailure, bytes);
+          return;
+        }
         final int? total = result.totalBytes ??
             _liveProgress[id]?.totalBytes ??
             current.totalBytes;
         await _persist(current.copyWith(
           status: DownloadStatus.completed,
-          bytesDownloaded: bytes,
+          bytesDownloaded: verifiedBytes,
           totalBytes: total,
           completedAt: clock.now(),
           updatedAt: clock.now(),
@@ -773,15 +1001,17 @@ final class DownloadManager {
         await _pump();
       case DownloadAttemptOutcomeKind.failed:
         if (current.status != DownloadStatus.downloading) return; // stale
-        await _applyFailure(
-          current,
-          result.failure ??
-              DownloadFailure(
-                type: DownloadFailureType.engineFailure,
-                message: DownloadFailureType.engineFailure.message,
-              ),
-          result.bytesOnDisk,
-        );
+        final DownloadFailure failure = result.failure ??
+            DownloadFailure(
+              type: DownloadFailureType.engineFailure,
+              message: DownloadFailureType.engineFailure.message,
+            );
+        // Remember WHY this attempt ended: the next attempt's resolver
+        // receives it, so a source-classified failure triggers fresh
+        // resolution instead of a stale captured pool (2G-C §25). Cleared
+        // when the next attempt consumes it, or when the record is removed.
+        _lastSourceFailure[id] = failure;
+        await _applyFailure(current, failure, result.bytesOnDisk);
     }
   }
 

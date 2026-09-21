@@ -281,6 +281,47 @@ class ExtensionManager {
       );
     }
 
+    // 2G-C pre-flight (§36.5): trust is re-classified from the FILE ACTUALLY
+    // BEING LOADED, not trusted from the import-time record. The stored record
+    // could say `official` while the file on disk has since changed (the
+    // signature covers manifest + body, so any code change invalidates it).
+    // The freshly derived trust and capabilities are what run; a divergence
+    // from the stored level is persisted through the registry and recorded in
+    // the failure log so the change is observable, never silent. The policy
+    // that unverified extensions may still load stays unchanged: trust is
+    // data, not enforcement.
+    final TrustLevel fileTrust = await _classifyTrust(
+      manifest,
+      ManifestParser.extractBody(jsCode),
+    );
+    if (fileTrust != record.trustLevel) {
+      await _registry.install(
+        record.copyWith(
+          trustLevel: fileTrust,
+          signature: () => manifest.signature,
+          updatedAt: DateTime.now().toUtc(),
+        ),
+      );
+      await _registry.recordFailure(
+        ExtensionFailureRecord(
+          id: '${id}_trust_${DateTime.now().toUtc().toIso8601String()}',
+          extensionId: id,
+          failureType: ExtensionFailureType.invalidResult.code,
+          operation: 'load',
+          message:
+              'Trust level re-classified at load: stored '
+              '"${record.trustLevel.code}", file verifies as '
+              '"${fileTrust.code}". The file changed after import.',
+          timestamp: DateTime.now().toUtc(),
+          retryable: false,
+        ),
+      );
+    }
+
+    // The enabled/configuration checks above deliberately come BEFORE the
+    // file read and trust re-classification: their existing failure semantics
+    // must not depend on the file being readable. In the real app the API and
+    // sandbox are always configured, so every real load reaches the re-check.
     final ExtensionRuntime runtime = ExtensionRuntime(
       sandbox: _sandboxFactory(),
       api: _runtimeApi,

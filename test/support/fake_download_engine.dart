@@ -39,6 +39,12 @@ final class FakeDownloadEngine implements DownloadEngine {
   /// manager must convert into honest `engineFailure` data.
   bool throwOnStart = false;
 
+  /// 2G-C restart adoption: ids for which [isTransferActive] answers TRUE
+  /// (a transfer that survived process death under the engine), even with
+  /// no in-flight attempt in this fake. The manager must then ADOPT via
+  /// [attach] instead of failing the record.
+  final Set<String> adoptable = <String>{};
+
   /// When true (default), pause()/cancel() settle the oldest in-flight
   /// attempt for the download — a real engine acknowledges control calls by
   /// settling the transfer. Tests set this false to hold the settlement and
@@ -130,7 +136,34 @@ final class FakeDownloadEngine implements DownloadEngine {
 
   @override
   Future<bool> isTransferActive(String downloadId) async =>
-      isActive(downloadId);
+      isActive(downloadId) || adoptable.contains(downloadId);
+
+  /// 2G-C adoption seam: scripts or settles the adopted attempt like
+  /// [start] — the fake holds no real engine bookkeeping, so "adopting" a
+  /// surviving transfer behaves exactly like a scripted/in-flight start.
+  /// Tests can either script an outcome beforehand or let the attempt sit
+  /// in flight and settle it manually.
+  @override
+  Future<DownloadAttemptResult> attach(String downloadId) async {
+    if (script.isNotEmpty) {
+      final DownloadAttemptInput probe = DownloadAttemptInput(
+        downloadId: downloadId,
+        url: 'adopted://$downloadId',
+        partPath: '/adopted/$downloadId.part',
+        resumeFrom: 0,
+      );
+      return script.removeAt(0)(probe);
+    }
+    final Completer<DownloadAttemptResult> completer =
+        Completer<DownloadAttemptResult>();
+    (_inFlight[downloadId] ??= <Completer<DownloadAttemptResult>>[])
+        .add(completer);
+    try {
+      return await completer.future;
+    } finally {
+      _inFlight[downloadId]?.remove(completer);
+    }
+  }
 
   void dispose() {
     unawaited(_events.close());

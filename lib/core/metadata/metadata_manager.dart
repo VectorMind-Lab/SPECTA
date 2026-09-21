@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../discovery/discovery_coordinator.dart';
 import '../discovery/discovery_models.dart';
+import '../identity/title_key.dart';
 import '../errors/specta_failure.dart';
 import '../errors/specta_result.dart';
 import '../extensions/contract/extension_capability.dart';
@@ -105,6 +106,9 @@ abstract final class MetadataManager {
 
   /// Builds the stable metadata identity key for a work — the same evidence
   /// key discovery used, so metadata and discovery always agree on identity.
+  ///
+  /// [normalizedTitle] must already be a KEY title (see [TitleKey.normalize]);
+  /// the key format `title|type|year` is unchanged.
   static String identityKey({
     required String normalizedTitle,
     required MediaType type,
@@ -275,13 +279,10 @@ abstract final class MetadataManager {
     );
   }
 
-  /// Case/punctuation/whitespace-insensitive title key — the same rule the
-  /// discovery normalizer uses, kept in agreement by construction.
-  static String _keyTitle(String title) => title
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^\w\s]'), ' ')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
+  /// Case/punctuation/whitespace-insensitive title key — the SHARED rule
+  /// [TitleKey.normalize] (2G-C pre-flight §36.1), so metadata and discovery
+  /// cannot drift and non-Latin titles keep their letters.
+  static String _keyTitle(String title) => TitleKey.normalize(title);
 }
 
 /// Riverpod wiring for the metadata layer. The manager comes from the Phase 1

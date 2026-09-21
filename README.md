@@ -7,19 +7,32 @@ source failures.
 ## Status
 
 **Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
-**Phase 2 — application build-out: sub-stages 2A–2F (incl. the 2F resume follow-up) plus 2G-A/2G-B (download foundation + orchestration) COMPLETE; 2G-C (real engine) and 2H open.**
+**Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
+**Phase 2 — application build-out: sub-stages 2A–2F (incl. the 2F resume follow-up) plus 2G-A/2G-B/2G-C (download foundation, orchestration, AND real engine integration) COMPLETE; 2H open.**
 
-`flutter analyze` reports no issues and **617 tests pass** (9 skipped: the
+`flutter analyze` reports no issues and **750 tests pass** (9 skipped: the
 real-engine group needs the JS bridge on `PATH`, `tool/run_tests_real_js.sh`;
-the real-JS run passes 626). The download domain is now SPECTA-owned end to
+the real-JS run passes 721). These are the post-2G-C numbers
+(2026-09-21), which include the pre-flight fixes (shared Unicode-aware title
+identity, `request({query})` parameter support, whole-request transport
+deadline, per-row defensive parsing, load-time trust re-classification, and
+the hardened request policy — private-host blocking, per-hop redirect
+re-evaluation, credential-header hygiene) AND the 2G-C engine integration
+(`BackgroundDownloaderEngine` behind the SPECTA `DownloadEngine` interface,
+`SourceManagerDownloadResolver`, full manager integration, 8 new/modified
+test files). Previously the suite stood at 618/9 (real-JS 627) after 2G-B.
+The download domain is now SPECTA-owned end to
 end: schema v5 `downloads` table with a tested v4→v5 migration, an
 authoritative Drift store, the Persistence Contract (state survives restart,
 no stored streaming URLs, no engine artifacts), a `DownloadManager` with FIFO
 queue, concurrency 3 (max 9), persist-before-engine scheduling, bounded retry
 with exponential backoff, stale-callback protection, and a replaceable
-`DownloadEngine` interface. No real transfer happens yet — the engine adapter
-is Phase 2G-C, so the manager is intentionally unreachable from the UI until
-then.
+`DownloadEngine` interface. The real engine adapter — `BackgroundDownloaderEngine`
+backed by `background_downloader` 9.6.2 — is COMPLETE and wired into the
+production provider graph. Its transfer path is exercised by an integration
+test (`integration_test/phase2gc_device_verification_test.dart`) targeting a
+Samsung Galaxy A06; that test has NOT been run in this session (no device
+attached).
 The full extension runtime was executed inside the app process on a physical
 device — Samsung Galaxy A06, Android 16 — with four consecutive 10/10
 integration-test runs: app startup, Drift/SQLite on device, the real QuickJS
@@ -105,11 +118,15 @@ SPECTA CORE  →  EXTENSION MANAGER  →  RESTRICTED JS RUNTIME  →  EXTENSION 
   registered.
 
 **Read this before relying on that boundary:** it is a restricted API surface,
-not an OS-level sandbox. Extension JavaScript runs inside the SPECTA process,
-there is no CPU or memory ceiling, and no request policy (URL scheme, method,
-headers) is enforced yet. Section 7 of the Phase 1 report states precisely what
-is and is not enforced, and section 8 documents what is still provisional about
-the signing protocol.
+not an OS-level sandbox. Extension JavaScript runs inside the SPECTA process
+and there is no CPU or memory ceiling. An explicit request policy IS enforced
+(scheme allow-list http/https, GET/POST/HEAD methods, response-size and
+timeout caps, redirect cap) and, since the 2G-C pre-flight, private/loopback
+host targets are blocked and every redirect hop is re-evaluated against the
+full policy (best-effort host checking; it does not fully defeat DNS
+rebinding). Section 7 of the Phase 1 report states the original enforcement
+set, and section 8 documents what is still provisional about the signing
+protocol.
 
 ## Toolchain
 
@@ -124,7 +141,7 @@ the signing protocol.
 | Database | SQLite via Drift (`drift`, `drift_flutter`, `sqlite3` native assets) |
 | JS runtime | `flutter_js` 0.8.7 (QuickJS on Android) |
 | Cryptography | `cryptography` 2.9.0 (+ `cryptography_flutter` 2.3.4) |
-| Playback | MediaKit (`media_kit` baseline only, wired to nothing) |
+| Playback | MediaKit (`media_kit` 1.2.6 — wired to the player in Phase 2E) |
 
 Environment setup is recorded in [`docs/SETUP_LOG.md`](docs/SETUP_LOG.md).
 
@@ -135,10 +152,15 @@ lib/
 ├── main.dart                       entry point; installs the Riverpod scope
 ├── app/
 │   ├── specta_app.dart             root MaterialApp (one app for phone + TV)
+│   ├── navigation/                 responsive app shell, destinations, nav state
 │   ├── platform/form_factor.dart   phone / tablet / television layout families
 │   └── theme/specta_theme.dart     colour, spacing and focus tokens
 ├── core/
 │   ├── database/                   Drift database, tables, migrations, DAOs
+│   ├── discovery/                  search pipeline: normalizer, dedup, coordinator
+│   ├── downloads/                  download models, failure model, engine seam,
+│   │                               DownloadManager, retry policy (orchestration;
+│   │                               the real engine adapter is Phase 2G-C)
 │   ├── errors/                     failure categories, SpectaResult, failures
 │   ├── extensions/                 PHASE 1 — extension foundation
 │   │   ├── catalogue/              content-type vocabulary
@@ -148,16 +170,32 @@ lib/
 │   │   ├── runtime/                runtime, controlled APIs, JS sandbox
 │   │   ├── verification/           Ed25519 verifier, trusted public key
 │   │   └── manifest.dart           manifest parser/validator, API versions
+│   ├── identity/                   shared media identity: Unicode-aware title key
+│   ├── library/                    watch-progress store, LibraryStore + Drift DAO
+│   ├── metadata/                   canonical metadata, normalizer, manager
+│   ├── playback/                   PlaybackEngine seam, MediaKit engine, progress
 │   ├── settings/                   canonical persisted setting keys
+│   ├── sources/                    SourcePool, validator, ranker, SourceManager
 │   └── storage/                    app-private directory layout
-└── features/
-    ├── home/                       temporary Phase 0 foundation screen
-    └── settings/                   settings state (persisted via Riverpod)
+├── features/
+│   ├── details/                    details state + view (movie / series)
+│   ├── downloads/                  downloads view (honest empty state until 2G-C)
+│   ├── extensions/                 extensions placeholder (2H)
+│   ├── home/                       Home over design fixtures + real rails
+│   ├── library/                    Library / history views
+│   ├── playback/                   player surface + race-safe session state
+│   ├── search/                     search state + view (live discovery)
+│   ├── settings/                   settings state (persisted via Riverpod)
+│   └── splash/                     splash branding
+└── ui/
+    └── widgets/                    focus wrapper, buttons, cards, scaffolds
 ```
 
-Nothing outside `lib/core/extensions/` imports the extension manager, runtime,
-verifier, manifest parser or registry yet, so those libraries are not reachable
-from `main.dart` and are dropped from the built application.
+The extension subsystem is reachable from `main.dart` (wired via
+`extension_providers.dart` + `SpectaStartup`), and the discovery, metadata,
+source, playback, library and download layers build on it. Only the download
+ENGINE adapter (actual byte transfer) is still future work behind the
+`DownloadEngine` interface (Phase 2G-C).
 
 ## Getting started
 
@@ -214,16 +252,37 @@ into the running app.
 ## Known limitations
 
 * The JS runtime is a restricted-API in-process boundary, not an OS sandbox,
-  and there is no CPU/memory ceiling for extension JavaScript.
+  and there is no CPU/memory ceiling for extension JavaScript (a background
+  isolate for the JS engine is a future option; not implemented).
 * Trust classification is data, not enforcement: unsigned/unverified
   extensions still install and enable.
-* Redirect targets are not re-checked against the request scheme allow-list,
-  and non-UTF-8 response bodies are returned as a lossy Latin-1 projection.
-* TV detection is a viewport approximation.
+* Non-UTF-8 response bodies are returned as a lossy Latin-1 projection.
+* Host blocking in the request policy is best-effort (IP literals plus DNS
+  resolution before connect); it does not fully defeat DNS rebinding.
+* Import-flow hardening (copy to app-private storage + content-hash verify at
+  load) is future work with the 2H import UI; load-time trust
+  re-classification from the file is already enforced.
+* Release builds still sign with the debug key and have no minify/shrink
+  configuration; a real keystore decision is required before any distribution.
+  `android.permission.DUMP` must be re-checked in a release build.
+* Android backup is not configured (`android:allowBackup` defaults on); the
+  local DB holds watch history — an allowBackup/data-extraction decision is
+  pending with the owner.
+* Cleartext HTTP is allowed by the request policy (http scheme) and the
+  manifest declares no cleartext configuration; to be verified on a release
+  build.
+* Device verification so far covers ONE device (SM-A065F, Android 16), and TV
+  detection is a viewport approximation.
+* SPECTA plays content supplied by third-party extensions; app-store
+  distribution (for example Google Play) is likely restricted.
 * Device tests use public third-party test streams; a stream host that stalls
   (rather than errors) is failed by the player's open timeout and the session
   falls through to the next candidate — measured on device (2026-09-19).
 * `cryptography_flutter` and `flutter_js` apply the Kotlin Gradle Plugin; a
   future Flutter release will refuse to build them. Upstream issue, documented
-  rather than suppressed.
+  rather than suppressed. `flutter_js` 0.8.7 maintenance status is a
+  dependency risk.
+* The project path contains a space (`SPECTA APK`), which already forced
+  `kotlin.incremental` off; renaming the directory is recommended but not
+  done.
 * Android cmdline-tools absent, so `flutter doctor` warns. Not build-blocking.

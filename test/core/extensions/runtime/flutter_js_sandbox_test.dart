@@ -13,6 +13,7 @@ import 'package:specta/core/extensions/contract/extension_capability.dart';
 import 'package:specta/core/extensions/runtime/controlled_runtime_api.dart';
 import 'package:specta/core/extensions/runtime/extension_runtime.dart';
 import 'package:specta/core/extensions/runtime/flutter_js_sandbox.dart';
+import 'package:specta/core/extensions/runtime/request_policy.dart';
 import 'package:specta/core/extensions/runtime/runtime_api.dart';
 
 /// These tests execute REAL JavaScript through the shipped [FlutterJsSandbox]
@@ -195,8 +196,13 @@ void main() {
 
     test('request() round-trips through the controlled API', () async {
       final RecordingTransport transport = RecordingTransport();
+      // §37.5 (2G-C pre-flight): test-only policy — example.com is never
+      // resolved here and no host rules run; production keeps blocking ON.
       final ControlledExtensionRuntimeApi controller =
-          ControlledExtensionRuntimeApi(transport: transport);
+          ControlledExtensionRuntimeApi(
+        transport: transport,
+        policy: const ExtensionRequestPolicy(blockPrivateHosts: false),
+      );
       final FlutterJsSandbox sandbox = FlutterJsSandbox();
       final ExtensionRuntime runtime = ExtensionRuntime(
         sandbox: sandbox,
@@ -228,8 +234,12 @@ void main() {
       'an undeclared network capability is refused without a request',
       () async {
         final RecordingTransport transport = RecordingTransport();
+        // §37.5 (2G-C pre-flight): test-only policy (see the request test).
         final ControlledExtensionRuntimeApi controller =
-            ControlledExtensionRuntimeApi(transport: transport);
+            ControlledExtensionRuntimeApi(
+          transport: transport,
+          policy: const ExtensionRequestPolicy(blockPrivateHosts: false),
+        );
         final FlutterJsSandbox sandbox = FlutterJsSandbox();
         final ExtensionRuntime runtime = ExtensionRuntime(
           sandbox: sandbox,

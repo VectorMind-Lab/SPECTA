@@ -1,3 +1,4 @@
+import 'package:specta/core/identity/title_key.dart';
 import 'package:specta/core/extensions/contract/result_models.dart';
 
 /// Central SPECTA normalization for discovery observations.
@@ -7,8 +8,6 @@ import 'package:specta/core/extensions/contract/result_models.dart';
 /// dropped with a reason. SPECTA never invents missing information and never
 /// destroys provider-specific references.
 abstract final class DiscoveryNormalizer {
-  static final RegExp _punctuation = RegExp(r'[^\w\s]');
-  static final RegExp _whitespace = RegExp(r'\s+');
 
   /// Turns a raw result into a normalized observation.
   ///
@@ -48,12 +47,16 @@ abstract final class DiscoveryNormalizer {
   /// Builds the case/punctuation/whitespace-insensitive title key used by
   /// deduplication.
   ///
-  /// Rules, deliberately simple and deterministic: lowercase, strip ASCII
-  /// punctuation, collapse whitespace. "The  Batman!" and "the batman" share
-  /// a key; "The Batman" (2022) and "The Batman" (1966) do not (year is part
-  /// of the identity decision, not the title key).
-  static String _keyTitle(String title) =>
-      title.toLowerCase().replaceAll(_punctuation, ' ').replaceAll(_whitespace, ' ').trim();
+  /// The rule is the SHARED [TitleKey.normalize] (2G-C pre-flight §36.1):
+  /// lowercase, strip punctuation and symbols while KEEPING Unicode letters
+  /// and digits, collapse whitespace, trim, with a no-empty-key fallback —
+  /// one single source of truth so this rule can never drift from the
+  /// metadata layer's identity key again. "The  Batman!" and "the batman"
+  /// share a key; "The Batman" (2022) and "The Batman" (1966) do not (year
+  /// is part of the identity decision, not the title key). Non-Latin titles
+  /// ("千と千尋の神隠し", "기생충", "Amélie") keep their letters instead of
+  /// collapsing to an empty/ASCII-mangled key.
+  static String _keyTitle(String title) => TitleKey.normalize(title);
 }
 
 /// A normalized discovery observation — one extension's raw result after

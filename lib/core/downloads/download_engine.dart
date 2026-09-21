@@ -78,4 +78,24 @@ abstract interface class DownloadEngine {
   /// records — process death must never be assumed to mean "still active",
   /// and must never be assumed to mean "dead" either.
   Future<bool> isTransferActive(String downloadId);
+
+  /// Phase 2G-C adoption seam: takes ownership of a transfer that survived a
+  /// process death, without starting new engine work.
+  ///
+  /// Called by the manager during restart reconciliation for a persisted
+  /// `downloading` record when the engine reports the transfer still alive.
+  /// The engine must NOT re-enqueue or duplicate the underlying transfer —
+  /// it re-attaches to the existing one (for `background_downloader` the
+  /// SPECTA download id IS the deterministic task id, so the native task is
+  /// addressable from SPECTA identity alone).
+  ///
+  /// Returns a future that completes with the transfer's terminal result:
+  /// - when the engine holds no such transfer (it died between the manager's
+  ///   [isTransferActive] probe and this call, or the probe lied), it
+  ///   completes PROMPTLY with a failed `interrupted` result — never hangs;
+  /// - otherwise it completes when the adopted transfer reaches its terminal
+  ///   state, exactly like [start].
+  ///
+  /// Progress for an adopted transfer flows through [events] like any other.
+  Future<DownloadAttemptResult> attach(String downloadId);
 }

@@ -46,6 +46,15 @@ dependencies:
   # sandbox explicitly registers is available to extension JS code.
   flutter_js: 0.8.7
 
+  # --- Download transfer engine (Phase 2G-C) --------------------------------
+  # The replaceable transfer mechanism behind SPECTA's own DownloadEngine
+  # interface (lib/core/downloads/download_engine.dart). SPECTA owns identity,
+  # queueing, concurrency, retry policy, source recovery and persistence; this
+  # plugin only performs the actual byte transfer (WorkManager on Android).
+  # Its types are confined to the adapter (background_downloader_engine.dart)
+  # and must never leak into the domain layer.
+  background_downloader: 9.6.2
+
   # --- Cryptography ---------------------------------------------------------
   # Phase 1: Ed25519 signature verification for extension trust classification.
   # cryptography provides pure-Dart Ed25519; cryptography_flutter delegates to

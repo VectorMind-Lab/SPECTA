@@ -1,8 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Declared explicitly: until 2026-09-20 INTERNET only arrived via a
          transitive plugin manifest merge, so swapping that plugin would
-         silently strip networking from release builds. -->
-    <uses-permission android:name="android.permission.INTERNET" />
+         silently strip networking from release builds. -->    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Phase 2G-C: the download manager's network policy probes the active
+         network through ConnectivityManager; without this declaration the
+         answer is a SecurityException and the Wi-Fi-only policy conservatively
+         blocks every download. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- SPECTA ships one APK for Android phones and Android TV. A TV has no
          touch screen and SPECTA is driven by D-pad/remote, so both features are
@@ -18,7 +23,8 @@
         android:label="SPECTA"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:banner="@drawable/specta_banner">
+        android:banner="@drawable/specta_banner"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"

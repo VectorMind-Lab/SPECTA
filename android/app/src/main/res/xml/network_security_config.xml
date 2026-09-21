@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPECTA network security configuration (Phase 2G-C).
+
+  SPECTA's extension contract deliberately allows plain-HTTP sources
+  (RequestPolicy.allowedSchemes = {https, http}): many community catalogue
+  servers do not serve TLS, and blocking cleartext outright would silently
+  break legitimate sources. The extension runtime's requests run inside the
+  Dart process and are governed by SPECTA's own request policy (host policy,
+  redirect re-validation, https→http downgrade protection).
+
+  The background_downloader engine's transfers execute in WorkManager's
+  process context, where Android's default cleartext prohibition applies
+  (targetSdk 28+). This configuration aligns that context with SPECTA's
+  own policy: cleartext IS permitted, and the security boundary stays
+  SPECTA's request policy — not an OS-level blanket.
+
+  Cleartext is permitted to user-selected extension sources by design;
+  documented in the phase audit as a deliberate product decision with the
+  request-policy mitigations listed above.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

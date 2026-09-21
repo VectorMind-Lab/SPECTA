@@ -40,6 +40,18 @@ class _WifiDeviceEnvironment implements DeviceEnvironment {
   Future<int?> freeBytes(String path) async => null;
 }
 
+/// 2G-B-era stub finalizer: the fake engine never touches a filesystem, so
+/// manager-logic tests inject this pass-through. The REAL
+/// [FileDownloadCompletionFinalizer] (rename + verification) has its own
+/// dedicated 2G-C tests against temp files.
+class _StubFinalizer implements DownloadCompletionFinalizer {
+  const _StubFinalizer();
+
+  @override
+  Future<int> finalize(DownloadRecord record, int engineBytes) async =>
+      engineBytes;
+}
+
 /// Answers null for the first N calls, then the given pool — the honest
 /// source-recovery scenario (resolution fails, then recovers).
 class _RecoveringResolver implements DownloadSourceResolver {
@@ -50,10 +62,19 @@ class _RecoveringResolver implements DownloadSourceResolver {
   int _calls = 0;
 
   @override
-  Future<SourcePool?> resolveSource(DownloadRecord record) async {
+  Future<SourcePool?> resolveSource(
+    DownloadRecord record, {
+    DownloadFailure? lastFailure,
+  }) async {
     final int call = _calls++;
     return call < _failuresBeforeRecovery ? null : _pool;
   }
+
+  @override
+  void rememberPool(String id, SourcePool pool) {}
+
+  @override
+  void forgetPool(String id) {}
 }
 
 void main() {
@@ -79,6 +100,7 @@ void main() {
       environment: _WifiDeviceEnvironment(),
       clock: clock,
       mediaDirectory: () async => mediaDir,
+      completionFinalizer: const _StubFinalizer(),
     );
     await manager.initialize();
   });
@@ -282,6 +304,31 @@ void main() {
       expect(again.action, DownloadEnqueueAction.requeuedCancelled);
       expect((await recordOf('a|movie|1')).status, DownloadStatus.downloading);
       expect(engine.startedCount, 2);
+    });
+
+    test('re-request after failure re-resolves against the FRESH pool, not '
+        'the stale one captured at first enqueue', () async {
+      // First run: a dead server, non-retryable → honestly failed.
+      engine.failWith(
+        DownloadFailure(
+            type: DownloadFailureType.httpError,
+            message: 'The server refused this download (source unavailable).'),
+        0,
+      );
+      await manager.enqueue(request('a|movie|1'));
+      await manager.debugIdle;
+      expect((await recordOf('a|movie|1')).status, DownloadStatus.failed);
+
+      // The user asks again — this time SPECTA resolved a DIFFERENT server.
+      const String freshUrl = 'https://mirror.example/video.mp4';
+      final EnqueueResult again =
+          await manager.enqueue(request('a|movie|1', pool: _poolWith(freshUrl)));
+      await manager.debugIdle;
+
+      expect(again.action, DownloadEnqueueAction.requeuedFailed);
+      expect((await recordOf('a|movie|1')).status, DownloadStatus.downloading);
+      // The attempt must carry the fresh candidate, never the dead one.
+      expect(engine.startedInputs.last.url, freshUrl);
     });
   });
 
@@ -755,6 +802,7 @@ void main() {
         clock: clock,
         mediaDirectory: () async => mediaDir,
         sourceResolver: _RecoveringResolver(1, _mp4Pool()),
+        completionFinalizer: const _StubFinalizer(),
       );
       await recovering.initialize();
 
@@ -811,6 +859,7 @@ void main() {
         environment: _WifiDeviceEnvironment(),
         clock: clock2,
         mediaDirectory: () async => mediaDir,
+        completionFinalizer: const _StubFinalizer(),
       );
       addTearDown(() async {
         await manager2.dispose();
@@ -985,13 +1034,13 @@ void main() {
   });
 }
 
-SourcePool _mp4Pool() => SourcePool(
+SourcePool _poolWith(String url) => SourcePool(
       ranked: <RankedSource>[
         RankedSource(
           extensionId: 'extA',
           reference: 'ref-a',
-          source: const ExtensionSource(
-            url: 'https://cdn.example/video.mp4',
+          source: ExtensionSource(
+            url: url,
             type: SourceType.mp4,
             quality: '1080p',
             label: 'Server 2',
@@ -1002,6 +1051,8 @@ SourcePool _mp4Pool() => SourcePool(
       outcomes: const <ExtensionSourceOutcome>[],
       reference: 'ref-a',
     );
+
+SourcePool _mp4Pool() => _poolWith('https://cdn.example/video.mp4');
 
 SourcePool _hlsPool() => SourcePool(
       ranked: <RankedSource>[

@@ -13,6 +13,7 @@ import 'package:specta/core/database/database_providers.dart';
 import 'package:specta/core/database/settings_store.dart';
 import 'package:specta/core/database/specta_database.dart';
 import 'package:specta/core/downloads/device_environment.dart';
+import 'package:specta/core/downloads/download_engine.dart';
 import 'package:specta/core/downloads/download_manager.dart';
 import 'package:specta/core/downloads/download_models.dart';
 import 'package:specta/core/downloads/download_providers.dart';
@@ -35,6 +36,17 @@ class _WifiEnv implements DeviceEnvironment {
 
   @override
   Future<int?> freeBytes(String path) async => null;
+}
+
+/// Pass-through finalizer for provider-graph tests: the fake engine never
+/// writes files, so the REAL finalizer's filesystem gate is exercised in its
+/// own dedicated 2G-C test file, not here.
+class _StubFinalizer implements DownloadCompletionFinalizer {
+  const _StubFinalizer();
+
+  @override
+  Future<int> finalize(DownloadRecord record, int engineBytes) async =>
+      engineBytes;
 }
 
 SourcePool _mp4Pool() => SourcePool(
@@ -82,7 +94,7 @@ void main() {
     await tempDir.delete(recursive: true);
   });
 
-  List<Override> overrides({SettingsStore? settingsStore}) =>
+  List<Override> overrides({SettingsStore? settingsStore, bool withoutEngine = false}) =>
       <Override>[
         spectaDatabaseProvider.overrideWith((Ref ref) {
           final SpectaDatabase db = SpectaDatabase(
@@ -98,7 +110,9 @@ void main() {
         if (settingsStore != null)
           settingsStoreProvider.overrideWithValue(settingsStore),
         deviceEnvironmentProvider.overrideWithValue(_WifiEnv()),
-        downloadEngineProvider.overrideWithValue(engine),
+        downloadCompletionFinalizerProvider
+            .overrideWithValue(const _StubFinalizer()),
+        if (!withoutEngine) downloadEngineProvider.overrideWithValue(engine),
       ];
 
   // Async providers: always await the fresh computation instead of trusting
@@ -131,40 +145,37 @@ void main() {
         pool: _mp4Pool(),
       );
 
-  group('unconfigured seams are honest (§35)', () {
-    test('the engine seam throws without an override — no fake downloads',
-        () async {
-      final ProviderContainer container = ProviderContainer();
+  group('unconfigured seams are honest (§35, updated by 2G-C)', () {
+    test('the engine seam now yields the REAL 2G-C adapter behind the '
+        'SPECTA interface — plugin types stay isolated', () async {
+      // 2G-B asserted this seam THREW (no engine existed). Phase 2G-C
+      // installed the real engine; the honest contract now is that the
+      // production wiring yields a DownloadEngine (the real adapter),
+      // while tests still override it with the deterministic fake.
+      final ProviderContainer container = ProviderContainer(
+        overrides: overrides(withoutEngine: true),
+      );
       addTearDown(container.dispose);
 
+      final DownloadEngine seam = container.read(downloadEngineProvider);
       expect(
-        () => container.read(downloadEngineProvider),
-        throwsA(anything),
-        reason: 'the shipping 2G-B app must not pretend a downloader exists '
-            '(the error carries the honest 2G-C message)',
+        seam.runtimeType.toString(),
+        'BackgroundDownloaderEngine',
+        reason: 'production wiring installs the real adapter; the SPECTA '
+            'interface hides every plugin type',
       );
     });
 
-    test('the manager cannot be constructed without an engine either',
-        () async {
+    test('the manager constructs with the real engine + real source '
+        'resolver (2G-C wiring complete)', () async {
       final ProviderContainer container = ProviderContainer(
-        overrides: <Override>[
-          spectaDatabaseProvider.overrideWith((Ref ref) {
-            final SpectaDatabase db = SpectaDatabase(
-              NativeDatabase(File(dbPath)),
-            );
-            openedDatabases.add(db);
-            ref.onDispose(db.close);
-            return db;
-          }),
-        ],
+        overrides: overrides(),
       );
       addTearDown(container.dispose);
 
-      expect(
-        () => container.read(downloadManagerProvider),
-        throwsA(anything),
-      );
+      final DownloadManager manager = container.read(downloadManagerProvider);
+      expect(manager.concurrency, DownloadManager.defaultConcurrency);
+      await manager.debugIdle;
     });
   });
 
@@ -383,8 +394,10 @@ void main() {
       // driven with virtual time): the new engine holds no transfer, so the
       // record is reclassified as interrupted and the bounded auto-retry
       // re-attempts it. That retry runs on the REAL system clock here — wait
-      // for it, then the attempt fails sourcesExhausted because the 2G-B
-      // session resolver holds no pool after restart (2G-C owns recovery).
+      // for it. The re-attempt then goes through the REAL 2G-C resolver:
+      // re-resolution through the (test-empty) SourceManager yields an
+      // empty pool, so the classification is honestly unsupportedSource —
+      // the 2G-B session resolver would have answered sourcesExhausted.
       final DownloadRecord reclassified =
           await recordOfFresh(second, 'survivor|movie|1');
       expect(reclassified.status, DownloadStatus.failed,
@@ -403,7 +416,10 @@ void main() {
       final DownloadRecord afterRetry =
           await recordOfFresh(second, 'survivor|movie|1');
       expect(afterRetry.status, DownloadStatus.failed);
-      expect(afterRetry.failure!.type, DownloadFailureType.sourcesExhausted);
+      expect(afterRetry.failure!.type, DownloadFailureType.unsupportedSource,
+          reason: '2G-C re-resolved through the SourceManager pipeline '
+              '(no extensions in the test graph → an empty, honestly '
+              'classified pool); the old URL was never trusted');
       expect(afterRetry.attempt, 2,
           reason: 'the attempt count survived restart and the re-attempt '
               'spent exactly one budget unit');

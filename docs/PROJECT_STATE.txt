@@ -2,22 +2,36 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-20 — Phase 2G-A + 2G-B committed and pushed as
+Last updated: 2026-09-21 — Phase 2G-C ENGINE INTEGRATION COMPLETE
+(docs/PHASE_2G_C_ENGINE_AUDIT.md): `BackgroundDownloaderEngine`
+behind the SPECTA `DownloadEngine` interface backed by
+`background_downloader` 9.6.2; `SourceManagerDownloadResolver`
+for source recovery through the real SourceManager;
+`FileDownloadCompletionFinalizer` (.part → final rename +
+verification); restart reconciliation via `isTransferActive` +
+`attach`; stale-event protection via epoch generation guard;
+full manager integration (persist-before-engine, bounded retry
+3 attempts / 2s→60s backoff, concurrency 3/9 clamped); 8
+new/modified test files (108+ 2G-C tests); analyze clean;
+750 passed / 9 skipped / 0 failed; real JS 721; debug APK SUCCESS.
+Real-device transfer verification NOT PERFORMED in this session
+(needs Samsung Galaxy A06 / Android 16 — integration test
+`integration_test/phase2gc_device_verification_test.dart` targets it).
+The 2G-C pre-flight (Sections 34–39 of the 2G-C authorization)
+code work is complete and its validation gate passed; all five
+defect fixes are applied and the request policy is hardened.
+See docs/PHASE_2G_C_PREFLIGHT_REPORT.md.
+Previous handover state: Phase 2G-A + 2G-B committed and pushed as
 94f9283 ("Phase 2G-A/2G-B: download foundation, manager, queue and engine
-seam", 26 files, +7833/-237). Push verified: origin/master == 94f9283;
-working tree CLEAN. Pre-commit safety: secret scan of all committed files
-CLEAN; no downloader dependency; no credentials/tokens in git config or
-sources; build artifacts ignored. Verified before commit: analyze clean,
-617 passed / 9 skipped, real JS 626, debug APK SUCCESS.
-Previous handover state: Phase 2G-A (download foundation stabilization +
-Persistence Contract) and Phase 2G-B (DownloadManager, queue, engine
-interface, providers) were completed and documented earlier the same day.
+seam", 26 files, +7833/-237). Push verified: origin/master == 94f9283.
+Verified before that commit: analyze clean, 618 passed / 9 skipped
+(after the 2G-B source-audit regression test; 617 before it), real JS 627,
+debug APK SUCCESS.
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
-PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D + 2E + 2F + 2F-resume + 2G-A + 2G-B
-done; 2G-C–2G-? and 2H open).
-Next: Phase 2 sub-stage 2G-C (background_downloader adapter, real MP4
-transfer, .part/Range, source refresh, engine reconciliation), on explicit
-authorization.
+PHASE 2 IN PROGRESS (2A + 2B + 2C + 2D + 2E + 2F + 2F-resume + 2G-A +
+2G-B + 2G-C ENGINE INTEGRATION complete; 2H open).
+Next: Phase 2 sub-stage 2H (extension catalogue in a separate
+SPECTA-Extensions repository) — NOT AUTHORIZED — do NOT START.
 
 GitHub checkpoint (2026-09-17, completed and VERIFIED by a second
 investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
@@ -164,14 +178,32 @@ Phase 2 (authorized 2026-09-17):
   APK build: SUCCESS. No real downloading, no downloader package, no UI, no
   commit. The manager is intentionally unreachable from the app until 2G-C
   provides the engine adapter.
-- Sub-stages 2G-C (engine adapter + real transfer) and 2H NOT started.
+- Sub-stages 2G-C (engine adapter) COMPLETE — see
+  docs/PHASE_2G_C_ENGINE_AUDIT.md. `BackgroundDownloaderEngine`
+  behind the SPECTA `DownloadEngine` interface backed by
+  `background_downloader` 9.6.2; source recovery via
+  SourceManagerDownloadResolver; `.part` → final rename via
+  FileDownloadCompletionFinalizer; restart reconciliation via
+  `isTransferActive` + `attach`; stale-event protection via epoch
+  generation guard; full manager integration; 8 new/modified test
+  files; analyze clean; 750 passed / 9 skipped / 0 failed;
+  real JS 721; debug APK SUCCESS. Real-device transfer
+  verification NOT PERFORMED in this session.
+- 2H NOT started.
 
 NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
 
 Documents, in order of recency (newest wins where they disagree):
+  -1a. docs/PHASE_2G_C_ENGINE_AUDIT.md (2G-C engine integration:
+         implementation, verification evidence, limitations, verdict)
+  -2. docs/PHASE_2G_C_PREFLIGHT_REPORT.md (2G-C pre-flight: documentation
+        truth audit, five verified defect fixes, request policy hardening,
+        validation gate — newest record)
+  -1b. docs/PHASE_2G_B_SOURCE_AUDIT.md (2G-B source audit: one defect fixed,
+        regression-tested; READY FOR PHASE 2G-C verdict)
   -1. docs/PHASE_2G_B_REPORT.md         (2G-B: DownloadManager, queue,
-                                        providers — newest record)
+                                        providers)
   -2. docs/PHASE_2G_A_REPORT.md         (2G-A: foundation stabilization,
                                         Persistence Contract, architecture
                                         decision)
@@ -191,11 +223,13 @@ Documents, in order of recency (newest wins where they disagree):
 1. CURRENT PHASE
 ----------------
 Phase 2 — now AUTHORIZED (2026-09-17) and IN PROGRESS, executed in controlled
-sub-stages (2A UI foundation → 2H extension catalogue). Sub-stages 2A–2F are
-complete and verified (docs/PHASE_2_REPORT.md, docs/PHASE_2B_REPORT.md,
-docs/PHASE_2C_REPORT.md, docs/PHASE_2D_REPORT.md, docs/PHASE_2E_REPORT.md,
-docs/PHASE_2F_REPORT.md); 2G–2H are open. 2E and 2F are verified on a real
-device (the 2F run also exercised the on-device schema migration).
+sub-stages (2A UI foundation → 2H extension catalogue). Sub-stages 2A–2F (plus
+the 2F resume follow-up) and 2G-A/2G-B are complete and verified; the 2G-C
+PRE-FLIGHT (documentation truth audit + five verified defect fixes + request
+policy hardening) is complete and the 2G-C ENGINE INTEGRATION is now COMPLETE —
+see docs/PHASE_2G_C_PREFLIGHT_REPORT.md and
+docs/PHASE_2G_C_ENGINE_AUDIT.md.
+2G-C ENGINE INTEGRATION COMPLETE — 2H is open.
 
 Phase 1 — Extension Foundation. Implemented, audited, corrected, tested,
 buildable, and VERIFIED ON A REAL ANDROID DEVICE (2026-09-16).
@@ -557,30 +591,67 @@ Phase 2 sub-stages (authorized, in the approved order):
     extended + rebound to persistent storage, Library/Home wired to real data,
     19 new tests (DAO, sink, migration, library UI), analyze clean, full suite
     475+9/0, DEVICE 2/2 PASS, APK built. No new dependency; no 2G/2H work.
-[x] 2G Download foundation — DONE 2026-09-20 (2G-A + 2G-B; uncommitted by
-    design): schema v5 (`downloads`) with a tested v4→v5 migration, download
-    identity = 2F media key (+`|s<S>e<E>` for episodes), sealed-failure
-    integration, Persistence Contract implemented and test-proven,
-    DownloadManager with FIFO queue/concurrency 3-9/persist-before-engine/
-    stale protection, SPECTA-owned DownloadEngine interface, bounded retry
-    policy, Riverpod providers. 110+ download tests across 6 files; full
-    suite 617+9sk / real JS 626; APK build SUCCESS. NO real transfer, NO
-    downloader dependency, NO UI yet — that is 2G-C. See
-    docs/PHASE_2G_A_REPORT.md and docs/PHASE_2G_B_REPORT.md.
+[x] 2G-A/2G-B Download foundation — DONE 2026-09-20 (uncommitted by
+     design): schema v5 (`downloads`) with a tested v4→v5 migration, download
+     identity = 2F media key (+`|s<S>e<E>` for episodes), sealed-failure
+     integration, Persistence Contract implemented and test-proven,
+     DownloadManager with FIFO queue/concurrency 3-9/persist-before-engine/
+     stale protection, SPECTA-owned DownloadEngine interface, bounded retry
+     policy, Riverpod providers. 110+ download tests across 6 files (113
+     test cases counted in the directory; manager file alone has 39); full
+     suite 618+9sk after the 2G-B source-audit regression test (617 before
+     it) / real JS 627; APK build SUCCESS. This sub-stage contained NO
+     real transfer — the engine adapter is 2G-C, NOW DONE (see below). See
+     docs/PHASE_2G_A_REPORT.md and docs/PHASE_2G_B_REPORT.md.
+[x] 2G-C Download engine integration — DONE 2026-09-21
+     (docs/PHASE_2G_C_ENGINE_AUDIT.md): `BackgroundDownloaderEngine`
+     behind the SPECTA `DownloadEngine` interface backed by
+     `background_downloader` 9.6.2; `SourceManagerDownloadResolver`
+     for source recovery through the real SourceManager;
+     `FileDownloadCompletionFinalizer` (.part → final rename +
+     verification); restart reconciliation via `isTransferActive`
+     + `attach`; stale-event protection via epoch generation guard;
+     full manager integration (persist-before-engine, bounded retry
+     3 attempts / 2s→60s backoff, concurrency 3/9 clamped); 8
+     new/modified test files (108+ 2G-C tests); analyze clean;
+     750 passed / 9 skipped / 0 failed; real JS 721; debug APK
+     SUCCESS. Real-device transfer verification NOT PERFORMED in
+     this session (needs Samsung Galaxy A06 / Android 16).
 [ ] 2H Extension catalogue integration (separate SPECTA-Extensions repository;
     creation deferred until this stage actually requires it).
 
 Phase 1 carry-overs (honest, none Phase 2 blockers yet):
 [ ] No CPU or memory ceiling for extension JS — measured, not enforced by the
-    bundled QuickJS bridge; a runaway script can occupy the isolate.
+    bundled QuickJS bridge; a runaway script can occupy the isolate (a
+    background-isolate JS engine is the future option; not implemented).
 [ ] Production private key is stored as a raw seed in a PKCS#8-looking PEM;
     standard tools reject it. Must be resolved before building a signing tool.
-[ ] Redirect targets are not re-evaluated against the scheme allow-list.
+[x] Redirect targets are not re-evaluated against the scheme allow-list —
+    FIXED by the 2G-C pre-flight: every hop is re-evaluated against the full
+    policy, private hosts are blocked, and credential headers are not
+    forwarded cross-host (best-effort; does not fully defeat DNS rebinding).
 [ ] Response bodies that are not valid UTF-8 are returned lossy (Latin-1).
 [ ] Trust classification is data, not enforcement: unverified extensions still
     install and enable. A later policy layer must decide what to do with them.
+[ ] Import-flow hardening (copy to app-private storage + content-hash verify
+    at load) — future work with the 2H import UI; load-time trust
+    re-classification from the file is now enforced (2G-C pre-flight).
+[ ] Release signing uses the debug key; no minify/shrink config. Real keystore
+    decision required before distribution; re-check android.permission.DUMP in
+    a release build.
+[ ] Android backup not configured (allowBackup defaults on); the DB holds
+    watch history — owner decision pending.
+[ ] Cleartext HTTP: policy allows http; manifest has no cleartext config —
+    verify on a release build before adding any manifest attribute.
+[ ] Single-device verification (SM-A065F only); TV detection is a viewport
+    approximation.
+[ ] SPECTA plays content supplied by third-party extensions; app-store
+    distribution (e.g. Google Play) is likely restricted.
+[ ] flutter_js 0.8.7 maintenance status is a dependency risk; KGP warning
+    (cryptography_flutter, flutter_js) stands.
+[ ] Project path contains a space ("SPECTA APK") — folder rename recommended,
+    not performed.
 [ ] Android cmdline-tools absent; flutter doctor warns. Not build-blocking.
-[ ] True TV detection via platform channel (viewport approximation today).
 [ ] Housekeeping: README.md/docs/README.md and PROJECT_STATE.txt/
     docs/PROJECT_STATE.txt remain byte-identical duplicates.
 
@@ -649,10 +720,18 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
   identity is a separate architectural task.
 - No CPU/memory ceiling for extension JavaScript (measured limitation).
 - Not an OS-level sandbox; in-process restricted-API boundary.
-- Redirect targets are not re-checked against the scheme allow-list.
+- Redirect targets are now re-checked per hop (2G-C pre-flight); host
+  blocking is best-effort and does not fully defeat DNS rebinding.
 - Non-UTF-8 responses are returned as a lossy Latin-1 projection.
-- Unverified extensions install and enable (trust is data, not enforcement).
+- Unverified extensions install and enable (trust is data, not enforcement);
+  load-time trust re-classification from the file is enforced (2G-C
+  pre-flight), but import-time copy + hash verification awaits 2H.
 - Form factor TV detection is a viewport approximation.
+- Release builds sign with the debug key and do not minify/shrink; Android
+  backup is not configured though the DB holds watch history; cleartext HTTP
+  release behavior is unverified. Distribution via app stores is likely
+  restricted for an extension-based player. All recorded 2026-09-21
+  (2G-C pre-flight, Tier 3).
 - Home content is design fixtures until metadata/catalogue surfaces land;
   Search is live discovery from installed extensions only (no TMDB yet, by
   design until 2C). Details are live from installed extensions (2C); no
@@ -686,26 +765,37 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
 
 7. BLOCKERS
 -----------
-None. No Phase 2A–2E defect is known to remain, and no Phase 1 regression was
-introduced (full suite green on the 2F tree: 475 passed / 9 skipped / 0
-failed).
+None. The full suite is green after 2G-C engine integration
+(750 passed / 9 skipped / 0 failed; real JS 721; analyze clean;
+debug APK SUCCESS). Real-device transfer verification NOT
+PERFORMED (needs Samsung Galaxy A06 / Android 16).
+One observation is carried, not blocking: run-1 of the pre-flight
+baseline saw a single order-dependent test flake (discovery
+coordinator provenance test; passes in isolation and on re-run) —
+recorded in the pre-flight report.
 
 Environment notes:
 - The pub cache resolves under C:\Users\PORTCR\AppData\Local\Pub\Cache, not
-  H:\pub-cache as docs/SETUP_LOG.md states.
+  H:\pub-cache as docs/SETUP_LOG.md states (see the dated correction note
+  appended to that log).
 - C: has limited free space; keep SDK/caches on H:.
 - The project directory IS a Git repository (branch `master`, pushed to the
-  private remote `VectorMind-Lab/SPECTA`). Reports written before Git existed
+  private remote `VectorMind-Lab/SPECTA`). The GitHub checkpoint of
+  2026-09-17 stands; the repo was NOT deleted — the earlier
+  GITHUB_ERROR_CORRECTION_REPORT.md episode concerned a DIFFERENT accidental
+  main-app repository, and the VectorMind-Lab/SPECTA remote has been
+  continuous since the second checkpoint pass. Reports written before Git existed
   correctly describe that earlier state; their "changed files listed by
   inspection" notes are historical, not current.
 
 
 8. NEXT RECOMMENDED STEP
-------------------------
-Phase 2 sub-stage 2G — DOWNLOAD FOUNDATION (queue, pause/resume where
-supported, <=3 default concurrency with a 9 ceiling). NOT authorized yet.
-2F and its resume follow-up are COMPLETE: persistent watch progress +
-Continue Watching/History/Library surfaces (schema v4: `watch_progress` +
-`media_references`), and items re-open through the existing pipeline.
-Do NOT start 2G/2H until explicitly authorized, and do NOT create
-SPECTA-Extensions.
+--------------------------
+Phase 2 sub-stage 2H (NOT AUTHORIZED) — extension catalogue
+integration (separate SPECTA-Extensions repository; creation
+deferred until this stage actually requires it). DO NOT START
+2H without explicit authorization.
+
+The 2G-C download engine integration is complete and verified;
+see docs/PHASE_2G_C_ENGINE_AUDIT.md for the full audit
+(implementation, verification evidence, limitations, verdict).

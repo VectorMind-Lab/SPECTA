@@ -7,14 +7,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod/misc.dart';
 
 import '../database/database_providers.dart';
+import '../extensions/manager/extension_providers.dart';
 import '../settings/specta_setting_keys.dart';
 import '../storage/specta_storage.dart';
+import 'background_downloader_engine.dart';
 import 'device_environment.dart';
 import 'download_dao.dart';
 import 'download_engine.dart';
 import 'download_manager.dart';
 import 'download_models.dart';
 import 'download_store.dart';
+import 'source_manager_download_resolver.dart';
 
 /// The download store binding (Phase 2G-B) — the authoritative persistence
 /// path, overridden with an in-memory/file-backed store in tests exactly like
@@ -25,22 +28,34 @@ final Provider<DownloadStore> downloadStoreProvider = Provider<DownloadStore>((
   return DownloadDao(ref.watch(spectaDatabaseProvider));
 });
 
-/// The download engine seam.
+/// The download engine seam — Phase 2G-C: the REAL transfer engine.
 ///
-/// Deliberately UNCONFIGURED in Phase 2G-B: no real transfer engine exists
-/// yet, and pretending otherwise would let the app fabricate downloads.
-/// Phase 2G-C installs the real adapter (behind the SPECTA-owned
-/// [DownloadEngine] interface) by overriding this provider; tests override it
-/// with a deterministic fake. Nothing reads [downloadManagerProvider] until
-/// then, so this never fires in the running app.
+/// The adapter is SPECTA-owned ([BackgroundDownloaderEngine]): the only
+/// file that knows `background_downloader` types, translating them into the
+/// SPECTA [DownloadEngine] contract. The manager keeps ownership of identity,
+/// queueing, concurrency, retry, persistence and recovery; the plugin only
+/// executes transfers. Tests override this provider with a deterministic
+/// fake, exactly as in 2G-B.
 final Provider<DownloadEngine> downloadEngineProvider = Provider<DownloadEngine>(
-  (Ref ref) {
-    throw StateError(
-      'No DownloadEngine is configured yet: the real transfer adapter is '
-      'installed in Phase 2G-C. Override downloadEngineProvider to inject '
-      'one (tests use a deterministic fake).',
-    );
-  },
+  (Ref ref) => BackgroundDownloaderEngine(),
+);
+
+/// Phase 2G-C production source resolver: real re-resolution through the
+/// SourceManager using the persisted provenance (replaces the 2G-B
+/// session-only resolver in production; tests inject their own).
+final Provider<SourceManagerDownloadResolver>
+    downloadSourceResolverProvider = Provider<SourceManagerDownloadResolver>(
+  (Ref ref) => SourceManagerDownloadResolver(
+    extensionManager: () => ref.watch(extensionManagerProvider),
+  ),
+);
+
+/// Phase 2G-C completion gate: verifies engine-reported completions on the
+/// real filesystem and owns the final rename. Tests override this with a
+/// pass-through stub when the fake engine is used without real files.
+final Provider<DownloadCompletionFinalizer>
+    downloadCompletionFinalizerProvider = Provider<DownloadCompletionFinalizer>(
+  (Ref ref) => const FileDownloadCompletionFinalizer(),
 );
 
 /// Bumped after every persisted download change or active-set change so the
@@ -66,15 +81,26 @@ final Provider<Future<String> Function()> downloadMediaDirectoryProvider =
           .then((Directory directory) => directory.path);
     });
 
-/// The download manager. Constructing it reads the engine seam, so in a
-/// shipping 2G-B build this throws honestly (nothing reads it yet); tests
-/// override [downloadEngineProvider] with a fake engine.
+/// The download manager (2G-C wiring: real engine + real source resolver;
+/// The download network policy (Phase 2G-C wiring). Defaults to the
+/// conservative Wi-Fi-only product policy; the Settings surface (2G-F) will
+/// persist user changes through this provider, and tests may override it.
+final Provider<DownloadNetworkPolicy> deviceNetworkPolicyProvider =
+    Provider<DownloadNetworkPolicy>(
+  (Ref ref) => DownloadNetworkPolicy.wifiOnly,
+);
+
+/// tests override the engine and resolver providers with deterministic
+/// fakes).
 final Provider<DownloadManager> downloadManagerProvider =
     Provider<DownloadManager>((Ref ref) {
       final DownloadManager manager = DownloadManager(
         store: ref.watch(downloadStoreProvider),
         engine: ref.watch(downloadEngineProvider),
         environment: ref.watch(deviceEnvironmentProvider),
+        sourceResolver: ref.watch(downloadSourceResolverProvider),
+        completionFinalizer: ref.watch(downloadCompletionFinalizerProvider),
+        networkPolicy: ref.watch(deviceNetworkPolicyProvider),
         concurrency: DownloadManager.defaultConcurrency,
         mediaDirectory: ref.watch(downloadMediaDirectoryProvider),
         onChanged: () => ref.read(downloadRevisionProvider.notifier).bump(),

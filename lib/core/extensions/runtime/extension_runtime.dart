@@ -225,30 +225,35 @@ class ExtensionRuntime {
 
   /// Parses a search/latest result list.
   ///
-  /// Robustness rules (Phase 2B): an entry whose `type` is not movie/series is
-  /// SKIPPED, not silently converted to movie (SPECTA is movies+series only);
-  /// entries missing title or URL are skipped; entries that are not JSON
-  /// objects are skipped. A list made entirely of invalid entries parses to an
-  /// empty list rather than failing the whole operation — an extension that
-  /// decorates its results with one malformed row must not lose the rest.
+  /// Robustness rules (Phase 2B, hardened 2G-C pre-flight §36.4): an entry
+  /// whose `type` is not movie/series is SKIPPED, not silently converted to
+  /// movie; entries missing title or URL are skipped; entries that are not
+  /// JSON objects are skipped. Field reads are defensive (`is String` checks
+  /// instead of casts) so a malformed OPTIONAL field — a numeric `type` or
+  /// `cover` — skips that one entry instead of throwing past the skip logic
+  /// and failing the whole operation. A list made entirely of invalid entries
+  /// parses to an empty list rather than failing the operation — an extension
+  /// that decorates its results with one malformed row must not lose the rest.
   static List<SearchResult> _parseSearchResults(String result) {
     final List<dynamic> json = jsonDecode(result) as List<dynamic>;
     final List<SearchResult> parsed = <SearchResult>[];
     for (final dynamic item in json) {
       if (item is! Map<String, dynamic>) continue;
-      final String? typeCode = item['type'] as String?;
-      final MediaType? type = MediaType.fromCode(typeCode);
+      final dynamic typeCode = item['type'];
+      final MediaType? type =
+          typeCode is String ? MediaType.fromCode(typeCode) : null;
       if (type == null) continue; // unsupported type — safely ignored
       final dynamic title = item['title'];
       final dynamic url = item['url'];
       if (title is! String || title.isEmpty) continue;
       if (url is! String || url.isEmpty) continue;
+      final dynamic cover = item['cover'];
       parsed.add(
         SearchResult(
           title: title,
           url: url,
           type: type,
-          cover: item['cover'] as String?,
+          cover: cover is String ? cover : null,
           year: item['year'] is int ? item['year'] as int : null,
         ),
       );
@@ -303,22 +308,27 @@ class ExtensionRuntime {
         ? rating.toDouble()
         : null;
 
+    final dynamic rawStatus = json['status'];
     return MediaDetails(
       id: id,
       title: title.trim(),
       type: type,
       url: url,
-      originalTitle: json['originalTitle'] as String?,
-      cover: json['cover'] as String?,
-      backdrop: json['backdrop'] as String?,
+      originalTitle: json['originalTitle'] is String
+          ? json['originalTitle'] as String
+          : null,
+      cover: json['cover'] is String ? json['cover'] as String : null,
+      backdrop: json['backdrop'] is String ? json['backdrop'] as String : null,
       year: json['year'] is int ? json['year'] as int : null,
-      description: json['description'] as String?,
+      description: json['description'] is String
+          ? json['description'] as String
+          : null,
       genres: _parseGenres(json['genres']),
       durationSeconds: json['duration'] is int ? json['duration'] as int : null,
       rating: validRating,
-      status: json['status'] != null
-          ? SeriesStatus.fromCode(json['status'] as String)
-          : null,
+      // A non-string status degrades to unknown instead of throwing the
+      // whole details payload away (2G-C pre-flight §36.4).
+      status: rawStatus is String ? SeriesStatus.fromCode(rawStatus) : null,
       seasons: _parseSeasons(json['seasons']),
     );
   }
@@ -389,6 +399,25 @@ class ExtensionRuntime {
     );
   }
 
+  /// Parses a `getSources()` result.
+  ///
+  /// Robustness (2G-C pre-flight §36.4): one malformed source row is SKIPPED
+  /// — the rest of the list survives — mirroring the search parser's rule
+  /// that a single bad source must not lose the others.
+  static List<ExtensionSource> parseSourceList(String result) {
+    final List<dynamic> json = jsonDecode(result) as List<dynamic>;
+    final List<ExtensionSource> parsed = <ExtensionSource>[];
+    for (final dynamic item in json) {
+      if (item is! Map<String, dynamic>) continue;
+      try {
+        parsed.add(ExtensionSource.fromJson(item));
+      } on Object {
+        continue; // skip the malformed row, keep the rest
+      }
+    }
+    return parsed;
+  }
+
   /// Calls the extension's `getSources(reference)` operation.
   Future<SpectaResult<List<ExtensionSource>>> getSources({
     required String reference,
@@ -399,15 +428,7 @@ class ExtensionRuntime {
       requiredCapability: ExtensionCapability.sources,
       jsExpression:
           'JSON.stringify(await _spectaInstance.getSources($escapedRef))',
-      parse: (String result) {
-        final List<dynamic> json = jsonDecode(result) as List<dynamic>;
-        return json
-            .map(
-              (dynamic item) =>
-                  ExtensionSource.fromJson(item as Map<String, dynamic>),
-            )
-            .toList();
-      },
+      parse: parseSourceList,
     );
   }
 
@@ -553,7 +574,12 @@ class ExtensionRuntime {
           data['query'] ?? <String, String>{},
         ),
         body: data['body'] as String?,
-        timeout: Duration(milliseconds: data['timeout'] as int? ?? 15000),
+        // §36.4: a JS number arrives as num; a fractional timeout (2.5) must
+        // become a rounded duration, not a failed request. The API clamps
+        // over-budget values; zero/negative falls back to the default there.
+        timeout: data['timeout'] is num
+            ? Duration(milliseconds: (data['timeout'] as num).round())
+            : const Duration(milliseconds: 15000),
       );
       final ExtensionResponse response = await _api.request(request);
       return jsonEncode(response.toMap());

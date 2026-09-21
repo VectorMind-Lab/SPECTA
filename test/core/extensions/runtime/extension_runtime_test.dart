@@ -430,7 +430,10 @@ void main() {
       expect(sources[1].isAdaptive, isTrue);
     });
 
-    test('a DASH source is refused as a controlled failure', () async {
+    // 2G-C pre-flight §36.4: this test previously pinned the all-or-nothing
+    // failure (the bug — one unsupported row lost every valid source with
+    // it); it now pins the corrected skip-the-bad-row behavior.
+    test('a DASH source among valid ones is SKIPPED, not fatal', () async {
       final ExtensionRuntime runtime = await loadRuntime(
         sandbox,
         api,
@@ -438,7 +441,45 @@ void main() {
       );
 
       const String reference = 'https://example.com/movie/2';
-      // DASH is deliberately outside the V1 source scope.
+      // DASH is deliberately outside the V1 source scope. A mixed list is the
+      // realistic case: one unsupported row must not lose the mp4 sources.
+      sandbox.setAsyncResult(
+        'JSON.stringify(await _spectaInstance.getSources("$reference"))',
+        jsonEncode(<Map<String, dynamic>>[
+          <String, dynamic>{
+            'url': 'https://cdn.example.com/a.mp4',
+            'type': 'mp4',
+            'quality': '1080p',
+          },
+          <String, dynamic>{
+            'url': 'https://cdn.example.com/c.mpd',
+            'type': 'dash',
+          },
+          <String, dynamic>{
+            'url': 'https://cdn.example.com/b.mp4',
+            'type': 'mp4',
+          },
+        ]),
+      );
+
+      final SpectaResult<List<ExtensionSource>> result = await runtime
+          .getSources(reference: reference);
+
+      expect(result.isOk, isTrue);
+      final List<ExtensionSource> sources = result.valueOrNull!;
+      expect(sources, hasLength(2));
+      expect(sources[0].url, 'https://cdn.example.com/a.mp4');
+      expect(sources[1].url, 'https://cdn.example.com/b.mp4');
+    });
+
+    test('a getSources list that is entirely unusable parses to an empty success, not a failure', () async {
+      final ExtensionRuntime runtime = await loadRuntime(
+        sandbox,
+        api,
+        jsCode: 'class Extension extends SpectaExtension {}',
+      );
+
+      const String reference = 'https://example.com/movie/2';
       sandbox.setAsyncResult(
         'JSON.stringify(await _spectaInstance.getSources("$reference"))',
         jsonEncode(<Map<String, dynamic>>[
@@ -452,11 +493,8 @@ void main() {
       final SpectaResult<List<ExtensionSource>> result = await runtime
           .getSources(reference: reference);
 
-      expect(result.isErr, isTrue);
-      expect(
-        (result.failureOrNull! as ExtensionFailure).type,
-        ExtensionFailureType.runtimeError,
-      );
+      expect(result.isOk, isTrue);
+      expect(result.valueOrNull, isEmpty);
     });
 
     test('healthCheck dispatches to JS and returns result', () async {

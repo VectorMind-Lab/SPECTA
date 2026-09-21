@@ -161,3 +161,13 @@ for verification, so Gradle uses its default home under the user profile on C:.
 The relocation of the SDK (section 6) is what actually mattered; the pub-cache
 line should be read as the intended setting, not the observed one. `PROJECT_STATE.txt`
 records the observed paths.
+
+---
+
+## 8. Correction recorded 2026-09-21 (Phase 2G-C pre-flight)
+
+Re-verified during the pre-flight documentation audit: the pub cache still
+resolves under `C:\Users\PORTCR\AppData\Local\Pub\Cache` (confirmed via
+`.dart_tool/package_config.json` package roots), NOT `H:\pub-cache` as
+section 6 states. This restates correction 7 (2026-09-16) after a fresh check;
+the historical log body above is intentionally unchanged.

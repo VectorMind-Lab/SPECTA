@@ -11,37 +11,47 @@ ExtensionRequest _request({
 }) => ExtensionRequest(url: url, method: method, body: body, timeout: timeout);
 
 void main() {
-  const ExtensionRequestPolicy policy = ExtensionRequestPolicy();
+  // §37.5 (2G-C pre-flight): the production default blocks private hosts.
+  // Deterministic policy unit tests run with the test-only override so no
+  // test ever resolves a real hostname or reaches loopback; a separate group
+  // below proves the DEFAULT policy still blocks.
+  const ExtensionRequestPolicy policy = ExtensionRequestPolicy(
+    blockPrivateHosts: false,
+  );
 
   group('ExtensionRequestPolicy — allowed requests', () {
-    test('a plain HTTPS GET is allowed', () {
-      expect(policy.evaluate(_request()).isDenied, isFalse);
+    test('a plain HTTPS GET is allowed', () async {
+      expect((await policy.evaluate(_request())).isDenied, isFalse);
     });
 
-    test('HTTP GET is allowed', () {
+    test('HTTP GET is allowed', () async {
       expect(
-        policy.evaluate(_request(url: 'http://example.test/feed')).isDenied,
+        (await policy.evaluate(_request(url: 'http://example.test/feed')))
+            .isDenied,
         isFalse,
       );
     });
 
-    test('POST with a small body is allowed', () {
+    test('POST with a small body is allowed', () async {
       expect(
-        policy.evaluate(_request(method: 'POST', body: 'q=matrix')).isDenied,
+        (await policy.evaluate(_request(method: 'POST', body: 'q=matrix')))
+            .isDenied,
         isFalse,
       );
     });
 
-    test('HEAD is allowed', () {
-      expect(policy.evaluate(_request(method: 'HEAD')).isDenied, isFalse);
+    test('HEAD is allowed', () async {
+      expect((await policy.evaluate(_request(method: 'HEAD'))).isDenied,
+          isFalse);
     });
 
-    test('the method check is case-insensitive', () {
-      expect(policy.evaluate(_request(method: 'get')).isDenied, isFalse);
+    test('the method check is case-insensitive', () async {
+      expect((await policy.evaluate(_request(method: 'get'))).isDenied,
+          isFalse);
     });
 
-    test('an allowed decision carries no reason or failure type', () {
-      final RequestPolicyDecision decision = policy.evaluate(_request());
+    test('an allowed decision carries no reason or failure type', () async {
+      final RequestPolicyDecision decision = await policy.evaluate(_request());
       expect(decision.reason, isNull);
       expect(decision.failureType, isNull);
       expect(decision.detail, isNull);
@@ -49,10 +59,10 @@ void main() {
   });
 
   group('ExtensionRequestPolicy — unsupported schemes', () {
-    test('file:// is refused', () {
+    test('file:// is refused', () async {
       // The important one: file:// would expose the filesystem through the
       // ordinary URL parser.
-      final RequestPolicyDecision decision = policy.evaluate(
+      final RequestPolicyDecision decision = await policy.evaluate(
         _request(url: 'file:///etc/passwd'),
       );
       expect(decision.isDenied, isTrue);
@@ -60,7 +70,7 @@ void main() {
       expect(decision.failureType, ExtensionFailureType.unsupported);
     });
 
-    test('other non-web schemes are refused', () {
+    test('other non-web schemes are refused', () async {
       for (final String url in <String>[
         'ftp://example.test/f',
         'data:text/plain,hello',
@@ -70,7 +80,7 @@ void main() {
         'ws://example.test/socket',
         'wss://example.test/socket',
       ]) {
-        final RequestPolicyDecision decision = policy.evaluate(
+        final RequestPolicyDecision decision = await policy.evaluate(
           _request(url: url),
         );
         expect(decision.isDenied, isTrue, reason: url);
@@ -82,20 +92,21 @@ void main() {
       }
     });
 
-    test('the scheme check is case-insensitive', () {
+    test('the scheme check is case-insensitive', () async {
       expect(
-        policy.evaluate(_request(url: 'HTTPS://example.test')).isDenied,
+        (await policy.evaluate(_request(url: 'HTTPS://example.test')))
+            .isDenied,
         isFalse,
       );
       expect(
-        policy.evaluate(_request(url: 'FILE:///etc/passwd')).isDenied,
+        (await policy.evaluate(_request(url: 'FILE:///etc/passwd'))).isDenied,
         isTrue,
       );
     });
   });
 
   group('ExtensionRequestPolicy — unsupported methods', () {
-    test('write and control verbs are refused', () {
+    test('write and control verbs are refused', () async {
       for (final String method in <String>[
         'DELETE',
         'PUT',
@@ -103,7 +114,7 @@ void main() {
         'TRACE',
         'CONNECT',
       ]) {
-        final RequestPolicyDecision decision = policy.evaluate(
+        final RequestPolicyDecision decision = await policy.evaluate(
           _request(method: method),
         );
         expect(decision.isDenied, isTrue, reason: method);
@@ -122,50 +133,51 @@ void main() {
   });
 
   group('ExtensionRequestPolicy — invalid URLs', () {
-    test('an unparseable URL is refused', () {
+    test('an unparseable URL is refused', () async {
       expect(
-        policy.evaluate(_request(url: '   ')).reason,
+        (await policy.evaluate(_request(url: '   '))).reason,
         RequestDenialReason.invalidUrl,
       );
     });
 
-    test('a relative URL is refused', () {
+    test('a relative URL is refused', () async {
       expect(
-        policy.evaluate(_request(url: '/api/search')).reason,
+        (await policy.evaluate(_request(url: '/api/search'))).reason,
         RequestDenialReason.notAbsolute,
       );
     });
 
-    test('a scheme with no host is refused', () {
+    test('a scheme with no host is refused', () async {
       expect(
-        policy.evaluate(_request(url: 'https:///path')).reason,
+        (await policy.evaluate(_request(url: 'https:///path'))).reason,
         RequestDenialReason.invalidUrl,
       );
     });
 
-    test('embedded credentials are refused', () {
+    test('embedded credentials are refused', () async {
       // https://user:pass@host would leak credentials into logs and headers.
-      final RequestPolicyDecision decision = policy.evaluate(
+      final RequestPolicyDecision decision = await policy.evaluate(
         _request(url: 'https://user:secret@example.test/api'),
       );
       expect(decision.reason, RequestDenialReason.credentialsInUrl);
       expect(decision.failureType, ExtensionFailureType.unsupported);
     });
 
-    test('an over-long URL is refused', () {
+    test('an over-long URL is refused', () async {
       final String url = 'https://example.test/${'a' * 3000}';
       expect(
-        policy.evaluate(_request(url: url)).reason,
+        (await policy.evaluate(_request(url: url))).reason,
         RequestDenialReason.urlTooLong,
       );
     });
 
-    test('an over-long body is refused', () {
+    test('an over-long body is refused', () async {
       const ExtensionRequestPolicy small = ExtensionRequestPolicy(
         maxRequestBodyBytes: 16,
+        blockPrivateHosts: false,
       );
       expect(
-        small.evaluate(_request(method: 'POST', body: 'x' * 32)).reason,
+        (await small.evaluate(_request(method: 'POST', body: 'x' * 32))).reason,
         RequestDenialReason.bodyTooLarge,
       );
     });
@@ -183,13 +195,14 @@ void main() {
       );
     });
 
-    test('an excessive timeout is clamped, not refused', () {
+    test('an excessive timeout is clamped, not refused', () async {
       expect(
         policy.effectiveTimeout(const Duration(hours: 1)),
         policy.maxTimeout,
       );
       expect(
-        policy.evaluate(_request(timeout: const Duration(hours: 1))).isDenied,
+        (await policy.evaluate(_request(timeout: const Duration(hours: 1))))
+            .isDenied,
         isFalse,
       );
     });
@@ -198,16 +211,19 @@ void main() {
   group(
     'ExtensionRequestPolicy — the policy is injectable, not hard-coded',
     () {
-      test('an HTTPS-only policy refuses plain HTTP', () {
+      test('an HTTPS-only policy refuses plain HTTP', () async {
         const ExtensionRequestPolicy httpsOnly = ExtensionRequestPolicy(
           allowedSchemes: <String>{'https'},
+          blockPrivateHosts: false,
         );
         expect(
-          httpsOnly.evaluate(_request(url: 'http://example.test')).isDenied,
+          (await httpsOnly.evaluate(_request(url: 'http://example.test')))
+              .isDenied,
           isTrue,
         );
         expect(
-          httpsOnly.evaluate(_request(url: 'https://example.test')).isDenied,
+          (await httpsOnly.evaluate(_request(url: 'https://example.test')))
+              .isDenied,
           isFalse,
         );
       });
@@ -223,6 +239,11 @@ void main() {
       expect(RequestDenialReason.credentialsInUrl.code, 'CREDENTIALS_IN_URL');
       expect(RequestDenialReason.bodyTooLarge.code, 'BODY_TOO_LARGE');
       expect(RequestDenialReason.notAbsolute.code, 'NOT_ABSOLUTE');
+      // §37 additions.
+      expect(RequestDenialReason.privateHostBlocked.code,
+          'PRIVATE_HOST_BLOCKED');
+      expect(RequestDenialReason.hostLookupFailed.code, 'HOST_LOOKUP_FAILED');
+      expect(RequestDenialReason.redirectBlocked.code, 'REDIRECT_BLOCKED');
     });
   });
 }
