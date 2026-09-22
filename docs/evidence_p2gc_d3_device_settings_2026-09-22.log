@@ -1,0 +1,3 @@
+old screen_off_timeout=1800000
+new screen_off_timeout=600000
+NOTE: original stay_on_while_plugged_in was never captured; restored to Android default 0 (documented)

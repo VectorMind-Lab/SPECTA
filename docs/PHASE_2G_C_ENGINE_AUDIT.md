@@ -443,3 +443,74 @@ Purpose: Determine whether the 8KB transfer is a SPECTA defect or an environment
 ---
 
 *This audit was produced by systematic source inspection against the 2G-C authorization (Sections 1–24). No claim was made without source evidence.*
+
+---
+
+## APPENDIX — FINAL D-3 REAL-DEVICE RE-VALIDATION (2026-09-22)
+
+The historical verdict above reflects the adb-reverse era and is preserved
+as-is. The transport was subsequently replaced by the validated DIRECT
+device path (see `PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md`), and D-3 (stale
+attempt-event isolation) was investigated, fixed offline, and re-validated
+on hardware — full record in `PHASE_2G_C_D3_INVESTIGATION_REPORT.md` §6.
+
+The FINAL D-3 gate was closed in a fresh session that reconnected the
+Samsung A06 and re-ran every device measurement from scratch; no device
+PASS below was inherited from the interrupted session. Two obstacles had to
+be cleared first, and both are recorded so a future session does not assume
+the path is open:
+
+* The host's **Ethernet adapter was disabled** — the device's ARP entry for
+  `192.168.29.246` was `FAILED` and every device probe returned
+  `No route to host` / `Connection refused`. Re-enabling it restored the
+  link; the device's Wi-Fi was mid-roam and needed one reconnect to settle.
+* `tool/serve_device_test_mp4.py` crashed on a malformed probe request
+  (`AttributeError: 'Handler' object has no attribute 'path'`), which would
+  have taken the whole controlled transfer path down with it. Fixed:
+  `log_message` now uses `getattr(self, "path", "?")`.
+
+Final device session (Samsung Galaxy A06, SM-A065F, Android 16 / API 36,
+direct transport, `adb reverse --list` empty for every run):
+
+```text
+P2GC-1 (byte-exact download): PASS  — 2097176/2097176, gate verified,
+                                    no .part, declared total preserved
+P2GC-2 (cancellation):       PASS  — cancel requested, .part removed,
+                                    record never completed
+P2GC-3 (attempt generation): 12 runs, 6 PASS (runs 2, 3, 7, 10, 11, 12),
+                                    3 CONSECUTIVE PASS on runs 10-12.
+                                    Every failure was environmental, never
+                                    a stale-event symptom:
+                                      run 1  SQLite "database is locked"
+                                      run 4  device LAN connection reset
+                                             at 894656/2097176 bytes
+                                      runs 5, 6, 8  WorkManager registration
+                                             race at bytes=0
+                                      run 9  SQLite "database is locked"
+                                    isTransferActive=true logged on every
+                                    run before the restart; no old attempt's
+                                    event ever cancelled, failed, completed
+                                    or corrupted the new attempt
+D-1 / D-2 on device:         PASS  — no truncated completion, no
+                                    engine-invented totals
+Offline playback:            NOT TESTABLE — no local-playback product seam
+                                    (deferred to its own phase)
+
+flutter analyze: CLEAN
+flutter test:    764 passed / 9 skipped / 1 failed
+                 (the 1 failure is a pre-existing discovery load-order
+                  flake, passes 16/16 in isolation, unrelated to downloads)
+D-3 suite:       9/9; downloads-focused: 165/165
+```
+
+### Final status
+
+```text
+PHASE 2G-C: IMPLEMENTATION COMPLETE
+AUTOMATED VALIDATION COMPLETE
+REAL DEVICE VALIDATION COMPLETE
+(offline playback NOT TESTABLE — product seam does not exist yet; recorded
+ as a remaining limitation, not a validation failure)
+```
+
+Phase 2H remains NOT AUTHORIZED and is NOT to be started.

@@ -2,7 +2,36 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-21 — Phase 2G-C ENGINE INTEGRATION COMPLETE;
+Last updated: 2026-09-22 — FINAL D-3 DEVICE RE-VALIDATION COMPLETE.
+The adb-reverse transport was EXONERATED (the failure reproduced without it);
+two transport-independent SPECTA defects were demonstrated with no network and
+no plugin, then FIXED with owner authorization and DEVICE-VALIDATED (3/3 device
+tests pass on the direct transport; the record now agrees with the file on
+disk). D-3 (the restart-recovery flakiness) was then investigated in a
+resumed takeover session: the stale-event mechanism is CONFIRMED and FIXED
+with attempt-identity gating; offline verification is complete (analyze
+clean; 764 passed / 9 skipped / 0 failed; D-3 suite 9/9 with a load-bearing
+negative control). The FINAL D-3 real-device validation gate was closed in a
+fresh session (this one): the Samsung A06 was reconnected over the direct
+transport after the Ethernet adapter had been disabled and the host was
+unreachable by ARP; re-enabling it restored the link. P2GC-1 PASS
+(2097176/2097176, gate verified, no .part, declared total preserved),
+P2GC-2 PASS (cancel requested, .part removed, record never completed), and
+P2GC-3 was run 12 times — PASS on runs 2, 3, 7, 10, 11, 12, with 3 CONSECUTIVE
+PASS on runs 10-12. Every P2GC-3 failure was environmental, never a
+stale-event symptom: run 1 = SQLite `database is locked` (two reconcilers
+racing the same on-device DB); run 4 = device LAN connection reset at
+894656/2097176 bytes; runs 5, 6, 8 = WorkManager registration race at
+`bytes=0` before the transfer started; run 9 = SQLite `database is locked`
+again. No run ever showed an old attempt's event cancelling, failing,
+completing or corrupting the new attempt — the D-3 generation gate held on
+device throughout. Offline totals: analyze CLEAN; 764 passed / 9 skipped /
+1 failed (the failure is a pre-existing, out-of-scope discovery load-order
+flake that passes 16/16 in isolation); D-3 suite 9/9; downloads-focused
+165/165. Offline playback remains NOT TESTABLE (no product seam).
+See the CORRECTION 2026-09-22 blocks below, docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md
+and docs/PHASE_2G_C_D3_INVESTIGATION_REPORT.md.
+Superseded header line: 2026-09-21 — Phase 2G-C ENGINE INTEGRATION COMPLETE;
 REAL DEVICE VALIDATION PARTIAL on Samsung Galaxy A06 (SM-A065F, Android 16).
 The pre-flight (Sections 34–39 of the 2G-C authorization), 2G-C engine
 integration, documentation reconciliation, and this audit are all done.
@@ -16,9 +45,34 @@ analyze clean; 712 passed / 9 skipped / 0 failed; real-JS suite 721 passed /
 0 failed; debug APK SUCCESS. The 2G-C engine integration was then implemented
 and verified: analyze clean; 750 passed / 9 skipped / 0 failed; real-JS 721;
 debug APK SUCCESS. See docs/PHASE_2G_C_ENGINE_AUDIT.md.
-Real device validation: P2GC-1 FAIL (8192/8192 bytes, expected 2097176),
-P2GC-2 PASS, P2GC-3 FAIL (isTransferActive false, timing). Integration test:
-1 passed, 2 failed out of 3. See docs/PHASE_2G_C_ENGINE_AUDIT.md.
+Real device validation (2026-09-21, over adb reverse): P2GC-1 FAIL
+(8192/8192 bytes, expected 2097176), P2GC-2 PASS, P2GC-3 FAIL
+(isTransferActive false, timing). Integration test: 1 passed, 2 failed out of
+3. See docs/PHASE_2G_C_ENGINE_AUDIT.md.
+CORRECTION 2026-09-22 (direct transport, "adb reverse used: NO" — verified):
+that transport-focused verdict was incomplete. The controlled 2,097,176-byte
+MP4 is reachable and transferable DIRECTLY from the device over the LAN, and
+the same failure signature REPRODUCED with adb reverse removed — so adb
+reverse was not the cause. On a fresh install the real file IS downloaded and
+finalized byte-exact (2,097,176 bytes, no .part) while the persisted record
+mis-reports the count. TWO SPECTA DEFECTS are demonstrated with no network and
+no plugin (scripted engine + real FileDownloadCompletionFinalizer + real
+DownloadManager): (D-1) the finalizer returns `engineBytes > 0 ? engineBytes :
+size`, so a TRUNCATED file (8028 of a declared 2097176 bytes) is accepted and
+persisted as `completed` media — the audit claim that the gate rejected the
+wrong-sized file is FALSE (the rejection came from a test assertion);
+(D-2) BackgroundDownloaderEngine's `complete` handler reports totalBytes equal
+to its own stale byte count, and DownloadManager prefers that over the
+server-declared total, so a CORRECT 2 MB file is persisted as
+`completed 5792/5792`. Byte integrity is currently enforced by the TEST
+harness, not by production code. FIXED 2026-09-22 with owner authorization:
+the gate now returns the VERIFIED on-disk length and refuses a transfer shorter
+than the declared total BEFORE the rename; the adapter reports the
+source-declared total instead of one derived from its own byte count; and a
+size-less progress update no longer erases a known total. Post-fix device run:
+3/3 PASS (P2GC-1 `completed bytes=2097176/2097176`, P2GC-2 cancellation,
+P2GC-3 adoption with the correct byte count); P2GC-1 also passes over a
+92-second slow transfer. See docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md.
 Previous handover state: Phase 2G-A + 2G-B committed and pushed as
 94f9283 ("Phase 2G-A/2G-B: download foundation, manager, queue and engine
 seam", 26 files, +7833/-237). Push verified: origin/master == 94f9283.
@@ -185,6 +239,18 @@ NOTE: this file is duplicated byte-for-byte at docs/PROJECT_STATE.txt. Both
 copies are updated together; if only one exists in future, keep the root copy.
 
 Documents, in order of recency (newest wins where they disagree):
+  -3b. docs/PHASE_2G_C_D3_INVESTIGATION_REPORT.md (D-3 dedicated
+        investigation: attempt identity / stale-event isolation — mechanism
+        confirmed by negative control, fixed, offline-verified; device
+        re-validation outstanding — newest record)
+  -3. docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md (2G-C follow-up: the
+        adb-reverse transport REMOVED from the path, direct-LAN device
+        validation, and the two transport-independent SPECTA defects that are
+        demonstrated but NOT fixed — newest record; read this BEFORE the engine
+        audit)
+  -2b. docs/PHASE_2G_C_ENGINE_AUDIT.md (2G-C engine integration audit — NOTE:
+        its "completion gate correctly detected/rejected the mismatch" claims
+        are FALSIFIED by -3; the gate has no byte-integrity check)
   -2. docs/PHASE_2G_C_PREFLIGHT_REPORT.md (2G-C pre-flight: documentation
         truth audit, five verified defect fixes, request policy hardening,
         validation gate — newest record)
@@ -598,15 +664,43 @@ suite 618+9sk after the 2G-B source-audit regression test (617 before
      P2GC-3: FAIL — isTransferActive returned false (timing).
      Integration test: 1 passed, 2 failed out of 3.
      Analyze clean; 750 passed / 9 skipped / 0 failed; real JS 721.
+     FOLLOW-UP 2026-09-22 (direct transport): the real MP4 transfer is PROVEN
+     over the LAN with NO adb reverse (device HEAD Content-Length 2097176;
+     full body read on the device; the server pushed the complete body for
+     every app request). Fresh-install device run PRE-fix: 2 passed / 1 failed
+     — the media was byte-exact (2,097,176), the record was not. Two
+     transport-independent defects were demonstrated, then FIXED with owner
+     authorization and DEVICE-VALIDATED. POST-fix: 3 passed / 0 failed on the
+     direct transport (record bytes == file bytes); P2GC-1 also PASSES over a
+     92-second slow transfer; P2GC-3 is flaky in some configurations (D-3,
+     open). Analyze clean; 755 passed / 9 skipped / 0 failed; 2G-C focused
+     156 passed. Docs: docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md.
+     D-3 INVESTIGATION 2026-09-22 (resumed takeover session): the §6.4
+     hypothesis is CONFIRMED — a stale terminal status from attempt N CAN
+     settle attempt N+1 of the same taskId (demonstrated by a negative
+     control: 5/9 new tests fail with the gate disabled) — and is FIXED by
+     attempt-identity generation gating in the adapter (strictly increasing
+     task creation times; adopted transfers adopt the surviving task's own
+     generation). Offline verification: analyze clean; D-3 suite 9 passed;
+     2G-C downloads-focused 165 passed; full suite 764 passed / 9 skipped /
+     0 failed. Device re-validation 2026-09-22 (Samsung Galaxy A06, direct
+     transport): P2GC-1 PASS (2097176/2097176, gate verified), P2GC-2 PASS,
+     P2GC-3 3 consecutive PASS on the final code (runs 5-7; runs 1-4 recorded
+     with causes: fixture race fixed in test, two environmental connection
+     resets honestly failed, one gate defect found and fixed — raw dart:io
+     exceptions now classified as storageFailure, regression test gate6).
+     Post-fix offline: analyze clean; full suite 765 passed / 9 skipped /
+     0 failed. Offline playback NOT TESTABLE (no product seam). Docs:
+     docs/PHASE_2G_C_D3_INVESTIGATION_REPORT.md.
      Docs: docs/PHASE_2G_C_ENGINE_AUDIT.md.
 [ ] 2H Extension catalogue integration (separate SPECTA-Extensions repository;
     creation deferred until this stage actually requires it).
 
 Phase 2G-C — Download engine integration — DONE 2026-09-21
 Real-device validation: PARTIAL on Samsung Galaxy A06 (SM-A065F, Android 16, API 36).
-Device: R83L20FRDM. APK: build\app\outputs\flutter-apk\app-debug.apk (207,711,670 bytes).
+Device: R83L20FRDFM (the original record wrote "R83L20FRDM", a typo — `adb devices` reports R83L20FRDFM, the id every harness run has used). APK: build\app\outputs\flutter-apk\app-debug.apk (207,711,670 bytes).
 Test server: host port 8712, test.mp4 (2,097,176 bytes). adb reverse tcp:8712→8712.
-P2GC-1 (real MP4 download): FAIL — completed but 8192/8192 bytes instead of 2097176. Transfer chain functional (enqueue → progress → completed → file exists, no .part). Server verified healthy (HTTP 200, Content-Length 2097176). Transfer volume insufficient on device (likely WorkManager/OEM constraint). Completion gate correctly detected mismatch.
+P2GC-1 (real MP4 download): FAIL — completed but 8192/8192 bytes instead of 2097176. Transfer chain functional (enqueue → progress → completed → file exists, no .part). Server verified healthy (HTTP 200, Content-Length 2097176). Transfer volume insufficient on device (likely WorkManager/OEM constraint). CORRECTED 2026-09-22 — this sentence originally read "Completion gate correctly detected mismatch." That is FALSE: the production gate has no byte-integrity check. The observed rejection came from a TEST assertion (expect(await finalFile.length(), expectedBytes)) while the record was persisted as `completed 8192/8192`; the same gate ACCEPTS a truncated file. See docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md section 8.3.
 P2GC-2 (cancellation): PASS — cancelled state persisted, no final media, .part file preserved after cancel. Late events cannot resurrect record.
 P2GC-3 (restart reconciliation): FAIL — `isTransferActive(testId)` returned false (expected true). Likely timing: 8KB transfer completed in 3s, before the `isTransferActive` probe. UnmountedRefException in teardown is a documented race in test source.
 Integration test result: 1 passed, 2 failed, 0 skipped out of 3.

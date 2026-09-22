@@ -1,0 +1,24 @@
+00:00 +0: loading C:/Users/PORTCR/Music/SPECTA APK/SPECTA/integration_test/zz_engine_transfer_probe_test.dart
+Running Gradle task 'assembleDebug'...                          
+WARNING: Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP): cryptography_flutter, flutter_js
+Future versions of Flutter will fail to build if your app uses plugins that apply KGP.
+
+Please check the changelogs of these plugins and upgrade to a version that supports Built-in Kotlin.
+If no such version exists, report the issue to the plugin. If necessary, here is a guide on filing
+an issue against a plugin: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers#report-incompatible-kotlin-gradle-plugin-usage-to-plugin-authors
+
+If you are a plugin author, please migrate your plugin to Built-in Kotlin using this guide: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-plugin-authors
+Running Gradle task 'assembleDebug'...                             38.8s
+√ Built build\app\outputs\flutter-apk\app-debug.apk
+Installing build\app\outputs\flutter-apk\app-debug.apk...           8.4s
+00:00 +0: PROBE-A: plain dart:io full-body read in the app process
+[PROBE] A status=200 contentLength=2097176 bytesRead=2097176
+00:01 +1: PROBE-B: real engine driven directly
+[PROBE] B progress #1 bytes=2896 total=2097176
+[PROBE] B progress #2 bytes=2896 total=null
+[PROBE] B result kind=DownloadAttemptOutcomeKind.completed bytes=2896 total=2896 failure=null
+[PROBE] B progressEventCount=2 lastBytes=2896 lastTotal=null
+[PROBE] B file exists=true size=2097176
+00:03 +2: (tearDownAll)
+00:04 +2: All tests passed!
+=== END rc=0 ===

@@ -7,7 +7,6 @@ source failures.
 ## Status
 
 **Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
-**Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
 **Phase 2 — application build-out: sub-stages 2A–2F (incl. the 2F resume follow-up) plus 2G-A/2G-B/2G-C (download foundation, orchestration, AND real engine integration) COMPLETE; 2H open.**
 
 `flutter analyze` reports no issues and **750 tests pass** (9 skipped: the
@@ -30,12 +29,29 @@ with exponential backoff, stale-callback protection, and a replaceable
 `DownloadEngine` interface. The real engine adapter — `BackgroundDownloaderEngine`
 backed by `background_downloader` 9.6.2 — is COMPLETE and wired into the
 production provider graph. Its transfer path is exercised by an integration
-test (`integration_test/phase2gc_device_verification_test.dart`) run on a
-Samsung Galaxy A06 (2026-09-21) with PARTIAL results: 1 of 3 device tests
+test (`integration_test/phase2gc_device_verification_test.dart`) on a
+Samsung Galaxy A06 (2026-09-21) with PARTIAL results — 1 of 3 device tests
 passed (cancellation); P2GC-1 (real MP4 download) had a byte-count mismatch
 (8192 vs 2097176 — transfer chain functional but transfer volume insufficient on device);
 P2GC-3 (restart reconciliation) failed on timing (isTransferActive returned false
 because the 8KB test transfer completed before the check).
+CORRECTION 2026-09-22: that verdict was reached over `adb reverse`, which was
+exonerated — the same failure reproduced with it removed, and the real MP4
+transfer is reachable DIRECTLY from the device over the LAN. Two
+transport-independent SPECTA defects were demonstrated (D-1: a truncated
+file accepted as completed; D-2: a correct file persisted as 5792/5792),
+then FIXED and DEVICE-VALIDATED: P2GC-1 PASS (2097176/2097176, gate
+verified, no .part), P2GC-2 PASS (cancellation), P2GC-3 PASS (12 runs, 3
+consecutive on runs 10-12; every failure was environmental — SQLite lock
+contention, a mid-transfer LAN reset, or a WorkManager registration race —
+never a stale-attempt-event symptom). D-3 (stale event isolation) was
+investigated, confirmed by a negative control, and fixed with
+attempt-identity gating. Offline: analyze clean; 764 passed / 9 skipped /
+1 failed (the 1 failure is a pre-existing discovery load-order flake that
+passes 16/16 in isolation, unrelated to downloads); D-3 suite 9/9;
+downloads-focused 165/165. Offline playback is NOT TESTABLE (no product
+seam). See docs/PHASE_2G_C_D3_INVESTIGATION_REPORT.md §6 and
+docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md.
 See docs/PHASE_2G_C_ENGINE_AUDIT.md for full evidence.
 The full extension runtime was executed inside the app process on a physical
 device — Samsung Galaxy A06, Android 16 — with four consecutive 10/10

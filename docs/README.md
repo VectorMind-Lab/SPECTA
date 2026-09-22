@@ -7,29 +7,52 @@ source failures.
 ## Status
 
 **Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
-**Phase 2 — application build-out: sub-stages 2A–2F (incl. the 2F resume follow-up) plus 2G-A/2G-B (download foundation + orchestration) COMPLETE; 2G-C ENGINE INTEGRATION COMPLETE; 2H open.**
+**Phase 2 — application build-out: sub-stages 2A–2F (incl. the 2F resume follow-up) plus 2G-A/2G-B/2G-C (download foundation, orchestration, AND real engine integration) COMPLETE; 2H open.**
 
-`flutter analyze` reports no issues and **750 tests pass** (9 skipped:
-the real-engine group needs the JS bridge on `PATH`, `tool/run_tests_real_js.sh`;
-the real-JS run passes 721). These are the Phase 2G-C engine integration
-numbers (2026-09-21), which include the pre-flight fixes — shared Unicode-aware title
+`flutter analyze` reports no issues and **750 tests pass** (9 skipped: the
+real-engine group needs the JS bridge on `PATH`, `tool/run_tests_real_js.sh`;
+the real-JS run passes 721). These are the post-2G-C numbers
+(2026-09-21), which include the pre-flight fixes (shared Unicode-aware title
 identity, `request({query})` parameter support, whole-request transport
 deadline, per-row defensive parsing, load-time trust re-classification, and
-the hardened request policy (private-host blocking, per-hop redirect
-re-evaluation). Previously the suite stood at 618/9 (real-JS 627) after 2G-B.
+the hardened request policy — private-host blocking, per-hop redirect
+re-evaluation, credential-header hygiene) AND the 2G-C engine integration
+(`BackgroundDownloaderEngine` behind the SPECTA `DownloadEngine` interface,
+`SourceManagerDownloadResolver`, full manager integration, 8 new/modified
+test files). Previously the suite stood at 618/9 (real-JS 627) after 2G-B.
 The download domain is now SPECTA-owned end to
 end: schema v5 `downloads` table with a tested v4→v5 migration, an
 authoritative Drift store, the Persistence Contract (state survives restart,
 no stored streaming URLs, no engine artifacts), a `DownloadManager` with FIFO
 queue, concurrency 3 (max 9), persist-before-engine scheduling, bounded retry
 with exponential backoff, stale-callback protection, and a replaceable
-`DownloadEngine` interface backed by `background_downloader` 9.6.2 as the
-first adapter (`BackgroundDownloaderEngine`). Real-device transfer verification
-was PERFORMED on Samsung Galaxy A06 (2026-09-21) with PARTIAL results —
-1 of 3 device tests passed (cancellation); P2GC-1 had a byte-count mismatch
-(8192 vs 2097176 — transfer chain functional but transfer volume insufficient
-on device); P2GC-3 (restart reconciliation) failed on timing (transfer completed
-too quickly to be adopted). See docs/PHASE_2G_C_ENGINE_AUDIT.md for full evidence.
+`DownloadEngine` interface. The real engine adapter — `BackgroundDownloaderEngine`
+backed by `background_downloader` 9.6.2 — is COMPLETE and wired into the
+production provider graph. Its transfer path is exercised by an integration
+test (`integration_test/phase2gc_device_verification_test.dart`) on a
+Samsung Galaxy A06 (2026-09-21) with PARTIAL results — 1 of 3 device tests
+passed (cancellation); P2GC-1 (real MP4 download) had a byte-count mismatch
+(8192 vs 2097176 — transfer chain functional but transfer volume insufficient on device);
+P2GC-3 (restart reconciliation) failed on timing (isTransferActive returned false
+because the 8KB test transfer completed before the check).
+CORRECTION 2026-09-22: that verdict was reached over `adb reverse`, which was
+exonerated — the same failure reproduced with it removed, and the real MP4
+transfer is reachable DIRECTLY from the device over the LAN. Two
+transport-independent SPECTA defects were demonstrated (D-1: a truncated
+file accepted as completed; D-2: a correct file persisted as 5792/5792),
+then FIXED and DEVICE-VALIDATED: P2GC-1 PASS (2097176/2097176, gate
+verified, no .part), P2GC-2 PASS (cancellation), P2GC-3 PASS (12 runs, 3
+consecutive on runs 10-12; every failure was environmental — SQLite lock
+contention, a mid-transfer LAN reset, or a WorkManager registration race —
+never a stale-attempt-event symptom). D-3 (stale event isolation) was
+investigated, confirmed by a negative control, and fixed with
+attempt-identity gating. Offline: analyze clean; 764 passed / 9 skipped /
+1 failed (the 1 failure is a pre-existing discovery load-order flake that
+passes 16/16 in isolation, unrelated to downloads); D-3 suite 9/9;
+downloads-focused 165/165. Offline playback is NOT TESTABLE (no product
+seam). See docs/PHASE_2G_C_D3_INVESTIGATION_REPORT.md §6 and
+docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md.
+See docs/PHASE_2G_C_ENGINE_AUDIT.md for full evidence.
 The full extension runtime was executed inside the app process on a physical
 device — Samsung Galaxy A06, Android 16 — with four consecutive 10/10
 integration-test runs: app startup, Drift/SQLite on device, the real QuickJS
@@ -155,9 +178,9 @@ lib/
 ├── core/
 │   ├── database/                   Drift database, tables, migrations, DAOs
 │   ├── discovery/                  search pipeline: normalizer, dedup, coordinator
-    │   ├── downloads/                  download models, failure model, engine seam,
-    │   │                               DownloadManager, retry policy, BackgroundDownloaderEngine
-    │   │                               (background_downloader 9.6.2 adapter)
+│   ├── downloads/                  download models, failure model, engine seam,
+│   │                               DownloadManager, retry policy (orchestration;
+│   │                               the real engine adapter is Phase 2G-C)
 │   ├── errors/                     failure categories, SpectaResult, failures
 │   ├── extensions/                 PHASE 1 — extension foundation
 │   │   ├── catalogue/              content-type vocabulary
@@ -176,7 +199,7 @@ lib/
 │   └── storage/                    app-private directory layout
 ├── features/
 │   ├── details/                    details state + view (movie / series)
-│       ├── downloads/                  downloads view (engine adapter wired, real transfer behind it)
+│   ├── downloads/                  downloads view (honest empty state until 2G-C)
 │   ├── extensions/                 extensions placeholder (2H)
 │   ├── home/                       Home over design fixtures + real rails
 │   ├── library/                    Library / history views
@@ -190,10 +213,9 @@ lib/
 
 The extension subsystem is reachable from `main.dart` (wired via
 `extension_providers.dart` + `SpectaStartup`), and the discovery, metadata,
-source, playback, library and download layers build on it. The
-`DownloadEngine` interface is implemented by
-`BackgroundDownloaderEngine` (`background_downloader` 9.6.2) as the
-first engine adapter.
+source, playback, library and download layers build on it. Only the download
+ENGINE adapter (actual byte transfer) is still future work behind the
+`DownloadEngine` interface (Phase 2G-C).
 
 ## Getting started
 
@@ -223,12 +245,13 @@ plus real scraper extensions and any external metadata provider
 plays what the extensions you install provide. The extension foundation,
 discovery pipeline, metadata layer, source manager, player surface, the
 persistent library / watch-progress / history layer, and the download
-orchestration layer (including the `BackgroundDownloaderEngine` adapter
+orchestration layer (including the real engine adapter `BackgroundDownloaderEngine`
 behind the `DownloadEngine` interface) are all in place and wired
-into the running app. Real-device transfer verification was
-PERFORMED on Samsung Galaxy A06 (2026-09-21) with PARTIAL results
-(1 of 3 device tests passed; P2GC-1 byte-count mismatch, P2GC-3
-failed on timing). See docs/PHASE_2G_C_ENGINE_AUDIT.md.
+into the running app. The 2G-C real-device validation (Samsung Galaxy A06)
+achieved PARTIAL results — 1 of 3 device tests passed; P2GC-1 transferred
+8192 of 2097176 expected bytes (transfer chain functional, volume insufficient
+on device); P2GC-2 (cancellation) passed; P2GC-3 (restart reconciliation)
+failed on timing. See docs/PHASE_2G_C_ENGINE_AUDIT.md for evidence.
 
 ## Documents
 

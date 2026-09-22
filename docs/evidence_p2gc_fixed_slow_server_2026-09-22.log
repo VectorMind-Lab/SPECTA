@@ -1,0 +1,69 @@
+SERVING http://192.168.29.246:8712/test.mp4 file=C:/Users/PORTCR/AppData/Local/Temp/specta_device_test.mp4 size=2097176 mode=SLOW rate=23000B/s
+HDR range=- ua=Dalvik/2.1.0 (Linux; U; Android 16; SM-A065F Build/BP2A.250605.031.A3)
+REQ GET /test.mp4 rc=GET /test.mp4 HTTP/1.1
+SENT bytes=2097176 expected=2097176 complete=True
+HDR range=- ua=Dalvik/2.1.0 (Linux; U; Android 16; SM-A065F Build/BP2A.250605.031.A3)
+REQ GET /test.mp4 rc=GET /test.mp4 HTTP/1.1
+HDR range=- ua=Dalvik/2.1.0 (Linux; U; Android 16; SM-A065F Build/BP2A.250605.031.A3)
+REQ GET /test.mp4 rc=GET /test.mp4 HTTP/1.1
+----------------------------------------
+Exception occurred during processing of request from ('192.168.29.174', 48180)
+Traceback (most recent call last):
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socketserver.py", line 691, in process_request_thread
+    self.finish_request(request, client_address)
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socketserver.py", line 361, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socketserver.py", line 755, in __init__
+    self.handle()
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\http\server.py", line 424, in handle_one_request
+    method()
+  File "C:\Users\PORTCR\Music\SPECTA APK\SPECTA\tool\serve_device_test_mp4.py", line 132, in do_GET
+    sent = self._send_body_slow(length, start)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PORTCR\Music\SPECTA APK\SPECTA\tool\serve_device_test_mp4.py", line 74, in _send_body_slow
+    self.wfile.write(chunk)
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socketserver.py", line 834, in write
+    self._sock.sendall(b)
+ConnectionAbortedError: [WinError 10053] An established connection was aborted by the software in your host machine
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('192.168.29.174', 39690)
+Traceback (most recent call last):
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socketserver.py", line 691, in process_request_thread
+    self.finish_request(request, client_address)
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socketserver.py", line 361, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socketserver.py", line 755, in __init__
+    self.handle()
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\http\server.py", line 438, in handle
+    self.handle_one_request()
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\http\server.py", line 404, in handle_one_request
+    self.raw_requestline = self.rfile.readline(65537)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socket.py", line 706, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------
+SENT bytes=663552 expected=2097176 complete=False
+----------------------------------------
+Exception occurred during processing of request from ('192.168.29.174', 48184)
+Traceback (most recent call last):
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socketserver.py", line 691, in process_request_thread
+    self.finish_request(request, client_address)
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socketserver.py", line 361, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socketserver.py", line 755, in __init__
+    self.handle()
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\http\server.py", line 438, in handle
+    self.handle_one_request()
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\http\server.py", line 404, in handle_one_request
+    self.raw_requestline = self.rfile.readline(65537)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PORTCR\AppData\Local\Programs\Python\Python311\Lib\socket.py", line 706, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------

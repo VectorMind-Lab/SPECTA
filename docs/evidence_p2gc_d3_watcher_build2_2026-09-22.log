@@ -1,0 +1,11 @@
+=== watcher start Tue, Sep 22, 2026 12:56:21 PM ===
+12:56:22 pid=NONE mWakefulness=Awake mHoldingDisplaySuspendBlocker=true
+tool/d3_device_watcher.sh: line 16: count: unbound variable
+=== watcher start Tue, Sep 22, 2026 12:58:21 PM ===
+12:58:21 pid=NONE mWakefulness=Awake mHoldingDisplaySuspendBlocker=true
+12:58:27 pid=NONE mWakefulness=Awake mHoldingDisplaySuspendBlocker=true
+12:58:34 pid=NONE mWakefulness=Awake mHoldingDisplaySuspendBlocker=true
+12:58:40 pid=NONE mWakefulness=Awake mHoldingDisplaySuspendBlocker=true
+12:58:46 pid=NONE mWakefulness=Awake mHoldingDisplaySuspendBlocker=true
+12:58:53 pid=NONE mWakefulness=Awake mHoldingDisplaySuspendBlocker=true
+=== watcher end: app absent 30s, stopping Tue, Sep 22, 2026 12:58:53 PM ===

@@ -1,0 +1,45 @@
+00:00 +0: loading C:/Users/PORTCR/Music/SPECTA APK/SPECTA/integration_test/phase2gc_device_verification_test.dart
+Running Gradle task 'assembleDebug'...                          
+WARNING: Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP): cryptography_flutter, flutter_js
+Future versions of Flutter will fail to build if your app uses plugins that apply KGP.
+
+Please check the changelogs of these plugins and upgrade to a version that supports Built-in Kotlin.
+If no such version exists, report the issue to the plugin. If necessary, here is a guide on filing
+an issue against a plugin: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers#report-incompatible-kotlin-gradle-plugin-usage-to-plugin-authors
+
+If you are a plugin author, please migrate your plugin to Built-in Kotlin using this guide: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-plugin-authors
+Running Gradle task 'assembleDebug'...                             31.9s
+√ Built build\app\outputs\flutter-apk\app-debug.apk
+Installing build\app\outputs\flutter-apk\app-debug.apk...           7.7s
+00:00 +0: P2GC-3: restart reconciliation adopts a surviving transfer
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: true
+  Actual: <false>
+WorkManager holds the live native task
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase2gc_device_verification_test.dart:309:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase2gc_device_verification_test.dart line 309
+The test description was:
+  P2GC-3: restart reconciliation adopts a surviving transfer
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:05 +0 -1: P2GC-3: restart reconciliation adopts a surviving transfer [E]
+  Test failed. See exception logs above.
+  The test description was: P2GC-3: restart reconciliation adopts a surviving transfer
+  
+00:05 +0 -1: (tearDownAll)
+00:06 +0 -1: Some tests failed.
+
+Failing tests:
+  C:/Users/PORTCR/Music/SPECTA APK/SPECTA/integration_test/phase2gc_device_verification_test.dart: P2GC-3: restart reconciliation adopts a surviving transfer
+=== END rc=1 ===

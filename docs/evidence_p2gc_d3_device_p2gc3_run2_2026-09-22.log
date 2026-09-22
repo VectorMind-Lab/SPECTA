@@ -1,0 +1,156 @@
+=== D-3 device run: p2gc3_run2 === Tue, Sep 22, 2026  1:11:44 PM
+00:00 +0: loading C:/Users/PORTCR/Music/SPECTA APK/SPECTA/integration_test/phase2gc_device_verification_test.dart
+Running Gradle task 'assembleDebug'...                          
+WARNING: Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP): cryptography_flutter, flutter_js
+Future versions of Flutter will fail to build if your app uses plugins that apply KGP.
+
+Please check the changelogs of these plugins and upgrade to a version that supports Built-in Kotlin.
+If no such version exists, report the issue to the plugin. If necessary, here is a guide on filing
+an issue against a plugin: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers#report-incompatible-kotlin-gradle-plugin-usage-to-plugin-authors
+
+If you are a plugin author, please migrate your plugin to Built-in Kotlin using this guide: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-plugin-authors
+Running Gradle task 'assembleDebug'...                             36.0s
+√ Built build\app\outputs\flutter-apk\app-debug.apk
+Installing build\app\outputs\flutter-apk\app-debug.apk...           8.8s
+00:00 +0: P2GC-3: restart reconciliation adopts a surviving transfer
+[SPECTA-P2GC] isTransferActive=true
+WARNING (drift): It looks like you've created the database class SpectaDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$SpectaDatabase (package:specta/core/database/specta_database.g.dart:4443:39)
+#4      new SpectaDatabase (package:specta/core/database/specta_database.dart:35:7)
+#5      spectaDatabaseProvider.<anonymous closure> (package:specta/core/database/database_providers.dart:15:39)
+#6      Provider.create (package:riverpod/src/providers/provider.dart:59:36)
+#7      $ProviderElement.create (package:riverpod/src/providers/provider.dart:343:33)
+#8      ProviderElement.buildState (package:riverpod/src/core/element.dart:751:28)
+#9      ProviderElement.mount (package:riverpod/src/core/element.dart:587:7)
+#10     ProviderElement.flush (package:riverpod/src/core/element.dart:704:9)
+#11     $ProviderBaseImpl._addListener (package:riverpod/src/core/provider/provider.dart:119:24)
+#12     ProviderElement.listen (package:riverpod/src/core/element.dart:991:28)
+#13     Ref.watch (package:riverpod/src/core/ref.dart:726:20)
+#14     downloadStoreProvider.<anonymous closure> (package:specta/core/downloads/download_providers.dart:28:26)
+#15     Provider.create (package:riverpod/src/providers/provider.dart:59:36)
+#16     $ProviderElement.create (package:riverpod/src/providers/provider.dart:343:33)
+#17     ProviderElement.buildState (package:riverpod/src/core/element.dart:751:28)
+#18     ProviderElement.mount (package:riverpod/src/core/element.dart:587:7)
+#19     ProviderElement.flush (package:riverpod/src/core/element.dart:704:9)
+#20     $ProviderBaseImpl._addListener (package:riverpod/src/core/provider/provider.dart:119:24)
+#21     ProviderElement.listen (package:riverpod/src/core/element.dart:991:28)
+#22     Ref.watch (package:riverpod/src/core/ref.dart:726:20)
+#23     downloadManagerProvider.<anonymous closure> (package:specta/core/downloads/download_providers.dart:98:20)
+#24     Provider.create (package:riverpod/src/providers/provider.dart:59:36)
+#25     $ProviderElement.create (package:riverpod/src/providers/provider.dart:343:33)
+#26     ProviderElement.buildState (package:riverpod/src/core/element.dart:751:28)
+#27     ProviderElement.mount (package:riverpod/src/core/element.dart:587:7)
+#28     ProviderElement.flush (package:riverpod/src/core/element.dart:704:9)
+#29     $ProviderBaseImpl._addListener (package:riverpod/src/core/provider/provider.dart:119:24)
+#30     ProviderContainer.listen (package:riverpod/src/core/provider_container.dart:1141:26)
+#31     ProviderContainer.read (package:riverpod/src/core/provider_container.dart:1068:17)
+#32     main.wired (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase2gc_device_verification_test.dart:108:47)
+#33     main.<anonymous closure> (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase2gc_device_verification_test.dart:326:72)
+<asynchronous suspension>
+#34     testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#35     TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+#36     StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+[SPECTA-P2GC] manager recreated; adoption decided
+[SPECTA-P2GC] post-restart status=failed bytes=8028
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: DownloadStatus:<DownloadStatus.completed>
+  Actual: DownloadStatus:<DownloadStatus.failed>
+the adopted surviving transfer completes — no duplicate transfer, no honest-failure
+misclassification
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase2gc_device_verification_test.dart:343:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase2gc_device_verification_test.dart line 343
+The test description was:
+  P2GC-3: restart reconciliation adopts a surviving transfer
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:05 +0 -1: P2GC-3: restart reconciliation adopts a surviving transfer [E]
+  Test failed. See exception logs above.
+  The test description was: P2GC-3: restart reconciliation adopts a surviving transfer
+  
+00:06 +0 -1: (tearDownAll)
+00:06 +0 -1: P2GC-3: restart reconciliation adopts a surviving transfer [E]
+  'package:flutter/src/foundation/stack_frame.dart': Failed assertion: line 197 pos 7: 'line != '===== asynchronous gap ==========================='': Got a stack frame from package:stack_trace, where a vm or web frame was expected. This can happen if FlutterError.demangleStackTrace was not set in an environment that propagates non-standard stack traces to the framework, such as during tests.
+  dart:core                                                                                                     _AssertionError._throwNew
+  package:flutter/src/foundation/stack_frame.dart 197:7                                                         StackFrame.fromStackTraceLine
+  dart:core                                                                                                     Iterable.toList
+  package:flutter/src/foundation/stack_frame.dart 85:10                                                         StackFrame.fromStackString
+  package:flutter/src/foundation/assertions.dart 1082:54                                                        FlutterError.defaultStackFilter
+  package:flutter/src/foundation/assertions.dart 1274:43                                                        DiagnosticsStackTrace._applyStackFilter
+  package:flutter/src/foundation/assertions.dart 1253:22                                                        new DiagnosticsStackTrace
+  package:flutter/src/foundation/assertions.dart 716:9                                                          FlutterErrorDetails.debugFillProperties
+  package:flutter/src/foundation/diagnostics.dart 2922:17                                                       DiagnosticableNode.builder.<fn>
+  package:flutter/src/foundation/diagnostics.dart 2925:8                                                        DiagnosticableNode.builder
+  package:flutter/src/foundation/assertions.dart 1293:56                                                        _FlutterErrorDetailsNode.builder
+  package:flutter/src/foundation/diagnostics.dart 2943:68                                                       DiagnosticableNode.getProperties
+  package:flutter/src/foundation/diagnostics.dart 1270:63                                                       TextTreeRenderer._debugRender
+  package:flutter/src/foundation/diagnostics.dart 1137:14                                                       TextTreeRenderer.render
+  package:flutter/src/foundation/diagnostics.dart 1818:75                                                       DiagnosticsNode.toStringDeep.<fn>
+  package:flutter/src/foundation/diagnostics.dart 1825:6                                                        DiagnosticsNode.toStringDeep
+  package:flutter/src/foundation/assertions.dart 736:65                                                         FlutterErrorDetails.toString
+  package:integration_test/integration_test.dart 90:67                                                          new IntegrationTestWidgetsFlutterBinding.<fn>
+  package:flutter_test/src/binding.dart 1824:28                                                                 TestWidgetsFlutterBinding._runTest.handleUncaughtError
+  package:flutter_test/src/binding.dart 1921:13                                                                 TestWidgetsFlutterBinding._runTest.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                                                                                    _CustomZone.registerBinaryCallback
+  package:specta/core/downloads/download_manager.dart 903:32                                                    DownloadManager._runAttempt
+  package:specta/core/downloads/download_manager.dart 890:15                                                    DownloadManager._startAttempt
+  package:specta/core/downloads/download_manager.dart 864:7                                                     DownloadManager._pump
+  ===== asynchronous gap ===========================
+  dart:async                                                                                                    _CustomZone.registerUnaryCallback
+  package:specta/core/downloads/download_manager.dart 833:40                                                    DownloadManager._pump
+  package:specta/core/downloads/download_manager.dart 413:13                                                    DownloadManager._triggerPump.<fn>
+  package:specta/core/downloads/download_manager.dart 404:52                                                    DownloadManager._serialized.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                                                                                    Future.then
+  package:specta/core/downloads/download_manager.dart 404:34                                                    DownloadManager._serialized
+  package:specta/core/downloads/download_manager.dart 412:15                                                    DownloadManager._triggerPump
+  package:specta/core/downloads/download_manager.dart 654:5                                                     DownloadManager.enqueue
+  ===== asynchronous gap ===========================
+  dart:async                                                                                                    _CustomZone.registerUnaryCallback
+  package:specta/core/downloads/download_manager.dart 545:34                                                    DownloadManager.enqueue
+  c:/Users/PORTCR/Music/SPECTA                                                                                  APK/SPECTA/integration_test/phase2gc_device_verification_test.dart 299:22        main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                                                                                    _CustomZone.registerUnaryCallback
+  c:/Users/PORTCR/Music/SPECTA                                                                                  APK/SPECTA/integration_test/phase2gc_device_verification_test.dart 297:7         main.<fn>
+  package:flutter_test/src/widget_tester.dart 192:29                                                            testWidgets.<fn>.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                                                                                    _CustomZone.registerUnaryCallback
+  package:flutter_test/src/widget_tester.dart 189:25                                                            testWidgets.<fn>.<fn>
+  package:flutter_test/src/binding.dart 1953:19                                                                 TestWidgetsFlutterBinding._runTestBody
+  ===== asynchronous gap ===========================
+  dart:async                                                                                                    _CustomZone.registerUnaryCallback
+  package:flutter_test/src/binding.dart 1942:5                                                                  TestWidgetsFlutterBinding._runTestBody
+  dart:async                                                                                                    _CustomZone.runBinary
+  package:flutter_test/src/binding.dart 1927:10                                                                 TestWidgetsFlutterBinding._runTest
+  package:flutter_test/src/binding.dart 3060:12                                                                 LiveTestWidgetsFlutterBinding.runTest
+  package:integration_test/integration_test.dart 237:17                                                         IntegrationTestWidgetsFlutterBinding.runTest
+  package:flutter_test/src/widget_tester.dart 184:24                                                            testWidgets.<fn>
+  ===== asynchronous gap ===========================
+  package:stream_channel                                                                                        _GuaranteeSink.add
+  c:/Users/PORTCR/AppData/Local/Temp/flutter_tools.316dda8e/flutter_test_listener.1fa3936d/listener.dart 56:22  main.<fn>
+  
+00:08 +0 -1: Some tests failed.
+
+Failing tests:
+  C:/Users/PORTCR/Music/SPECTA APK/SPECTA/integration_test/phase2gc_device_verification_test.dart: P2GC-3: restart reconciliation adopts a surviving transfer
+=== exit=1 === Tue, Sep 22, 2026  1:12:51 PM
