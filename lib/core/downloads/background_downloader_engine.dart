@@ -53,6 +53,20 @@ import 'download_models.dart';
 ///   derived `.part` path; the MANAGER's completion gate owns the final
 ///   rename — an incomplete transfer can never be mistaken for completed
 ///   media.
+/// - The reported `totalBytes` at completion is the DECLARED size the source
+///   stated in a size-bearing progress update — never the byte count. The two
+///   are not interchangeable: a fast transfer can finish without the plugin
+///   ever emitting a final size-bearing tick, and a total derived from the
+///   byte count would then describe a truncated transfer as a success whose
+///   numbers agree with each other. When no size was declared the result
+///   carries `totalBytes: null`.
+///
+/// - ATTEMPT IDENTITY (D-3): two sequential attempts of one download share the
+///   taskId — SPECTA's product identity IS the plugin task id (§38) — so an
+///   update from the EARLIER attempt is indistinguishable by id alone. Every
+///   attempt therefore remembers the creation time of the task it built, and an
+///   update whose task predates it is refused: no event from attempt N can
+///   settle, fail, complete or advance attempt N+1.
 ///
 /// Failure translation (2G-C §41): the plugin's typed `TaskException`
 /// subtypes map onto SPECTA failure types without over-claiming specificity;
@@ -76,6 +90,40 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
   /// Last known byte count per download id, used only when the server did
   /// not declare a size (no fabrication of either bytes or totals).
   final Map<String, int> _lastBytes = <String, int>{};
+
+  /// Last DECLARED total per download id — the source's Content-Length as the
+  /// plugin reported it in a size-bearing progress update.
+  ///
+  /// This map exists because a total must never be derived from the byte
+  /// count: `bytesOnDisk` is how far the transfer got, not what the source
+  /// declared, and a transfer that stops early would otherwise produce a
+  /// "complete" result whose bytes and total agree with each other and hide
+  /// the shortfall. When no size was ever declared this stays absent and the
+  /// result carries `totalBytes: null` — unknown, never invented.
+  final Map<String, int> _declaredTotals = <String, int>{};
+
+  /// ATTEMPT IDENTITY (D-3) per download id: the creation time of the plugin
+  /// task built for the CURRENT attempt — the generation marker every incoming
+  /// update is matched against. See [_belongsToCurrentAttempt].
+  final Map<String, int> _attemptTaskMillis = <String, int>{};
+
+  /// The creation time stamped on each attempt's task, strictly increasing
+  /// within this process.
+  ///
+  /// Two attempts of one download must never share a generation, and wall
+  /// clock milliseconds alone would let a cancel-then-re-request inside one
+  /// millisecond collide. Static because several engine instances can share
+  /// one plugin (a rebuilt provider graph, tests), and they share the
+  /// plugin's task-id namespace.
+  static int _attemptClockMillis = 0;
+
+  static DateTime _nextAttemptCreationTime() {
+    final int now = DateTime.now().millisecondsSinceEpoch;
+    final int next =
+        now > _attemptClockMillis ? now : _attemptClockMillis + 1;
+    _attemptClockMillis = next;
+    return DateTime.fromMillisecondsSinceEpoch(next);
+  }
 
   StreamController<DownloadEngineEvent>? _events;
   StreamSubscription<TaskUpdate>? _updatesSubscription;
@@ -162,6 +210,10 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
     // to the manager (it only starts attempts when its policy allows) — a
     // second, contradicting policy here would fight SPECTA's own (2G-C §35:
     // no competing network policy system).
+    // Stamped explicitly so the generation is strictly increasing (D-3): the
+    // plugin keeps this value on the task and returns it in every update, so
+    // an earlier attempt's update can never look like this attempt's.
+    final DateTime attemptCreatedAt = _nextAttemptCreationTime();
     final DownloadTask task = DownloadTask(
       taskId: input.downloadId,
       url: input.url,
@@ -172,12 +224,17 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
       retries: 0,
       allowPause: true,
       updates: Updates.statusAndProgress,
+      creationTime: attemptCreatedAt,
       // Transfer infrastructure, not user-facing content: no notification
       // architecture in this phase (2G-C §42).
       displayName: input.downloadId,
     );
     _activeTasks[input.downloadId] = task;
     _lastBytes[input.downloadId] = input.resumeFrom;
+    // This attempt IS the task just built: its creation time is the
+    // generation that updates must match (D-3).
+    _attemptTaskMillis[input.downloadId] =
+        attemptCreatedAt.millisecondsSinceEpoch;
 
     final Completer<DownloadAttemptResult> completer =
         Completer<DownloadAttemptResult>();
@@ -185,8 +242,7 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
 
     final bool enqueued = await _downloader.enqueue(task);
     if (!enqueued) {
-      _attempts.remove(input.downloadId);
-      _activeTasks.remove(input.downloadId);
+      _releaseAttempt(input.downloadId, completer);
       return DownloadAttemptResult.failed(
         DownloadFailure(
           type: DownloadFailureType.engineFailure,
@@ -200,9 +256,7 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
     try {
       return await completer.future;
     } finally {
-      _attempts.remove(input.downloadId);
-      _activeTasks.remove(input.downloadId);
-      _lastBytes.remove(input.downloadId);
+      _releaseAttempt(input.downloadId, completer);
     }
   }
 
@@ -231,6 +285,20 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
       _activeTasks[downloadId] = task;
     }
     _lastBytes[downloadId] = _bytesFromRecord(record);
+    if (record != null) {
+      // An ADOPTED transfer is the current attempt, so the surviving task's
+      // own creation time is its generation. With no record there is nothing
+      // to compare against and the wait accepts updates for this id — the
+      // manager's pause/cancel remain the way out of that state.
+      _attemptTaskMillis[downloadId] =
+          record.task.creationTime.millisecondsSinceEpoch;
+    }
+    if (record != null && record.expectedFileSize > 0) {
+      // The record's declared size is the plugin's own memory of the
+      // source's total; keep it so a later `complete` update during the wait
+      // still reports a DECLARED total instead of the byte count.
+      _declaredTotals[downloadId] = record.expectedFileSize;
+    }
 
     try {
       if (record != null) {
@@ -278,9 +346,7 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
       // terminates the wait with a `canceled` status.
       return await completer.future;
     } finally {
-      _attempts.remove(downloadId);
-      _activeTasks.remove(downloadId);
-      _lastBytes.remove(downloadId);
+      _releaseAttempt(downloadId, completer);
     }
   }
 
@@ -351,7 +417,11 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
             expectedFileSize: final int expected,
           ):
         if (task case final DownloadTask downloadTask) {
-          _handleProgress(downloadTask, progress, expected);
+          // Attempt-identity gate (D-3): an update carrying an EARLIER
+          // attempt's task must not advance this attempt's byte count.
+          if (_belongsToCurrentAttempt(downloadTask)) {
+            _handleProgress(downloadTask, progress, expected);
+          }
         }
       case TaskStatusUpdate(
           task: final Task task,
@@ -359,12 +429,20 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
           exception: final TaskException? exception,
         ):
         if (task case final DownloadTask downloadTask) {
-          _handleStatus(downloadTask, status, exception);
+          // Attempt-identity gate (D-3): an update carrying an EARLIER
+          // attempt's task must not settle this attempt.
+          if (_belongsToCurrentAttempt(downloadTask)) {
+            _handleStatus(downloadTask, status, exception);
+          }
         }
     }
   }
 
   void _handleProgress(DownloadTask task, double progress, int expected) {
+    // A size-bearing update is the ONLY place a declared total comes from.
+    // Recorded before the regression filter below, so a total is remembered
+    // even when the byte count itself is not worth emitting.
+    if (expected > 0) _declaredTotals[task.taskId] = expected;
     // Whole-file math: the plugin's fraction and expected size already
     // include the resumed prefix (TaskRunner.kt computes
     // `(bytesTotal + startByte) / (contentLength + startByte)`), so bytes on
@@ -385,7 +463,10 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
       DownloadEngineProgress(
         downloadId: task.taskId,
         bytesOnDisk: bytes,
-        totalBytes: expected > 0 ? expected : null,
+        // A size-less update means "not stated this time", not "there is no
+        // total": the declared size already stated by an earlier update is
+        // still the best knowledge and must not be erased.
+        totalBytes: expected > 0 ? expected : _declaredTotals[task.taskId],
       ),
     );
   }
@@ -407,14 +488,17 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
         // on a transfer the plugin may hold indefinitely.
         _settle(task.taskId, DownloadAttemptResult.paused(bytes));
       case TaskStatus.complete:
-        // A completed file's size IS its total — the only total the engine
-        // can state without inventing data (the plugin's progress updates
-        // already carried the declared size while running).
+        // The total is the source's DECLARED size (from a size-bearing
+        // progress update), or null when the source never declared one.
+        // It is deliberately NOT the byte count: on a fast transfer the
+        // plugin may deliver no final size-bearing progress tick at all, so
+        // deriving a total from `bytes` would report a truncated transfer as
+        // a self-consistent success (both numbers equal, and both wrong).
         _settle(
           task.taskId,
           DownloadAttemptResult.completed(
             bytes,
-            totalBytes: bytes > 0 ? bytes : null,
+            totalBytes: _declaredTotals[task.taskId],
           ),
         );
       case TaskStatus.canceled:
@@ -454,6 +538,58 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
     if (completer != null && !completer.isCompleted) {
       completer.complete(result);
     }
+  }
+
+  /// Whether [task] can belong to the CURRENT attempt of its download id
+  /// (D-3 safety property: no event from attempt N may mutate attempt N+1).
+  ///
+  /// The plugin's only routing key is the taskId, and SPECTA deliberately makes
+  /// the taskId the download identity (§38) — so two sequential attempts of one
+  /// download share it. The plugin can therefore deliver an earlier attempt's
+  /// update while the later attempt is live: it stores updates it could not
+  /// deliver locally, keyed by taskId, and replays them from
+  /// `FileDownloader.start()` → `resumeFromBackground()`
+  /// (background_downloader 9.6.2, base_downloader.dart:275-296 and
+  /// file_downloader.dart:814-831); a late cancellation acknowledgement
+  /// likewise carries the task of the attempt it belongs to.
+  ///
+  /// The discriminator is the plugin's OWN per-attempt identity: every update
+  /// carries the task it belongs to (the native side serializes the task into
+  /// the update, and the task is parsed back on the Dart side), and each
+  /// attempt builds a fresh task, so a task created BEFORE this attempt's task
+  /// cannot be this attempt's. Creation time is monotonic, which is what makes
+  /// the comparison sound; `>=` (not `==`) keeps an attempt's own updates
+  /// accepted even if the native layer ever re-stamps the task.
+  ///
+  /// Unknown identity (no attempt registered for the id, or an adopted attempt
+  /// with no plugin record to compare against) accepts the update: refusing
+  /// everything would strand the live transfer with no way to settle it.
+  bool _belongsToCurrentAttempt(Task task) {
+    final int? attemptMillis = _attemptTaskMillis[task.taskId];
+    if (attemptMillis == null) return true;
+    return task.creationTime.millisecondsSinceEpoch >= attemptMillis;
+  }
+
+  /// Attempt-scoped teardown: removes only the state that still belongs to the
+  /// attempt that owns [mine].
+  ///
+  /// Belt and braces for the same identity rule as the event gate: removing by
+  /// download id alone is only correct while an attempt is the newest one for
+  /// its id. If an attempt ever settles after a newer one has registered (a
+  /// caller that overlaps attempts — the manager does not), the id-only removal
+  /// would deregister the CURRENT attempt's completer and leave the live
+  /// transfer unsettleable with its slot stuck. The identity check makes that
+  /// impossible regardless of the caller's ordering.
+  void _releaseAttempt(
+    String downloadId,
+    Completer<DownloadAttemptResult> mine,
+  ) {
+    if (!identical(_attempts[downloadId], mine)) return; // superseded
+    _attempts.remove(downloadId);
+    _activeTasks.remove(downloadId);
+    _lastBytes.remove(downloadId);
+    _declaredTotals.remove(downloadId);
+    _attemptTaskMillis.remove(downloadId);
   }
 
   /// Maps a plugin failure onto the SPECTA failure model using the typed
@@ -529,6 +665,8 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
     _attempts.clear();
     _activeTasks.clear();
     _lastBytes.clear();
+    _declaredTotals.clear();
+    _attemptTaskMillis.clear();
     // The per-downloader tap survives: the plugin singleton and its
     // controller live for the whole test process, and the next engine must
     // keep receiving its events.

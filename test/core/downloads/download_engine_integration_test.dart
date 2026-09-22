@@ -280,6 +280,107 @@ void main() {
       expect(File(partPathFor('gate3')).existsSync(), isFalse,
           reason: 'no .part file survives a completed download');
     });
+
+    test('a TRUNCATED transfer is REFUSED: the gate verifies the declared '
+        'total before the final rename', () async {
+      // The exact real-device shape: the source declares 2 MiB in one
+      // size-bearing progress update, the plugin then ends the transfer
+      // early and reports `complete` anyway. The incomplete bytes must never
+      // take the final media path.
+      engine.emitProgress('gate4', 8028, totalBytes: 2097176);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      engine.emitProgress('gate4', 8028);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      writePart('gate4', 8028);
+      // The engine's own numbers agree with each other (8028/8028) — that
+      // self-consistency is exactly what used to hide the shortfall.
+      engine.completeWith(8028, totalBytes: 8028);
+      await manager.enqueue(request('gate4'));
+      await manager.debugIdle;
+
+      final DownloadRecord record = await recordOf('gate4');
+      expect(record.status, DownloadStatus.failed,
+          reason: '8028 of the 2097176 DECLARED bytes is not completed media, '
+              'however firmly the engine says complete');
+      expect(record.failure!.type, DownloadFailureType.interrupted,
+          reason: 'a short transfer is an interruption, and it is retryable '
+              'under the bounded budget');
+      expect(File(finalPathFor('gate4')).existsSync(), isFalse,
+          reason: 'partial bytes must never be renamed into the final path');
+      expect(File(partPathFor('gate4')).existsSync(), isTrue,
+          reason: 'the bytes already transferred are kept for a resume');
+    });
+
+    test('a COMPLETE transfer is persisted with the file\'s verified byte '
+        'count, never the engine\'s stale claim', () async {
+      // The real-device shape of a SUCCESSFUL download: the plugin delivers
+      // the whole file but its last byte count is mid-flight accounting.
+      engine.emitProgress('gate5', 5792, totalBytes: 2097176);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      engine.emitProgress('gate5', 5792);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      writePart('gate5', 2097176);
+      engine.completeWith(5792, totalBytes: 5792);
+      await manager.enqueue(request('gate5'));
+      await manager.debugIdle;
+
+      final DownloadRecord record = await recordOf('gate5');
+      expect(record.status, DownloadStatus.completed);
+      expect(record.bytesDownloaded, 2097176,
+          reason: 'the record must agree with the file that is on disk');
+      expect(record.totalBytes, 2097176,
+          reason: 'the declared total survives completion');
+    });
+
+    test('the gate never leaks a raw filesystem error: an unreadable final '
+        'artifact is an honest failed record, never a crashed reconcile', () async {
+      // Real-device shape (D-3 device run 4): two reconcilers may finalize
+      // the same transfer, and only one rename can win — the loser's probe
+      // found the file gone BETWEEN an existence check and a read, and the
+      // raw dart:io exception escaped the gate and crashed the reconcile.
+      // A directory on the final path makes File.length() throw the same
+      // class of raw OS error, deterministically, on every platform.
+      Directory(finalPathFor('gate6')).createSync(recursive: true);
+      engine.completeWith(2048, totalBytes: 2048);
+      await manager.enqueue(request('gate6'));
+      await manager.debugIdle;
+
+      final DownloadRecord record = await recordOf('gate6');
+      expect(record.status, DownloadStatus.failed,
+          reason: 'the gate reports what it can VERIFY — an unverifiable '
+              'artifact is an honest failure, not a crash');
+      // The deterministic trigger lands in the gate's no-file branch; the
+      // vanished-between-probes window that produced the raw
+      // PathNotFoundException on device is a TOCTOU race and cannot be
+      // reproduced deterministically offline — the gate now classifies BOTH
+      // as honest DownloadFailures (raw OS exceptions never escape).
+      expect(record.failure, isA<DownloadFailure>());
+      expect(
+        record.failure!.type,
+        anyOf(
+          DownloadFailureType.engineFailure,
+          DownloadFailureType.storageFailure,
+        ),
+      );
+    });
+
+    test('the source-DECLARED total outranks an engine total derived from '
+        'its own byte count', () async {
+      engine.emitProgress('gate6', 100, totalBytes: 4096);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      writePart('gate6', 4096);
+      // The engine reports its own byte count as the total (the pre-fix
+      // adapter behavior: 100 bytes transferred, so it claims 100). A
+      // self-consistent wrong total must not outrank the declared 4096.
+      engine.completeWith(4096, totalBytes: 100);
+      await manager.enqueue(request('gate6'));
+      await manager.debugIdle;
+
+      final DownloadRecord record = await recordOf('gate6');
+      expect(record.status, DownloadStatus.completed);
+      expect(record.bytesDownloaded, 4096);
+      expect(record.totalBytes, 4096);
+    });
   });
 
   group('source expiry → fresh resolution (2G-C §23/§24/§25)', () {

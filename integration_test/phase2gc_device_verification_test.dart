@@ -5,10 +5,17 @@
 //   DownloadManager → DownloadEngine (BackgroundDownloaderEngine)
 //     → background_downloader 9.6.2 (WorkManager) → local file
 //
-// against a REAL HTTP server on the host, reachable from the device through
-// `adb reverse tcp:8712 tcp:8712` (no public-internet dependency; the URL is
-// deterministic: http://127.0.0.1:8712/test.mp4 — 2 MiB, Content-Length +
-// Range capable).
+// against a REAL HTTP server on the host (no public-internet dependency; the
+// served file is 2 MiB with Content-Length + Range support).
+//
+// The transport is deliberately NOT hard-coded. Two ways to reach the host:
+//   - historical:  `adb reverse tcp:8712 tcp:8712` and the default URL
+//                  http://127.0.0.1:8712/test.mp4
+//   - direct LAN:  the device reaches the host over the shared network, with
+//                  NO adb forwarding in the path:
+//                  --dart-define=P2GC_TEST_URL=http://<pc-lan-ip>:8712/test.mp4
+// Only the transport may differ between runs; every assertion below is the
+// same, so a direct-transport PASS/FAIL is comparable to an adb-reverse one.
 //
 // What is proven on-device:
 //   P2GC-1  enqueue → real transfer → progress → completion gate (.part →
@@ -22,6 +29,7 @@
 // A failure here is reported as a test failure, never hidden. Test artifacts
 // (DB rows + files) are namespaced and removed afterwards.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,6 +38,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:riverpod/misc.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'package:specta/core/downloads/download_engine.dart';
 import 'package:specta/core/downloads/download_manager.dart';
 import 'package:specta/core/downloads/download_models.dart';
 import 'package:specta/core/downloads/download_providers.dart';
@@ -41,7 +50,13 @@ import 'package:specta/core/sources/source_pool.dart';
 // ignore: avoid_print
 void marker(String m) => print('[SPECTA-P2GC] $m');
 
-const String testUrl = 'http://127.0.0.1:8712/test.mp4';
+/// The controlled server URL. See the header: the default preserves the
+/// historical adb-reverse invocation; the direct-transport follow-up passes
+/// the host's LAN address through `--dart-define=P2GC_TEST_URL=...`.
+const String testUrl = String.fromEnvironment(
+  'P2GC_TEST_URL',
+  defaultValue: 'http://127.0.0.1:8712/test.mp4',
+);
 const int expectedBytes = 2097176; // the served file's exact size
 const String testId = '__p2gc_test__|movie|2026';
 
@@ -163,6 +178,18 @@ void main() {
       addTearDown(container.dispose);
       await cleanSlate(manager);
 
+      // Evidence: what the ENGINE reports while the transfer runs. The
+      // plugin's own progress/byte accounting is recorded verbatim so a
+      // byte-count discrepancy can be attributed to a layer, not guessed.
+      final List<String> engineProgress = <String>[];
+      final StreamSubscription<DownloadEngineEvent> progressTap =
+          manager.engine.events.listen((DownloadEngineEvent event) {
+        if (event is DownloadEngineProgress) {
+          engineProgress.add('${event.bytesOnDisk}/${event.totalBytes}');
+        }
+      });
+      addTearDown(progressTap.cancel);
+
       final EnqueueResult enqueued = await manager.enqueue(request(testId));
       marker('enqueue action=${enqueued.action.name} '
           'status=${enqueued.record.status.code}');
@@ -177,6 +204,14 @@ void main() {
 
       marker('final status=${record.status.code} '
           'bytes=${record.bytesDownloaded}/${record.totalBytes ?? '?'}');
+      marker('engine progress events=${engineProgress.length} '
+          'first=${engineProgress.isEmpty ? '-' : engineProgress.first} '
+          'last=${engineProgress.isEmpty ? '-' : engineProgress.last}');
+      // Evidence: the REAL size of what the gate moved into place, measured
+      // independently of the engine's own byte accounting.
+      marker('gate file bytes='
+          '${await File(record.filePath).exists() ? await File(record.filePath).length() : -1} '
+          'partExists=${File('${record.filePath}.part').existsSync()}');
       expect(record.status, DownloadStatus.completed,
           reason: 'the REAL device transfer must complete through the '
               'manager gate; failure=${record.failure?.toString()}');
@@ -269,8 +304,18 @@ void main() {
         const Duration(seconds: 30),
       );
       expect(started.status, DownloadStatus.downloading);
-      final bool transferActive =
-          await manager1.engine.isTransferActive(testId);
+      // The manager persists `downloading` BEFORE the engine registers the
+      // native task (persistence contract §5), so WorkManager registration
+      // may lag the record flip by a beat. Wait for the probe itself instead
+      // of asserting it instantly (777529d stabilization precedent).
+      bool transferActive = false;
+      final DateTime probeDeadline =
+          DateTime.now().add(const Duration(seconds: 30));
+      while (!transferActive && DateTime.now().isBefore(probeDeadline)) {
+        transferActive = await manager1.engine.isTransferActive(testId);
+        if (transferActive) break;
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
       expect(transferActive, isTrue,
           reason: 'WorkManager holds the live native task');
       marker('isTransferActive=$transferActive');

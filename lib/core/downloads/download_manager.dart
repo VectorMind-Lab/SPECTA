@@ -150,10 +150,10 @@ final class SessionDownloadSourceResolver implements DownloadSourceResolver {
 ///
 /// The finalizer owns the `.part` → final rename: the engine writes into the
 /// part path only; the final media path exists exactly when the manager has
-/// verified the transfer. It returns the verified byte count (the engine's
-/// count when it reported one — the byte-count audit is the engine's own
-/// transfer accounting; the file size is the fallback when it did not) and
-/// throws a structured [DownloadFailure] when no valid final file exists.
+/// verified the transfer. It returns the VERIFIED byte count — the length of
+/// the file that is actually on disk, which is the only number the gate can
+/// stand behind — and throws a structured [DownloadFailure] when the transfer
+/// produced no valid media or fell short of the total the source declared.
 ///
 /// Injectable for the same reason as [DownloadClock]: deterministic tests
 /// and production share the manager, never the filesystem assumptions.
@@ -163,22 +163,51 @@ abstract interface class DownloadCompletionFinalizer {
 
 /// The production finalizer: real filesystem verification.
 ///
-/// - part file exists → rename onto the final path (SPECTA's own derived
-///   path for this download id — any stale file there is this download's
-///   own previous artifact, never an unrelated user file) and verify.
+/// - part file exists → verify it against the record's DECLARED total, then
+///   rename onto the final path (SPECTA's own derived path for this download
+///   id — any stale file there is this download's own previous artifact,
+///   never an unrelated user file).
 /// - part file absent but a non-empty final exists (e.g. an adopted transfer
-///   whose rename already happened) → accept with its size as fallback.
+///   whose rename already happened) → verify that file instead.
 /// - neither → the engine reported completion without producing a file: an
 ///   honest `engineFailure` (never masked as success).
+///
+/// The byte count returned is always the file's own length. The engine's
+/// claim (`engineBytes`) is NOT trusted as the count: on a fast transfer the
+/// plugin can deliver no final size-bearing progress tick, so its last byte
+/// count is mid-flight accounting that goes stale. Equally, a source-declared
+/// total shorter than the file is never "fixed" by trusting the engine: an
+/// incomplete transfer is refused BEFORE the rename, so partial bytes can
+/// never take the final media path.
 final class FileDownloadCompletionFinalizer
     implements DownloadCompletionFinalizer {
   const FileDownloadCompletionFinalizer();
 
   @override
   Future<int> finalize(DownloadRecord record, int engineBytes) async {
+    try {
+      return await _finalizeVerified(record, engineBytes);
+    } on DownloadFailure {
+      rethrow;
+    } on Object {
+      // A filesystem probe itself failed (e.g. the file vanished between an
+      // existence check and a read — two reconcilers may finish the same
+      // transfer, and only one rename can win). The gate's contract is that
+      // NO raw OS exception escapes into the reconcile loop: the record gets
+      // an honest, classified failure instead of a crashed isolate.
+      throw DownloadFailure(
+        type: DownloadFailureType.storageFailure,
+        message: DownloadFailureType.storageFailure.message,
+        detail: 'The completion gate could not verify the transferred file.',
+      );
+    }
+  }
+
+  Future<int> _finalizeVerified(DownloadRecord record, int engineBytes) async {
     final File part = File(downloadPartPathFor(record.filePath));
     final File finalFile = File(record.filePath);
     if (await part.exists()) {
+      _requireDeclaredTotal(record, engineBytes, await part.length());
       try {
         await finalFile.parent.create(recursive: true);
         if (await finalFile.exists()) {
@@ -208,7 +237,33 @@ final class FileDownloadCompletionFinalizer
         detail: 'The completed transfer produced an empty file.',
       );
     }
-    return engineBytes > 0 ? engineBytes : size;
+    _requireDeclaredTotal(record, engineBytes, size);
+    return size;
+  }
+
+  /// Refuses a transfer that fell short of the total the source DECLARED
+  /// (the record's `totalBytes`, written from the engine's size-bearing
+  /// progress updates).
+  ///
+  /// Only enforced when a total is actually known: an unknown total produces
+  /// no verdict in either direction — SPECTA never guesses a size, and it
+  /// never accepts a short transfer as complete just because nothing
+  /// contradicting it is on hand. The failure is `interrupted` (retryable
+  /// under the manager's bounded budget: the bytes on disk are kept and a
+  /// range-capable source resumes from them).
+  static void _requireDeclaredTotal(
+    DownloadRecord record,
+    int engineBytes,
+    int bytesOnDisk,
+  ) {
+    final int? declared = record.totalBytes;
+    if (declared == null || declared <= 0 || bytesOnDisk >= declared) return;
+    throw DownloadFailure(
+      type: DownloadFailureType.interrupted,
+      message: DownloadFailureType.interrupted.message,
+      detail: 'The engine reported completion with $engineBytes bytes, but '
+          'only $bytesOnDisk of the $declared declared bytes are on disk.',
+    );
   }
 }
 
@@ -949,17 +1004,27 @@ final class DownloadManager {
         final int bytes = _maxBytes(
             current.bytesDownloaded,
             _maxBytes(result.bytesOnDisk, _liveProgress[id]?.bytesOnDisk));
+        // The total the gate must verify against: what the SOURCE declared
+        // (carried by the live progress events / the persisted record), not
+        // what the engine's own byte counter implies. The engine's report is
+        // a last resort only — a self-consistent wrong total must never
+        // outrank the source's declared size.
+        final int? declaredTotal =
+            _liveProgress[id]?.totalBytes ?? current.totalBytes;
         final int verifiedBytes;
         try {
-          verifiedBytes = await _completionFinalizer.finalize(current, bytes);
+          verifiedBytes = await _completionFinalizer.finalize(
+            declaredTotal == null || declaredTotal == current.totalBytes
+                ? current
+                : current.copyWith(totalBytes: declaredTotal),
+            bytes,
+          );
         } on DownloadFailure catch (gateFailure) {
           _lastSourceFailure[id] = gateFailure;
           await _applyFailure(current, gateFailure, bytes);
           return;
         }
-        final int? total = result.totalBytes ??
-            _liveProgress[id]?.totalBytes ??
-            current.totalBytes;
+        final int? total = declaredTotal ?? result.totalBytes;
         await _persist(current.copyWith(
           status: DownloadStatus.completed,
           bytesDownloaded: verifiedBytes,
@@ -1108,9 +1173,15 @@ final class DownloadManager {
   void _onEngineEvent(DownloadEngineEvent event) {
     if (event is! DownloadEngineProgress) return;
     if (_disposed) return;
+    // A null total means "this update did not state a size", NOT "the source
+    // has no size". Keeping the last STATED total is what lets the completion
+    // gate verify against the source's declared size at all: the plugin's
+    // final progress update of a fast transfer carries no size, and losing
+    // the declared total there is indistinguishable from never knowing it.
+    final DownloadProgress? seen = _liveProgress[event.downloadId];
     final DownloadProgress progress = DownloadProgress(
       bytesOnDisk: event.bytesOnDisk,
-      totalBytes: event.totalBytes,
+      totalBytes: event.totalBytes ?? seen?.totalBytes,
     );
     _liveProgress[event.downloadId] = progress;
     onChanged?.call();
@@ -1134,7 +1205,9 @@ final class DownloadManager {
       await _persist(record.copyWith(
         bytesDownloaded:
             _maxBytes(record.bytesDownloaded, event.bytesOnDisk),
-        totalBytes: event.totalBytes ?? record.totalBytes,
+        // The live progress carries the last STATED total, so a coalesced
+        // size-bearing update still reaches the persisted record.
+        totalBytes: progress.totalBytes ?? record.totalBytes,
         updatedAt: clock.now(),
       ));
     }));

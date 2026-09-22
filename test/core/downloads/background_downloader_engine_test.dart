@@ -217,6 +217,54 @@ void main() {
       e.disposeForTesting();
     });
 
+    test('complete reports the DECLARED total, never a total derived from its '
+        'own byte count (the truncated-transfer disguise)', () async {
+      // The real-device shape: one size-bearing update, then a FINAL update
+      // with no size (the plugin does not always emit one for a fast
+      // transfer), then `complete` whose byte count is stale mid-flight
+      // accounting. Reporting `bytes` as the total would make a short
+      // transfer look self-consistent.
+      final BackgroundDownloaderEngine e = engine();
+      final Future<DownloadAttemptResult> attempt = e.start(input('dl|30'));
+      await Future<void>.delayed(Duration.zero);
+
+      final DownloadTask task = pluginTask('dl|30');
+      FileDownloader().downloaderForTesting.processProgressUpdate(
+            TaskProgressUpdate(task, 0.25, 8000),
+          );
+      FileDownloader().downloaderForTesting.processProgressUpdate(
+            TaskProgressUpdate(task, 0.25, 0),
+          );
+      FileDownloader().downloaderForTesting.processStatusUpdate(
+            TaskStatusUpdate(task, TaskStatus.complete),
+          );
+      final DownloadAttemptResult result = await attempt;
+
+      expect(result.kind, DownloadAttemptOutcomeKind.completed);
+      expect(result.bytesOnDisk, 2000);
+      expect(result.totalBytes, 8000,
+          reason: 'the source declared 8000 — the engine must not restate its '
+              'own 2000 as the total');
+      e.disposeForTesting();
+    });
+
+    test('complete with no declared size reports totalBytes null — never the '
+        'byte count', () async {
+      final BackgroundDownloaderEngine e = engine();
+      final Future<DownloadAttemptResult> attempt = e.start(input('dl|31'));
+      await Future<void>.delayed(Duration.zero);
+
+      FileDownloader().downloaderForTesting.processStatusUpdate(
+            TaskStatusUpdate(pluginTask('dl|31'), TaskStatus.complete),
+          );
+      final DownloadAttemptResult result = await attempt;
+
+      expect(result.kind, DownloadAttemptOutcomeKind.completed);
+      expect(result.totalBytes, isNull,
+          reason: 'no source-declared size means unknown, never invented');
+      e.disposeForTesting();
+    });
+
     test('paused settles the attempt even though the plugin treats it as '
         'non-final (the pause-hang hazard)', () async {
       final BackgroundDownloaderEngine e = engine();
