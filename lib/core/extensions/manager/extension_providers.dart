@@ -7,6 +7,7 @@ import '../runtime/flutter_js_sandbox.dart';
 import '../runtime/runtime_api.dart';
 import '../verification/signature_verifier.dart';
 import 'drift_extension_registry.dart';
+import 'extension_lifecycle_service.dart';
 import 'extension_manager.dart';
 import 'extension_registry.dart';
 
@@ -60,5 +61,16 @@ final Provider<ExtensionManager> extensionManagerProvider =
         sandboxFactory: FlutterJsSandbox.new,
         // Verification against SPECTA's published public key.
         verifier: SignatureVerifier.instance,
+      );
+    });
+
+/// The application-facing installation/lifecycle boundary (Phase 2H).
+///
+/// Wraps the same [extensionManagerProvider] instance as discovery, metadata,
+/// sources and downloads — no second manager, no second registry.
+final Provider<ExtensionLifecycleService> extensionLifecycleServiceProvider =
+    Provider<ExtensionLifecycleService>((Ref ref) {
+      return ExtensionLifecycleService(
+        manager: ref.watch(extensionManagerProvider),
       );
     });

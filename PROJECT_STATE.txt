@@ -2,7 +2,41 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-22 — FINAL D-3 DEVICE RE-VALIDATION COMPLETE.
+Last updated: 2026-09-23 — PHASE 2H COMPLETE: EXTENSION INTEGRATION & LIFECYCLE FOUNDATION.
+The extension runtime is now an application-level, persistent subsystem. There
+is exactly ONE installation boundary: ExtensionLifecycleService.installFromFile
+-> ExtensionManager -> manifest parse -> API-compatibility gate -> Ed25519
+trust classification -> registry. Manifest validation, capability parsing and
+trust classification are unchanged and remain authoritative; a malformed file
+never reaches the registry, and an unsigned or badly-signed one is stored as
+UNVERIFIED, never Official. The Extension Manager owns enable/disable and
+runtime lifecycle: disabling retires the live runtime BEFORE the flag is
+persisted, re-enabling recreates the runtime lazily, reinstalling an existing id
+retires the previous runtime (never a second identity) while preserving the
+user's disabled choice, and uninstall/shutdownAll dispose every engine; a load
+that fails disposes its own sandbox and is never published. Installed
+extensions, their enabled/disabled state and their trust survive application
+restart — PROVED against a real on-disk SQLite file that is closed and reopened
+(a throwaway test-only Ed25519 key mints the Official case; no production key
+is involved, and no signing key was created or modified). The Extensions screen
+is now the real install/manage surface: list with name, version, author, trust
+and lifecycle state, install by local file path, enable/disable, and remove with
+confirmation. A deterministic local fixture
+(test/support/fixtures/lifecycle_extension.js) is executed end-to-end through
+the REAL QuickJS engine: manifest, capabilities, load(), search(), latest(),
+details() for BOTH movie and series (seasons/episodes), getSources(),
+refreshSource(), request() through the controlled API, log(), healthCheck(),
+shutdown(), plus real-engine failure isolation (one broken extension leaves a
+working one usable). NOTHING of the following was created: a real movie-site
+extension, the SPECTA-Extensions repository, or any remote catalogue. The next
+phase builds the FIRST REAL REFERENCE EXTENSION. Validation: analyze CLEAN;
+default suite 803 passed / 14 skipped / 0 failed; with the flutter_js bridge on
+PATH 817 passed / 0 skipped / 0 failed (extension suites alone 351/351); debug
+APK SUCCESS (237,656,613 bytes). One order-sensitive pre-existing discovery test
+flaked once under full-suite parallel load and passed both in isolation and on
+the subsequent full run; it is unrelated to Phase 2H (evidence in
+docs/PHASE_2H_IMPLEMENTATION_AUDIT.md §14).
+Superseded header line: 2026-09-22 — FINAL D-3 DEVICE RE-VALIDATION COMPLETE.
 The adb-reverse transport was EXONERATED (the failure reproduced without it);
 two transport-independent SPECTA defects were demonstrated with no network and
 no plugin, then FIXED with owner authorization and DEVICE-VALIDATED (3/3 device
@@ -26,9 +60,14 @@ racing the same on-device DB); run 4 = device LAN connection reset at
 again. No run ever showed an old attempt's event cancelling, failing,
 completing or corrupting the new attempt — the D-3 generation gate held on
 device throughout. Offline totals: analyze CLEAN; 764 passed / 9 skipped /
-1 failed (the failure is a pre-existing, out-of-scope discovery load-order
-flake that passes 16/16 in isolation); D-3 suite 9/9; downloads-focused
-165/165. Offline playback remains NOT TESTABLE (no product seam).
+0 failed (the earlier full-suite run that showed 1 failed was a transient
+Drift/Dart-isolate test-fixture race in two DOWNLOAD tests —
+`download_manager_test` "a freed slot advances the queue exactly one job" and
+`download_providers_test` "provider state derives from real persisted state" —
+caused by `Callbacks into the Dart VM are currently prohibited` plus
+`Can't re-open a database after closing it`; it is NOT a discovery test, NOT a
+D-3 symptom, and NOT a production defect); D-3 suite 9/9; downloads-focused
+166/166. Offline playback remains NOT TESTABLE (no product seam).
 See the CORRECTION 2026-09-22 blocks below, docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md
 and docs/PHASE_2G_C_D3_INVESTIGATION_REPORT.md.
 Superseded header line: 2026-09-21 — Phase 2G-C ENGINE INTEGRATION COMPLETE;
@@ -80,10 +119,14 @@ Verified before that commit: analyze clean, 618 passed / 9 skipped
 (after the 2G-B source-audit regression test; 617 before it), real JS 627,
 debug APK SUCCESS.
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
-PHASE 2 IN PROGRESS (2A through 2G-C complete — real-device validation PARTIAL; 2H open).
-Next: Phase 2 sub-stage 2H (extension catalogue in a separate
-SPECTA-Extensions repository) — NOT YET AUTHORIZED — DO NOT START.
-Next: Phase 2 sub-stage 2G-C (background_downloader adapter, real MP4
+PHASE 2 IN PROGRESS (2A through 2G-C complete; 2H COMPLETE — extension
+integration & lifecycle foundation).
+Next: Phase 2 sub-stage 2I — the FIRST REAL REFERENCE EXTENSION, used as an
+end-to-end integration test (search -> details -> episodes -> sources -> Source
+Manager -> MediaKit). NOT YET AUTHORIZED — DO NOT START.
+Next: the official extension catalogue in a separate SPECTA-Extensions
+repository — still future work, NOT YET AUTHORIZED — DO NOT START.
+Previous (COMPLETE) sub-stage 2G-C (background_downloader adapter, real MP4
 transfer, .part/Range, source refresh, engine reconciliation) — AUTHORIZED,
 blocked only on the pre-flight report + validation gate, both recorded in
 docs/PHASE_2G_C_PREFLIGHT_REPORT.md.

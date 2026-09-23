@@ -7,12 +7,38 @@ source failures.
 ## Status
 
 **Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
-**Phase 2 — application build-out: sub-stages 2A–2F (incl. the 2F resume follow-up) plus 2G-A/2G-B/2G-C (download foundation, orchestration, AND real engine integration) COMPLETE; 2H open.**
+**Phase 2 — application build-out: sub-stages 2A–2F (incl. the 2F resume follow-up), 2G-A/2G-B/2G-C (download foundation, orchestration, AND real engine integration) and 2H (extension integration & lifecycle foundation) COMPLETE; 2I open.**
 
-`flutter analyze` reports no issues and **750 tests pass** (9 skipped: the
+`flutter analyze` reports no issues and **803 tests pass** (14 skipped: the
 real-engine group needs the JS bridge on `PATH`, `tool/run_tests_real_js.sh`;
-the real-JS run passes 721). These are the post-2G-C numbers
-(2026-09-21), which include the pre-flight fixes (shared Unicode-aware title
+with the bridge active the run passes 817 with nothing skipped). Two of the
+skipped tests are the Phase 2H real-QuickJS lifecycle suite; with the bridge
+active the extension suites alone pass 351/351.
+
+**Phase 2H — Extension Integration & Lifecycle Foundation: COMPLETE (2026-09-23).**
+The extension runtime is now a properly managed, persistent, application-level
+subsystem. There is exactly ONE installation boundary
+(`ExtensionLifecycleService.installFromFile` → manager → manifest parse →
+API-compatibility gate → Ed25519 trust classification → registry), and the
+Extension Manager alone owns enable/disable and runtime lifecycle: disabling
+retires the live runtime before the flag is persisted, re-enabling recreates it
+lazily, reinstalling an existing id retires the old runtime instead of leaving a
+second identity, and uninstall/`shutdownAll` dispose every engine. Installed
+extensions, their enabled/disabled state and their trust survive an application
+restart — proved against a real on-disk SQLite database that is closed and
+reopened. The `Extensions` screen is now the real install/manage surface (list
+with name, version, author, trust and lifecycle state; install; enable/disable;
+remove). A deterministic local fixture is executed end-to-end through the REAL
+QuickJS engine — manifest, capabilities, `load()`, `search()`, `latest()`,
+`details()` for movie and series (seasons/episodes), `getSources()`,
+`refreshSource()`, `request()`, `log()`, `healthCheck()` and `shutdown()` — and
+one broken extension is proven not to disturb a working one. NO real movie-site
+extension, NO official extension repository and NO remote catalogue were created
+in this phase: that is the next controlled step. See
+[`docs/PHASE_2H_IMPLEMENTATION_AUDIT.md`](docs/PHASE_2H_IMPLEMENTATION_AUDIT.md).
+
+The historical post-2G-C numbers were **750 tests pass** (9 skipped;
+real-JS 721), including the pre-flight fixes (shared Unicode-aware title
 identity, `request({query})` parameter support, whole-request transport
 deadline, per-row defensive parsing, load-time trust re-classification, and
 the hardened request policy — private-host blocking, per-hop redirect
@@ -47,10 +73,11 @@ contention, a mid-transfer LAN reset, or a WorkManager registration race —
 never a stale-attempt-event symptom). D-3 (stale event isolation) was
 investigated, confirmed by a negative control, and fixed with
 attempt-identity gating. Offline: analyze clean; 764 passed / 9 skipped /
-1 failed (the 1 failure is a pre-existing discovery load-order flake that
-passes 16/16 in isolation, unrelated to downloads); D-3 suite 9/9;
-downloads-focused 165/165. Offline playback is NOT TESTABLE (no product
-seam). See docs/PHASE_2G_C_D3_INVESTIGATION_REPORT.md §6 and
+0 failed (an earlier full-suite run showed 1 failed — a transient
+Drift/Dart-isolate test-fixture race in two DOWNLOAD tests, not a discovery
+test and not a D-3 symptom); D-3 suite 9/9; downloads-focused 166/166.
+Offline playback is NOT TESTABLE (no product seam). See
+docs/PHASE_2G_C_D3_INVESTIGATION_REPORT.md §6 and
 docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md.
 See docs/PHASE_2G_C_ENGINE_AUDIT.md for full evidence.
 The full extension runtime was executed inside the app process on a physical
@@ -116,9 +143,9 @@ UI (phone / TV)  →  Riverpod state  →  Core services
                                                               Offline playback
 ```
 
-The extension foundation, discovery, metadata, source manager, player and the
-download orchestration layer exist and are wired; the download engine (actual
-byte transfer) is future work behind the `DownloadEngine` interface.
+The extension foundation (including its Phase 2H install/manage lifecycle),
+discovery, metadata, source manager, player and the download orchestration AND
+engine layers exist and are wired.
 
 ### Extension trust and execution
 
@@ -200,7 +227,7 @@ lib/
 ├── features/
 │   ├── details/                    details state + view (movie / series)
 │   ├── downloads/                  downloads view (honest empty state until 2G-C)
-│   ├── extensions/                 extensions placeholder (2H)
+│   ├── extensions/                 extension manager UI + lifecycle state (2H)
 │   ├── home/                       Home over design fixtures + real rails
 │   ├── library/                    Library / history views
 │   ├── playback/                   player surface + race-safe session state
@@ -212,10 +239,9 @@ lib/
 ```
 
 The extension subsystem is reachable from `main.dart` (wired via
-`extension_providers.dart` + `SpectaStartup`), and the discovery, metadata,
-source, playback, library and download layers build on it. Only the download
-ENGINE adapter (actual byte transfer) is still future work behind the
-`DownloadEngine` interface (Phase 2G-C).
+`extension_providers.dart` + `SpectaStartup`), exposed to the UI through the
+Phase 2H lifecycle service (`extensionLifecycleServiceProvider`), and the
+discovery, metadata, source, playback, library and download layers build on it.
 
 ## Getting started
 
@@ -239,25 +265,26 @@ flutter run
 
 ## Not implemented yet (deliberately)
 
-Sub-stage 2H (extension catalogue in a separate repository) —
-plus real scraper extensions and any external metadata provider
-(e.g. TMDB). SPECTA produces no content of its own: it searches, resolves and
-plays what the extensions you install provide. The extension foundation,
-discovery pipeline, metadata layer, source manager, player surface, the
-persistent library / watch-progress / history layer, and the download
-orchestration layer (including the real engine adapter `BackgroundDownloaderEngine`
-behind the `DownloadEngine` interface) are all in place and wired
-into the running app. The 2G-C real-device validation (Samsung Galaxy A06)
-achieved PARTIAL results — 1 of 3 device tests passed; P2GC-1 transferred
-8192 of 2097176 expected bytes (transfer chain functional, volume insufficient
-on device); P2GC-2 (cancellation) passed; P2GC-3 (restart reconciliation)
-failed on timing. See docs/PHASE_2G_C_ENGINE_AUDIT.md for evidence.
+Sub-stage 2I (the first real reference extension), the official extension
+catalogue and its `SPECTA-Extensions` repository, extension update/rollback,
+and any external metadata provider (e.g. TMDB). SPECTA produces no content of
+its own: it searches, resolves and plays what the extensions you install
+provide. The extension foundation and its Phase 2H lifecycle (install / enable /
+disable / remove / persistence / restart), the discovery pipeline, metadata
+layer, source manager, player surface, the persistent library / watch-progress /
+history layer, and the download orchestration AND engine adapter
+(`BackgroundDownloaderEngine` behind SPECTA's `DownloadEngine`) are all in place
+and wired into the running app. Real-device validation of the 2G-C engine was
+completed on a Samsung Galaxy A06 (P2GC-1/2/3 PASS, with P2GC-3 passing on 3
+consecutive runs); see docs/PHASE_2G_C_ENGINE_AUDIT.md and
+docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md for evidence.
 
 ## Documents
 
 | File | Purpose |
 | --- | --- |
 | `PROJECT_STATE.txt` | Handover state: phase, work done, verification, blockers |
+| `docs/PHASE_2H_IMPLEMENTATION_AUDIT.md` | 2H report: install boundary, trust verification, persistence, enable/disable, runtime lifecycle, failure isolation, tests |
 | `docs/PHASE_2G_B_REPORT.md` | 2G-B report: DownloadManager, queue/concurrency, engine interface, providers, tests |
 | `docs/PHASE_2G_A_REPORT.md` | 2G-A report: foundation corrections, Persistence Contract, download architecture decision |
 | `docs/PHASE_2F_RESUME_FOLLOWUP_REPORT.md` | 2F resume-by-key follow-up: identity audit, schema v4 provenance, device verification |
@@ -282,9 +309,13 @@ failed on timing. See docs/PHASE_2G_C_ENGINE_AUDIT.md for evidence.
 * Non-UTF-8 response bodies are returned as a lossy Latin-1 projection.
 * Host blocking in the request policy is best-effort (IP literals plus DNS
   resolution before connect); it does not fully defeat DNS rebinding.
-* Import-flow hardening (copy to app-private storage + content-hash verify at
-  load) is future work with the 2H import UI; load-time trust
-  re-classification from the file is already enforced.
+* The Phase 2H install UI takes a local file path: SPECTA has no file-picker
+  dependency yet, so there is no in-app file browser. Import hardening (copy to
+  app-private storage + content-hash verify at load) remains future work;
+  load-time trust re-classification from the file is already enforced.
+* The extension catalogue, extension update/rollback and the official
+  `SPECTA-Extensions` repository do not exist. `saveVersion`/`rollback` remain
+  unreachable from any product flow (no version snapshots are ever created).
 * Release builds still sign with the debug key and have no minify/shrink
   configuration; a real keystore decision is required before any distribution.
   `android.permission.DUMP` must be re-checked in a release build.

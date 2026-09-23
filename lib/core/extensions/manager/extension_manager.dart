@@ -128,9 +128,25 @@ class ExtensionManager {
       ManifestParser.extractBody(jsCode),
     );
 
+    final String id = recordId ?? manifest.id;
+
+    // Deterministic duplicate-ID handling (Phase 2H §6). Installing under an
+    // id that already exists REPLACES that extension; it never creates a
+    // second identity beside it. Two consequences are enforced here:
+    //   1. Any live runtime for the id is retired first, so a replacement can
+    //      never leave an earlier version still executing under the new
+    //      record (the registry and the running code would disagree).
+    //   2. The user's enable/disable choice and original install time are
+    //      carried forward. Re-importing a file is not an implicit re-enable:
+    //      an extension the user switched off stays off until they turn it on.
+    final ExtensionRecord? existing = await _registry.getById(id);
+    if (existing != null) {
+      await _retireRuntime(id);
+    }
+
     final DateTime now = DateTime.now().toUtc();
     final ExtensionRecord record = ExtensionRecord(
-      id: recordId ?? manifest.id,
+      id: id,
       name: manifest.name,
       version: manifest.version,
       author: manifest.author,
@@ -138,14 +154,27 @@ class ExtensionManager {
       contentType: manifest.type.code,
       signature: manifest.signature,
       trustLevel: trustLevel,
-      enabled: true,
+      enabled: existing?.enabled ?? true,
       filePath: targetPath,
-      installedAt: now,
+      installedAt: existing?.installedAt ?? now,
       updatedAt: now,
     );
 
     await _registry.install(record);
     return Ok<ExtensionRecord>(record);
+  }
+
+  /// Shuts down and forgets a live runtime for [id], if one exists.
+  ///
+  /// Used wherever an extension's identity is retired — replacement, disable,
+  /// uninstall or explicit shutdown — so lifecycle transitions never leave a
+  /// stale JS engine running in the background. A runtime that failed to load
+  /// is never published to [_runtimes] and is disposed at its failure site.
+  Future<void> _retireRuntime(String id) async {
+    final ExtensionRuntime? runtime = _runtimes.remove(id);
+    if (runtime != null) {
+      await runtime.shutdown();
+    }
   }
 
   /// Classifies trust by verifying the manifest signature.
@@ -170,22 +199,26 @@ class ExtensionManager {
   }
 
   /// Permanently removes an extension.
+  ///
+  /// The runtime is retired BEFORE the registry row is deleted, so a removed
+  /// extension is never left executing.
   Future<void> uninstall(String id) async {
-    final ExtensionRuntime? existing = _runtimes.remove(id);
-    if (existing != null) {
-      await existing.shutdown();
-    }
+    await _retireRuntime(id);
     await _registry.uninstall(id);
   }
 
   /// Enables or disables an extension.
   ///
-  /// Disabled extensions do not participate in execution.
+  /// Disabled extensions do not participate in execution. Disabling retires
+  /// the runtime immediately and persists the flag, so the state is enforced
+  /// by the manager (not by UI state), and cannot survive as a live engine.
+  /// Enabling only persists the flag: the runtime is created lazily by the
+  /// next [loadRuntime].
   Future<void> setEnabled(String id, bool enabled) async {
-    await _registry.setEnabled(id, enabled);
-    if (!enabled && _runtimes.containsKey(id)) {
-      await _runtimes.remove(id)!.shutdown();
+    if (!enabled) {
+      await _retireRuntime(id);
     }
+    await _registry.setEnabled(id, enabled);
   }
 
   /// Returns all installed extensions.
@@ -423,11 +456,7 @@ class ExtensionManager {
   }
 
   /// Shuts down a single extension's runtime.
-  Future<void> shutdown(String id) async {
-    final ExtensionRuntime? runtime = _runtimes.remove(id);
-    if (runtime == null) return;
-    await runtime.shutdown();
-  }
+  Future<void> shutdown(String id) => _retireRuntime(id);
 
   /// Shuts down ALL loaded runtimes.
   Future<void> shutdownAll() async {
