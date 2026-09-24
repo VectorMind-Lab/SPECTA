@@ -86,6 +86,91 @@ void main() {
     });
   });
 
+  test('upgrades the oldest supported database (v1) straight through to v5',
+      () async {
+    // A Phase 0 install: the settings table and nothing else, at
+    // user_version = 1. This is the LONGEST upgrade path the code can be asked
+    // to walk, so it is the one that proves every step from 2 to 5 runs in
+    // sequence rather than only the last one.
+    final Database raw = sqlite3.openInMemory();
+    raw
+      ..execute('''
+        CREATE TABLE settings_entries (
+          key TEXT NOT NULL,
+          value TEXT NOT NULL,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (key)
+        )
+      ''')
+      ..execute(
+        'INSERT INTO settings_entries (key, value, updated_at) VALUES (?, ?, ?)',
+        <Object?>['theme.preset', 'cyan', 1700000000],
+      )
+      ..execute('PRAGMA user_version = 1');
+
+    final SpectaDatabase upgraded = SpectaDatabase(NativeDatabase.opened(raw));
+    addTearDown(upgraded.close);
+
+    // The v1 row survives and the version lands on the schema this build ships.
+    expect(await SettingsDao(upgraded).read('theme.preset'), 'cyan');
+    expect(upgraded.schemaVersion, 5);
+
+    // Step 2's extension tables exist and are empty. Queried directly because
+    // this test is about the CHAIN running on a v1 database; the registry DAO
+    // has its own suite. A missing table throws here rather than passing.
+    for (final String table in <String>[
+      'extensions',
+      'extension_versions',
+      'extension_failure_logs',
+    ]) {
+      final int rows = await upgraded
+          .customSelect('SELECT count(*) AS c FROM $table')
+          .map((row) => row.read<int>('c'))
+          .getSingle();
+      expect(rows, 0, reason: '$table was not created by the upgrade');
+    }
+
+    // Step 3 (watch_progress) and step 4 (media_references) are usable.
+    final LibraryDao library = LibraryDao(upgraded);
+    await library.upsert(
+      WatchProgress(
+        id: 'Movie|movie|2024',
+        mediaKey: 'Movie|movie|2024',
+        mediaType: MediaType.movie,
+        title: 'Movie',
+        position: const Duration(seconds: 30),
+        completed: false,
+        updatedAt: DateTime(2026, 1, 1),
+      ),
+    );
+    expect((await library.history()).length, 1);
+    await library.saveReferences(
+      'Movie|movie|2024',
+      const <DiscoveryReference>[
+        DiscoveryReference(extensionId: 'extA', url: 'https://a/movie'),
+      ],
+    );
+    expect((await library.referencesFor('Movie|movie|2024')).length, 1);
+
+    // Step 5 (downloads) is usable.
+    final DownloadDao downloads = DownloadDao(upgraded);
+    await downloads.upsert(
+      DownloadRecord(
+        id: 'Movie|movie|2024',
+        mediaKey: 'Movie|movie|2024',
+        mediaType: MediaType.movie,
+        title: 'Movie',
+        status: DownloadStatus.queued,
+        bytesDownloaded: 0,
+        filePath: '/data/media/Movie (x).mp4',
+        attempt: 0,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      ),
+    );
+    expect((await downloads.all()).length, 1);
+  });
+
   test('upgrades an installed v2 database to v3 in place, preserving data',
       () async {
     // Build exactly the schema a pre-2F build left on disk: the v1 settings
