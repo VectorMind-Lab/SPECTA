@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
+import 'app/application_bootstrap.dart';
 import 'app/specta_app.dart';
-import 'core/extensions/manager/extension_providers.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Platform-backed cryptography needs no call here: `cryptography_flutter`
+  // is a Dart plugin, so Flutter's generated registrant installs it (and its
+  // Ed25519 implementation) before main() runs. Calling its deprecated
+  // `enable()` by hand is explicitly no longer necessary.
 
   // Phase 2E: bring the playback engine up with the application. Kept in a
   // guarded block: a native-library load failure must not prevent the app
@@ -22,21 +27,17 @@ void main() {
   runApp(const ProviderScope(child: SpectaStartup()));
 }
 
-/// Brings the extension subsystem up with the application.
+/// Brings the application's core services up before the first screen.
 ///
-/// Phase 1 ships no extension UI, so no screen displays the manager. It is
-/// constructed here, through the same provider graph as the rest of the core,
-/// so that the extension foundation is part of the running application rather
-/// than library code that no entry point reaches. Keeping it out of the widget
-/// tree below this point means the extension system stays independent of any
-/// screen and can be exercised without the UI.
+/// See [applicationBootstrapProvider] for exactly what is constructed and why
+/// it must be constructed at launch rather than lazily. The UI consumes those
+/// same providers; nothing is duplicated and no screen owns their lifecycle.
 class SpectaStartup extends ConsumerWidget {
   const SpectaStartup({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Constructs the registry, the controlled request API and the manager.
-    ref.watch(extensionManagerProvider);
+    ref.watch(applicationBootstrapProvider);
     return const SpectaApp();
   }
 }
