@@ -57,6 +57,48 @@ abstract final class DiscoveryCoordinator {
     /// Test seam: shortens the per-extension timeout so timeout isolation is
     /// deterministically testable. Production callers never pass it.
     Duration? perExtensionTimeoutOverride,
+  }) =>
+      _run(
+        manager: manager,
+        page: request.page,
+        operation: 'search',
+        capability: ExtensionCapability.search,
+        call: (ExtensionRuntime r) =>
+            r.search(query: request.normalizedQuery, page: request.page),
+        perExtensionTimeoutOverride: perExtensionTimeoutOverride,
+      );
+
+  /// Runs one `latest(page)` round across the enabled LATEST-capable
+  /// extensions (the Home feed).
+  ///
+  /// Exactly the same pipeline as [discover] — the same isolation, capping,
+  /// normalization and deduplication — because "what is new" is discovery of
+  /// a different question, not a different mechanism. An extension without
+  /// the `latest` capability is [DiscoveryOutcomeKind.skipped].
+  static Future<DiscoveryResult> latest({
+    required int page,
+    required ExtensionManager manager,
+    Duration? perExtensionTimeoutOverride,
+  }) =>
+      _run(
+        manager: manager,
+        page: page,
+        operation: 'latest',
+        capability: ExtensionCapability.latest,
+        call: (ExtensionRuntime r) => r.latest(page: page),
+        perExtensionTimeoutOverride: perExtensionTimeoutOverride,
+      );
+
+  /// The shared round: one capability-gated operation across every enabled
+  /// extension, aggregated identically for both `search` and `latest`.
+  static Future<DiscoveryResult> _run({
+    required ExtensionManager manager,
+    required int page,
+    required String operation,
+    required ExtensionCapability capability,
+    required Future<SpectaResult<List<SearchResult>>> Function(ExtensionRuntime)
+        call,
+    required Duration? perExtensionTimeoutOverride,
   }) async {
     final List<ExtensionRecord> candidates =
         (await manager.getEnabledExtensions()).toList(growable: false);
@@ -66,7 +108,7 @@ abstract final class DiscoveryCoordinator {
         items: const <DiscoveryItem>[],
         outcomes: const <ExtensionDiscoveryOutcome>[],
         droppedCount: 0,
-        page: request.page,
+        page: page,
       );
     }
 
@@ -75,22 +117,29 @@ abstract final class DiscoveryCoordinator {
           .take(maxConcurrency)
           .map(
             (ExtensionRecord record) => _queryOne(
-              request: request,
               manager: manager,
               record: record,
+              operation: operation,
+              capability: capability,
+              page: page,
+              call: call,
               timeout: perExtensionTimeoutOverride ?? perExtensionTimeout,
             ),
           ),
     );
 
-    return _aggregate(outcomes, request.page);
+    return _aggregate(outcomes, page);
   }
 
   /// One extension's participation in the round. Never throws.
   static Future<ExtensionDiscoveryOutcome> _queryOne({
-    required SearchRequest request,
     required ExtensionManager manager,
     required ExtensionRecord record,
+    required String operation,
+    required ExtensionCapability capability,
+    required int page,
+    required Future<SpectaResult<List<SearchResult>>> Function(ExtensionRuntime)
+        call,
     required Duration timeout,
   }) async {
     // Load (or reuse) the runtime. A failed load is a failed outcome, not a
@@ -107,9 +156,9 @@ abstract final class DiscoveryCoordinator {
 
     // The authoritative capability check: the runtime re-read the manifest at
     // load and grants exactly what it declares. An extension without the
-    // search capability is skipped, not failed — it is out of scope for this
-    // round, and the runtime would refuse the call anyway.
-    if (!runtime.valueOrNull!.isGranted(ExtensionCapability.search)) {
+    // capability is skipped, not failed — it is out of scope for this round,
+    // and the runtime would refuse the call anyway.
+    if (!runtime.valueOrNull!.isGranted(capability)) {
       return ExtensionDiscoveryOutcome.skipped(record.id);
     }
 
@@ -117,10 +166,7 @@ abstract final class DiscoveryCoordinator {
       final SpectaResult<List<SearchResult>> response = await manager
           .callOperation<List<SearchResult>>(
         record.id,
-        (ExtensionRuntime r) => r.search(
-          query: request.normalizedQuery,
-          page: request.page,
-        ),
+        call,
       ).timeout(timeout);
 
       if (response.isErr) {
@@ -141,7 +187,7 @@ abstract final class DiscoveryCoordinator {
         record.id,
         ExtensionFailure(
           extensionId: record.id,
-          operation: 'search',
+          operation: operation,
           type: ExtensionFailureType.timeout,
           message: 'Discovery round timed out for this extension',
           timestamp: DateTime.now().toUtc(),
@@ -153,7 +199,7 @@ abstract final class DiscoveryCoordinator {
         record.id,
         ExtensionFailure(
           extensionId: record.id,
-          operation: 'search',
+          operation: operation,
           type: ExtensionFailureType.runtimeError,
           message: 'Discovery participation failed',
           timestamp: DateTime.now().toUtc(),
@@ -213,4 +259,8 @@ final class DiscoveryService {
 
   Future<DiscoveryResult> search(SearchRequest request) =>
       DiscoveryCoordinator.discover(request: request, manager: manager);
+
+  /// One `latest(page)` round (the Home feed).
+  Future<DiscoveryResult> latest(int page) =>
+      DiscoveryCoordinator.latest(page: page, manager: manager);
 }

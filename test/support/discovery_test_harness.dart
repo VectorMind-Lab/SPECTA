@@ -31,6 +31,10 @@ class ScriptedJsSandbox extends FakeJsSandbox {
   /// fake behavior. Mutable so tests can configure it after construction.
   List<Object> searchScripts = <Object>[];
 
+  /// Entries consumed by successive `latest` calls (the Home feed round).
+  /// Same contract as [searchScripts].
+  List<Object> latestScripts = <Object>[];
+
   /// When non-zero, search calls delay this long before answering — a slow
   /// extension. Only applies to calls whose index is in [hangOnCallIndices].
   /// Combine with a short coordinator timeout override to exercise the
@@ -42,10 +46,14 @@ class ScriptedJsSandbox extends FakeJsSandbox {
   Set<int> hangOnCallIndices = <int>{};
 
   int _searchCalls = 0;
+  int _latestCalls = 0;
 
   /// Number of search calls that reached the sandbox so far. Lets tests wait
   /// for a round to actually reach the extension layer before proceeding.
   int get searchCallCount => _searchCalls;
+
+  /// Number of `latest` calls that reached the sandbox so far.
+  int get latestCallCount => _latestCalls;
 
   @override
   Future<String> evaluateAsync(String expression) async {
@@ -60,6 +68,17 @@ class ScriptedJsSandbox extends FakeJsSandbox {
         throw step;
       }
     }
+    if (expression.contains('.latest(')) {
+      final int index = _latestCalls++;
+      if (hangOnCallIndices.contains(index) && hangDuration > Duration.zero) {
+        await Future<void>.delayed(hangDuration);
+      }
+      if (index < latestScripts.length) {
+        final Object step = latestScripts[index];
+        if (step is String) return step;
+        throw step;
+      }
+    }
     return super.evaluateAsync(expression);
   }
 }
@@ -67,6 +86,10 @@ class ScriptedJsSandbox extends FakeJsSandbox {
 /// The exact JS expression the runtime issues for a search call.
 String searchExpression(String query, int page) =>
     'JSON.stringify(await _spectaInstance.search("$query", $page))';
+
+/// The exact JS expression the runtime issues for a `latest` call.
+String latestExpression(int page) =>
+    'JSON.stringify(await _spectaInstance.latest($page))';
 
 /// Builds a JSON search-result payload. Elements are untyped so tests can
 /// include malformed rows (bare strings, wrong shapes) for robustness cases.

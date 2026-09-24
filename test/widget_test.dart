@@ -12,9 +12,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:specta/app/specta_app.dart';
 import 'package:specta/core/database/database_providers.dart';
+import 'package:specta/core/discovery/discovery_models.dart';
+import 'package:specta/core/extensions/contract/result_models.dart';
+import 'package:specta/core/library/library_providers.dart';
 import 'package:specta/features/home/foundation_status.dart';
+import 'package:specta/features/home/home_feed.dart';
 import 'package:specta/features/splash/splash_state.dart';
 
+import 'support/in_memory_library_store.dart';
 import 'support/in_memory_settings_store.dart';
 
 Future<void> _pumpThroughSplash(
@@ -25,6 +30,25 @@ Future<void> _pumpThroughSplash(
     ProviderScope(
       overrides: <Override>[
         settingsStoreProvider.overrideWith((Ref ref) => store),
+        // Home's content and Continue Watching rail read real providers; keep
+        // the launch smoke test hermetic and deterministic.
+        libraryStoreProvider.overrideWith((Ref ref) => InMemoryLibraryStore()),
+        homeFeedProvider.overrideWith(
+          (Ref ref) async => HomeFeed(
+            status: HomeFeedStatus.ready,
+            items: <DiscoveryItem>[
+              DiscoveryItem(
+                key: 'launch-item',
+                title: 'Launch Flow Title',
+                type: MediaType.movie,
+                year: 2026,
+                references: const <DiscoveryReference>[
+                  DiscoveryReference(extensionId: 'com.test.a', url: 'https://x/1'),
+                ],
+              ),
+            ],
+          ),
+        ),
         foundationStatusProvider.overrideWith(
           (Ref ref) async => const <FoundationStatusItem>[
             FoundationStatusItem('SQLite schema', 'v1'),
@@ -68,10 +92,10 @@ void main() {
     final InMemorySettingsStore store = InMemorySettingsStore();
     await _pumpThroughSplash(tester, store);
 
-    // The shell's home surface is showing (hero + rails).
-    expect(find.text('Continue Watching'), findsOneWidget);
-    expect(find.text('Trending Now'), findsOneWidget);
-    expect(find.text('Latest Releases'), findsOneWidget);
+    // The shell's home surface is showing, rendering the feed it was given
+    // (the hero and the "New on SPECTA" rail both carry the item's title).
+    expect(find.text('New on SPECTA'), findsOneWidget);
+    expect(find.text('Launch Flow Title'), findsWidgets);
 
     // The splash recorded that the launch flow completed.
     expect(await store.read('app.hasSeenSplash'), 'true');

@@ -4,33 +4,64 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/platform/form_factor.dart';
 import '../../app/theme/specta_colors.dart';
 import '../../core/discovery/discovery_models.dart';
-import '../../core/extensions/contract/result_models.dart' as contract;
+import '../../core/extensions/contract/result_models.dart';
 import '../../core/library/library_providers.dart';
 import '../../core/library/watch_progress.dart';
 import '../../core/metadata/metadata_models.dart';
-import '../../ui/widgets/specta_badge.dart';
+import '../../ui/widgets/specta_empty_state.dart';
 import '../../ui/widgets/specta_focus_wrapper.dart';
+import '../details/details_state.dart';
+import '../details/details_view.dart';
 import '../playback/playback_entry.dart';
 import '../playback/resume_entry.dart';
-import 'models/media_item.dart';
-import 'state/home_state.dart';
+import 'home_feed.dart';
 import 'widgets/hero_spotlight_banner.dart';
 
-/// The SPECTA home experience.
+/// The Home surface (Phase 2K).
 ///
-/// Renders the designed visual home: hero spotlight carousel, continue
-/// watching, trending and latest releases rails, using the app's [HomeState].
+/// Every pixel of content here is real and derived from the running system:
 ///
-/// Content is currently the supplied design fixture ([HomeState.initial]):
-/// the Phase 2B search/discovery pipeline will replace the fixture with real
-/// extension-driven results. Nothing here pretends to be live data.
+/// * the hero and the rail are one `latest(page)` discovery round across the
+///   user's enabled extensions ([homeFeedProvider]) — no hard-coded titles, no
+///   bundled stock artwork, and no "Trending" ranking SPECTA does not compute;
+/// * Continue Watching is the persisted progress the player actually reported.
+///
+/// When there is nothing to show, Home says WHY (no extensions installed,
+/// extensions without a Home feed, nothing new, or providers unreachable)
+/// instead of rendering an empty screen — or invented content.
 class HomeView extends ConsumerWidget {
   const HomeView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final HomeState state = ref.watch(homeStateProvider);
     final SpectaFormFactor formFactor = ref.watch(formFactorProvider);
+    final AsyncValue<HomeFeed> feed = ref.watch(homeFeedProvider);
+    final AsyncValue<List<WatchProgress>> continueWatching =
+        ref.watch(continueWatchingProvider);
+
+    if (feed.isLoading && !feed.hasValue) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final HomeFeed? data = feed.value;
+    final List<WatchProgress> inProgress =
+        continueWatching.value ?? const <WatchProgress>[];
+
+    if (data == null || !data.hasItems) {
+      final bool unreachable =
+          feed.hasError || data?.status == HomeFeedStatus.failure;
+      // Retry only where retrying could actually change the answer.
+      final bool retryable = unreachable || data?.status == HomeFeedStatus.empty;
+      return SpectaEmptyState(
+        icon: unreachable ? Icons.cloud_off_rounded : Icons.explore_outlined,
+        message: unreachable
+            ? 'Your extensions could not be reached. Check your connection and '
+                'try again.'
+            : data?.message ?? 'Nothing to show yet.',
+        actionLabel: retryable ? 'Retry' : null,
+        action: retryable ? () => ref.invalidate(homeFeedProvider) : null,
+      );
+    }
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -43,29 +74,38 @@ class HomeView extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const SizedBox(height: 16),
-
-              // Hero spotlight carousel.
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _SpotlightCarousel(item: state.spotlightItem),
+              _Hero(
+                items: data.items,
+                onPlay: (DiscoveryItem item) => _play(context, ref, item),
+                onMoreInfo: (DiscoveryItem item) =>
+                    _openDetails(context, ref, item),
               ),
-
-              const SizedBox(height: 20),
-              _ContinueWatchingRail(
-                fixtureItems: state.continueWatching,
+              if (data.isPartial) ...<Widget>[
+                const SizedBox(height: 12),
+                _PartialNotice(failedCount: data.failedCount),
+              ],
+              if (inProgress.isNotEmpty)
+                _Rail(
+                  title: 'Continue Watching',
+                  height: 150,
+                  itemWidth: railPosterWidth,
+                  itemCount: inProgress.length,
+                  itemBuilder: (int index) => _ContinueCard(
+                    progress: inProgress[index],
+                    onTap: () => _resume(context, ref, inProgress[index]),
+                  ),
+                ),
+              _Rail(
+                title: 'New on SPECTA',
+                height: 210,
                 itemWidth: railPosterWidth,
+                itemCount: data.items.length,
+                itemBuilder: (int index) => _DiscoveryCard(
+                  item: data.items[index],
+                  width: railPosterWidth,
+                  onTap: () => _openDetails(context, ref, data.items[index]),
+                ),
               ),
-              _MediaRail(
-                title: 'Trending Now',
-                items: state.trending,
-                itemWidth: railPosterWidth,
-              ),
-              _MediaRail(
-                title: 'Latest Releases',
-                items: state.latestReleases,
-                itemWidth: railPosterWidth,
-              ),
-
               const SizedBox(height: 24),
             ],
           ),
@@ -73,100 +113,53 @@ class HomeView extends ConsumerWidget {
       },
     );
   }
-}
 
-/// Auto-advancing hero carousel with the supplied navigation affordances.
-class _SpotlightCarousel extends StatefulWidget {
-  const _SpotlightCarousel({required this.item});
-
-  final MediaItem item;
-
-  @override
-  State<_SpotlightCarousel> createState() => _SpotlightCarouselState();
-}
-
-class _SpotlightCarouselState extends State<_SpotlightCarousel> {
-  static const int _itemCount = 5;
-  int _index = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return HeroSpotlightBanner(
-      item: widget.item,
-      currentIndex: _index,
-      itemCount: _itemCount,
-      onPrevious: () => setState(() {
-        _index = (_index - 1) % _itemCount;
-      }),
-      onNext: () => setState(() {
-        _index = (_index + 1) % _itemCount;
-      }),
+  /// Opens the canonical details surface for [item] (which owns metadata and
+  /// offers Play/Download). The details session, not this surface, performs
+  /// the metadata request — so a stale tap can never render old data.
+  void _openDetails(BuildContext context, WidgetRef ref, DiscoveryItem item) {
+    ref.read(detailsSessionProvider.notifier).open(item);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (BuildContext _) => const DetailsView()),
     );
   }
-}
 
-/// Continue Watching, driven by the persisted Phase 2F progress store.
-///
-/// Real data when the viewer has any; the design fixture otherwise (still
-/// fixture content, exactly like the other rails).
-class _ContinueWatchingRail extends ConsumerWidget {
-  const _ContinueWatchingRail({
-    required this.fixtureItems,
-    required this.itemWidth,
-  });
-
-  final List<MediaItem> fixtureItems;
-  final double itemWidth;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final List<WatchProgress> real =
-        ref.watch(continueWatchingProvider).value ?? const <WatchProgress>[];
-
-    if (real.isEmpty) {
-      return _MediaRail(
-        title: 'Continue Watching',
-        items: fixtureItems,
-        itemWidth: itemWidth,
-      );
+  /// Plays [item] straight from Home through the UNCHANGED pipeline: canonical
+  /// metadata first (via the same lookup resume uses), then SPECTA's ordered
+  /// source resolution and the player. A provider that cannot answer is stated
+  /// plainly rather than papered over.
+  Future<void> _play(
+    BuildContext context,
+    WidgetRef ref,
+    DiscoveryItem item,
+  ) async {
+    MetadataItem? metadata;
+    try {
+      metadata = await ref.read(metadataLookupProvider)(item);
+    } on Object {
+      metadata = null; // absolute containment — never a throw into the UI
     }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 20, 16, 10),
-          child: Text(
-            'Continue Watching',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.3,
-              color: SpectaColors.textPrimary,
-            ),
+    if (!context.mounted) return;
+    if (metadata == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(
+            'Its provider could not supply details right now. Try again later.',
           ),
         ),
-        SizedBox(
-          height: 230,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            scrollDirection: Axis.horizontal,
-            itemCount: real.length,
-            separatorBuilder: (BuildContext context, int index) =>
-                const SizedBox(width: 12),
-            itemBuilder: (BuildContext context, int index) => _ProgressCard(
-              progress: real[index],
-              width: itemWidth,
-              onTap: () => _resume(context, ref, real[index]),
-            ),
-          ),
-        ),
-      ],
+      );
+      return;
+    }
+    await startPlayback(
+      context,
+      ref: ref,
+      metadata: metadata,
+      item: item,
     );
   }
 
-  /// Re-opens a persisted item through the existing pipeline (see
-  /// [resumeWatchProgress]); failures are honest and non-throwing.
+  /// Re-opens a persisted item through the existing resume pipeline.
   Future<void> _resume(
     BuildContext context,
     WidgetRef ref,
@@ -181,7 +174,8 @@ class _ContinueWatchingRail extends ConsumerWidget {
         required DiscoveryItem item,
         SeriesEpisode? episode,
         Duration? startPosition,
-      }) => startPlayback(
+      }) =>
+          startPlayback(
         context,
         ref: ref,
         metadata: metadata,
@@ -200,18 +194,243 @@ class _ContinueWatchingRail extends ConsumerWidget {
   }
 }
 
-/// One real persisted Continue Watching card.
-class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({
-    required this.progress,
+/// The hero, cycling only through items the feed actually returned.
+class _Hero extends StatefulWidget {
+  const _Hero({
+    required this.items,
+    required this.onPlay,
+    required this.onMoreInfo,
+  });
+
+  final List<DiscoveryItem> items;
+  final void Function(DiscoveryItem item) onPlay;
+  final void Function(DiscoveryItem item) onMoreInfo;
+
+  @override
+  State<_Hero> createState() => _HeroState();
+}
+
+class _HeroState extends State<_Hero> {
+  int _index = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<DiscoveryItem> items = widget.items;
+    final int index = _index.clamp(0, items.length - 1);
+    final DiscoveryItem item = items[index];
+    final bool multiple = items.length > 1;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: HeroSpotlightBanner(
+        title: item.title,
+        typeLabel: item.type == MediaType.movie ? 'MOVIE' : 'SERIES',
+        subtitle: item.year?.toString() ?? '',
+        coverUrl: item.cover,
+        onPrimary: () => widget.onPlay(item),
+        onMoreInfo: () => widget.onMoreInfo(item),
+        onPrevious: multiple
+            ? () => setState(
+                  () => _index = (index - 1 + items.length) % items.length,
+                )
+            : null,
+        onNext: multiple
+            ? () => setState(() => _index = (index + 1) % items.length)
+            : null,
+        currentIndex: index,
+        itemCount: items.length,
+      ),
+    );
+  }
+}
+
+/// Honest partial-failure notice: some extensions answered, some did not.
+class _PartialNotice extends StatelessWidget {
+  const _PartialNotice({required this.failedCount});
+
+  final int failedCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: SpectaColors.warning.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(
+              Icons.warning_amber_rounded,
+              size: 16,
+              color: SpectaColors.warning,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                failedCount == 1
+                    ? 'One of your extensions could not be reached.'
+                    : '$failedCount of your extensions could not be reached.',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: SpectaColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A titled, horizontally scrolling rail.
+class _Rail extends StatelessWidget {
+  const _Rail({
+    required this.title,
+    required this.height,
+    required this.itemWidth,
+    required this.itemCount,
+    required this.itemBuilder,
+  });
+
+  final String title;
+  final double height;
+  final double itemWidth;
+  final int itemCount;
+  final Widget Function(int index) itemBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+              color: SpectaColors.textPrimary,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: height,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: itemCount,
+            separatorBuilder: (BuildContext context, int index) =>
+                const SizedBox(width: 12),
+            itemBuilder: (BuildContext context, int index) =>
+                itemBuilder(index),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A real discovery item as a focusable card.
+class _DiscoveryCard extends StatelessWidget {
+  const _DiscoveryCard({
+    required this.item,
     required this.width,
     required this.onTap,
   });
 
-  final WatchProgress progress;
+  final DiscoveryItem item;
   final double width;
+  final VoidCallback onTap;
 
-  /// Opens the item through the resume pipeline (D-pad/TV safe).
+  @override
+  Widget build(BuildContext context) {
+    final Color accent = Theme.of(context).colorScheme.primary;
+
+    return SpectaFocusWrapper(
+      borderRadius: SpectaMetrics.cardRadius,
+      onTap: onTap,
+      child: SizedBox(
+        width: width,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            // The poster takes whatever height is left after the title, so a
+            // two-line title can never overflow the rail.
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(SpectaMetrics.cardRadius),
+                child: Container(
+                  width: double.infinity,
+                  color: SpectaColors.surfaceElevated,
+                  child: item.cover != null
+                      ? Image.network(
+                          item.cover!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (
+                            BuildContext context,
+                            Object error,
+                            StackTrace? stackTrace,
+                          ) =>
+                              _PosterFallback(accent: accent),
+                        )
+                      : _PosterFallback(accent: accent),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              item.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: SpectaColors.textPrimary,
+              ),
+            ),
+            if (item.year != null)
+              Text(
+                '${item.year}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: SpectaColors.textMuted,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PosterFallback extends StatelessWidget {
+  const _PosterFallback({required this.accent});
+
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Icon(
+        Icons.movie_outlined,
+        size: 32,
+        color: accent.withValues(alpha: 0.5),
+      ),
+    );
+  }
+}
+
+/// A persisted Continue Watching item; tapping resumes it.
+class _ContinueCard extends StatelessWidget {
+  const _ContinueCard({required this.progress, required this.onTap});
+
+  final WatchProgress progress;
   final VoidCallback onTap;
 
   @override
@@ -223,260 +442,61 @@ class _ProgressCard extends StatelessWidget {
       borderRadius: SpectaMetrics.cardRadius,
       onTap: onTap,
       child: SizedBox(
-        width: width,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(SpectaMetrics.cardRadius),
-              child: Container(
-                height: 160,
-                width: double.infinity,
-                color: SpectaColors.surfaceElevated,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    Center(
-                      child: Icon(
-                        progress.mediaType == contract.MediaType.series
-                            ? Icons.tv_rounded
-                            : Icons.movie_rounded,
-                        size: 40,
-                        color: accent.withValues(alpha: 0.35),
-                      ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: SpectaBadge(
-                        label: progress.mediaType == contract.MediaType.series
-                            ? 'SERIES'
-                            : 'MOVIE',
-                      ),
-                    ),
-                    if (fraction != null)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: LinearProgressIndicator(
-                          value: fraction,
-                          minHeight: 3,
-                          backgroundColor: Colors.black26,
-                        ),
-                      ),
-                  ],
+        width: 200,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: SpectaColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(SpectaMetrics.cardRadius),
+            border: Border.all(color: SpectaColors.outline),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Icon(
+                progress.mediaType == MediaType.series
+                    ? Icons.tv_rounded
+                    : Icons.movie_rounded,
+                size: 24,
+                color: accent.withValues(alpha: 0.8),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                progress.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: SpectaColors.textPrimary,
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              progress.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: SpectaColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              progress.subtitleLine ?? 'Watched recently',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                color: SpectaColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A titled horizontal media rail.
-class _MediaRail extends StatelessWidget {
-  const _MediaRail({
-    required this.title,
-    required this.items,
-    required this.itemWidth,
-  });
-
-  final String title;
-  final List<MediaItem> items;
-  final double itemWidth;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.3,
-              color: SpectaColors.textPrimary,
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 230,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            scrollDirection: Axis.horizontal,
-            itemCount: items.length,
-            separatorBuilder: (BuildContext context, int index) =>
-                const SizedBox(width: 12),
-            itemBuilder: (BuildContext context, int index) {
-              return _MediaCard(item: items[index], width: itemWidth);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// A single media card with the supplied poster-fallback presentation.
-class _MediaCard extends StatelessWidget {
-  const _MediaCard({required this.item, required this.width});
-
-  final MediaItem item;
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color accent = Theme.of(context).colorScheme.primary;
-
-    return SpectaFocusWrapper(
-      borderRadius: SpectaMetrics.cardRadius,
-      onTap: () {
-        // Detail navigation arrives with the Phase 2B/2C pipeline; cards are
-        // focusable now so TV navigation behaviour is real from the start.
-      },
-      child: SizedBox(
-        width: width,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // Poster block with type badge and optional progress bar.
-            ClipRRect(
-              borderRadius: BorderRadius.circular(SpectaMetrics.cardRadius),
-              child: Container(
-                height: 160,
-                width: double.infinity,
-                color: SpectaColors.surfaceElevated,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    if (item.backdropUrl != null)
-                      Image.network(
-                        item.backdropUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (
-                          BuildContext context,
-                          Object error,
-                          StackTrace? stackTrace,
-                        ) {
-                          return _posterFallback(context);
-                        },
-                      )
-                    else
-                      _posterFallback(context),
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: SpectaBadge(
-                        label: item.type == MediaType.movie ? 'MOVIE' : 'SERIES',
-                      ),
-                    ),
-                    if (item.progressPercentage != null)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: LinearProgressIndicator(
-                          value: item.progressPercentage,
-                          minHeight: 3,
-                          backgroundColor: Colors.black26,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            Text(
-              item.title,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: SpectaColors.textPrimary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              item.subtitleLine,
-              style: const TextStyle(
-                fontSize: 11,
-                color: SpectaColors.textSecondary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (item.rating != null) ...<Widget>[
-              const SizedBox(height: 2),
-              Row(
-                children: <Widget>[
-                  Icon(Icons.star_rounded, size: 13, color: accent),
-                  const SizedBox(width: 3),
-                  Text(
-                    item.rating!.toStringAsFixed(1),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: SpectaColors.textSecondary,
-                    ),
+              if (progress.subtitleLine != null) ...<Widget>[
+                const SizedBox(height: 2),
+                Text(
+                  progress.subtitleLine!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: SpectaColors.textSecondary,
                   ),
-                ],
-              ),
+                ),
+              ],
+              const Spacer(),
+              if (fraction != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(
+                    value: fraction,
+                    minHeight: 4,
+                    backgroundColor: SpectaColors.surfaceHighlight,
+                    valueColor: AlwaysStoppedAnimation<Color>(accent),
+                  ),
+                ),
             ],
-          ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _posterFallback(BuildContext context) {
-    final Color accent = Theme.of(context).colorScheme.primary;
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            SpectaColors.surfaceElevated,
-            SpectaColors.surface.withValues(alpha: 0.6),
-          ],
-        ),
-      ),
-      child: Icon(
-        item.type == MediaType.movie
-            ? Icons.movie_rounded
-            : Icons.tv_rounded,
-        size: 40,
-        color: accent.withValues(alpha: 0.35),
       ),
     );
   }

@@ -7,6 +7,7 @@ import '../../core/extensions/contract/result_models.dart';
 import '../../core/metadata/metadata_models.dart';
 import '../../ui/widgets/specta_empty_state.dart';
 import '../../ui/widgets/specta_focus_wrapper.dart';
+import '../downloads/download_entry.dart';
 import '../playback/playback_entry.dart';
 import 'details_state.dart';
 
@@ -65,6 +66,13 @@ class DetailsView extends ConsumerWidget {
               item: state.item!,
               episode: episode,
             ),
+            onDownloadEpisode: (SeriesEpisode episode) => startEpisodeDownload(
+              context,
+              ref: ref,
+              metadata: state.metadata!,
+              item: state.item!,
+              episode: episode,
+            ),
           ),
       },
     );
@@ -92,12 +100,16 @@ class _DetailsContent extends StatelessWidget {
   const _DetailsContent({
     required this.state,
     required this.onPlayEpisode,
+    required this.onDownloadEpisode,
   });
 
   final DetailsState state;
 
   /// Called when the user activates one episode of one season.
   final void Function(SeriesEpisode episode) onPlayEpisode;
+
+  /// Called when the user downloads one episode of one season.
+  final void Function(SeriesEpisode episode) onDownloadEpisode;
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +144,13 @@ class _DetailsContent extends StatelessWidget {
         ],
         if (metadata.type == MediaType.movie && state.item != null) ...<Widget>[
           const SizedBox(height: 16),
-          _PlayMovieButton(item: state.item!, metadata: metadata),
+          Row(
+            children: <Widget>[
+              _PlayMovieButton(item: state.item!, metadata: metadata),
+              const SizedBox(width: 12),
+              _DownloadMovieButton(item: state.item!, metadata: metadata),
+            ],
+          ),
         ],
         if (metadata.type == MediaType.series)
           ..._seasonsSection(metadata, accent),
@@ -177,6 +195,7 @@ class _DetailsContent extends StatelessWidget {
           season: season,
           accent: accent,
           onPlayEpisode: onPlayEpisode,
+          onDownloadEpisode: onDownloadEpisode,
         ),
     ];
   }
@@ -348,6 +367,52 @@ class _PlayMovieButton extends ConsumerWidget {
   }
 }
 
+/// Download affordance for movies: resolves the same 2D pool the player would
+/// and hands it to the download manager.
+class _DownloadMovieButton extends ConsumerWidget {
+  const _DownloadMovieButton({required this.item, required this.metadata});
+
+  final DiscoveryItem item;
+  final MetadataItem metadata;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SpectaFocusWrapper(
+      borderRadius: SpectaMetrics.buttonRadius,
+      onTap: () => startMovieDownload(
+        context,
+        ref: ref,
+        metadata: metadata,
+        item: item,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(SpectaMetrics.buttonRadius),
+          border: Border.all(color: SpectaColors.outline),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const <Widget>[
+            Icon(Icons.download_outlined,
+                size: 20, color: SpectaColors.textPrimary),
+            SizedBox(width: 8),
+            Text(
+              'Download',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+                color: SpectaColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Small per-episode play affordance (the row itself is the tap target).
 class _EpisodePlayIcon extends StatelessWidget {
   const _EpisodePlayIcon();
@@ -357,6 +422,30 @@ class _EpisodePlayIcon extends StatelessWidget {
     final Color accent = Theme.of(context).colorScheme.primary;
     return Icon(Icons.play_circle_outline_rounded,
         size: 20, color: accent.withValues(alpha: 0.8));
+  }
+}
+
+/// Small per-episode download affordance — a separate focus target so a TV
+/// D-pad can reach it without also triggering playback.
+class _EpisodeDownloadButton extends StatelessWidget {
+  const _EpisodeDownloadButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SpectaFocusWrapper(
+      borderRadius: 6,
+      onTap: onTap,
+      child: const Padding(
+        padding: EdgeInsets.all(2),
+        child: Icon(
+          Icons.download_outlined,
+          size: 18,
+          color: SpectaColors.textMuted,
+        ),
+      ),
+    );
   }
 }
 
@@ -405,11 +494,13 @@ class _SeasonCard extends StatefulWidget {
     required this.season,
     required this.accent,
     required this.onPlayEpisode,
+    required this.onDownloadEpisode,
   });
 
   final SeriesSeason season;
   final Color accent;
   final void Function(SeriesEpisode episode) onPlayEpisode;
+  final void Function(SeriesEpisode episode) onDownloadEpisode;
 
   @override
   State<_SeasonCard> createState() => _SeasonCardState();
@@ -517,6 +608,11 @@ class _SeasonCardState extends State<_SeasonCard> {
                               ),
                             const SizedBox(width: 8),
                             const _EpisodePlayIcon(),
+                            const SizedBox(width: 10),
+                            _EpisodeDownloadButton(
+                              onTap: () =>
+                                  widget.onDownloadEpisode(episode),
+                            ),
                           ],
                         ),
                       ),
