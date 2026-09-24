@@ -1,0 +1,29 @@
+{
+  "_fixture_note": "DERIVED, not a recording. The envelope is the real advanced-search response shape; the `docs` array carries the two REAL items whose metadata responses are also recorded as fixtures (charlie_chaplin_film_fest and TheFastandtheFuriousJohnIreland1954goofyrip). Both rows are copies of real search documents (identifier, title, year, mediatype), so the extension's full chain can be driven end to end from recorded provider data.",
+  "responseHeader": {
+    "status": 0,
+    "QTime": 17,
+    "params": {
+      "query": "mediatype:movies AND (title:(chain-probe))",
+      "wt": "json"
+    }
+  },
+  "response": {
+    "numFound": 2,
+    "start": 0,
+    "docs": [
+      {
+        "identifier": "charlie_chaplin_film_fest",
+        "title": "Charlie Chaplin Festival",
+        "year": 1938,
+        "mediatype": "movies"
+      },
+      {
+        "identifier": "TheFastandtheFuriousJohnIreland1954goofyrip",
+        "title": "The Fast And The Furious",
+        "year": 1955,
+        "mediatype": "movies"
+      }
+    ]
+  }
+}

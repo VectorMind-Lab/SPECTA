@@ -1,0 +1,58 @@
+{
+  "_fixture_note": "DERIVED, not a recording. Built from metadata_feature_film.json by REMOVING both `.mp4` entries and keeping the real `.mpeg` (MPEG2), `.ogv` (Ogg Video) and `.asr.srt` (SubRip) entries unchanged. This is the shape of a real Archive item that has not been derived to MP4 yet (which does occur), and it exists to prove that `getSources` returns an EMPTY list rather than promoting a non-MP4 file into a `type: 'mp4'` source. Every field that remains is byte-identical to the live response.",
+  "created": 1790034627,
+  "dir": "/0/items/charlie_chaplin_film_fest",
+  "server": "dn600306.us.archive.org",
+  "metadata": {
+    "mediatype": "movies",
+    "identifier": "charlie_chaplin_film_fest",
+    "description": "Four Chaplin shorts from 1917: The Adventurer, The Cure, Easy Street and The Immigrant, presented with music and sound effects.",
+    "date": "1938",
+    "title": "Charlie Chaplin Festival",
+    "addeddate": "2004-12-08 21:24:50",
+    "director": "Charles Chaplin",
+    "runtime": "1:17:26",
+    "subject": "comedy",
+    "type": "MovingImage"
+  },
+  "files": [
+    {
+      "name": "charlie_chaplin_film_fest.asr.srt",
+      "source": "original",
+      "format": "SubRip",
+      "mtime": "1541132293",
+      "size": "19033",
+      "md5": "1d88ee32d57115b13a16c06116578e3a",
+      "crc32": "a878d103",
+      "sha1": "58a4603f2d2725ec79b4b2fd422fc2a13b21bd1e"
+    },
+    {
+      "name": "charlie_chaplin_film_fest.mpeg",
+      "source": "original",
+      "format": "MPEG2",
+      "title": "Charlie Chaplin Film Festival",
+      "md5": "dadf8b3799fad90465590eac51fa945a",
+      "mtime": "1101439256",
+      "size": "2814887940",
+      "crc32": "0ec87b22",
+      "sha1": "c58b6d52e545f98a2e16ddf846a43865e21cc84d",
+      "length": "4646.35",
+      "height": "480",
+      "width": "640"
+    },
+    {
+      "name": "charlie_chaplin_film_fest.ogv",
+      "source": "derivative",
+      "format": "Ogg Video",
+      "original": "charlie_chaplin_film_fest.mpeg",
+      "md5": "7c955add58320ec88bf16f8593790b91",
+      "mtime": "1227479667",
+      "size": "329594705",
+      "crc32": "0e91c14b",
+      "sha1": "0ed3cfe708cd192372fe4ec6a094ff2d24c53374",
+      "length": "4646.38",
+      "height": "304",
+      "width": "400"
+    }
+  ]
+}

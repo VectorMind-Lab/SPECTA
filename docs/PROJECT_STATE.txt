@@ -2,7 +2,38 @@ SPECTA — PROJECT STATE
 ======================
 Handover document. Update after every meaningful implementation session.
 
-Last updated: 2026-09-23 — PHASE 2H COMPLETE: EXTENSION INTEGRATION & LIFECYCLE FOUNDATION.
+Last updated: 2026-09-24 — PHASE 2I COMPLETE: FIRST REAL REFERENCE EXTENSION
+(INTERNET ARCHIVE), VERIFIED END TO END AGAINST THE LIVE PROVIDER.
+The owner's original 2I target, PrimeFlix (https://primeflix.ru), was
+re-verified against the CURRENT live site and is BLOCKED_BY_TECHNICAL_PROTECTION:
+its catalogue is served from a private Supabase backend (anonymous reads
+refused) and its playback path returns AES-GCM-encrypted tokens whose key is
+embedded in the shipped client bundle, so source resolution could only be
+achieved by extracting the provider's client-side secret. That was NOT done.
+The owner then re-selected the Internet Archive as the reference target, and
+extensions/internet_archive_reference.js now exists: a single-file extension on
+the UNCHANGED Phase 1/2H contract (apiVersion 2, @type movie,
+@capabilities network,logging,search,latest,details,sources) implementing
+search/latest/details/getSources/refreshSource/healthCheck/shutdown entirely
+through the sandbox's controlled request() channel, with no credential and no
+authentication. The CHAIN IS PROVEN end to end: DiscoveryCoordinator ->
+extension search() -> 2 DiscoveryItems with provenance -> MetadataManager ->
+details() -> MetadataItem -> SourceManager -> getSources() -> SourceValidator ->
+SourceRanker -> SourcePool (selected = the 480p candidate, fallbacks = 240p,
+subtitles preserved). LIVE validation (real archive.org, real network, real
+DartIoHttpTransport, production request policy): 30 real search results; a real
+item resolved to a real MP4 URL which an INDEPENDENT HEAD request confirmed as
+200 video/mp4; an impossible query returned an empty success; a restricted item
+(is_dark) was rejected honestly. NO lib/ FILE CHANGED — the reference extension
+is a new file under extensions/, its fixtures under test/, plus reports.
+Provider-agnosticism is now ENFORCED BY TEST: a suite scans every .dart file
+under lib/ for provider markers and fails on any hit (result: zero). An
+abandoned, uncommitted, non-building "API Adapter" subsystem found in the
+working tree was AUDITED (docs/API_ADAPTER_SUBSYSTEM_AUDIT.md) and PRESERVED in
+stash@{0} — not restored, not deleted, not built on. Validation: analyze CLEAN;
+default suite 33 Phase-2I tests pass with the bridge active (full suite 850
+passed / 1 skipped / 0 failed, was 817/0/0); live suite 4/4.
+Superseded header line: 2026-09-23 — PHASE 2H COMPLETE: EXTENSION INTEGRATION & LIFECYCLE FOUNDATION.
 The extension runtime is now an application-level, persistent subsystem. There
 is exactly ONE installation boundary: ExtensionLifecycleService.installFromFile
 -> ExtensionManager -> manifest parse -> API-compatibility gate -> Ed25519
@@ -120,10 +151,14 @@ Verified before that commit: analyze clean, 618 passed / 9 skipped
 debug APK SUCCESS.
 Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
 PHASE 2 IN PROGRESS (2A through 2G-C complete; 2H COMPLETE — extension
-integration & lifecycle foundation).
-Next: Phase 2 sub-stage 2I — the FIRST REAL REFERENCE EXTENSION, used as an
-end-to-end integration test (search -> details -> episodes -> sources -> Source
-Manager -> MediaKit). NOT YET AUTHORIZED — DO NOT START.
+integration & lifecycle foundation; 2I COMPLETE — first real reference
+extension, Internet Archive, verified end to end against the live provider).
+Next: Phase 2 sub-stage 2J — PRODUCTION HARDENING across extension lifecycle,
+sources, playback, downloads, database and offline behaviour.
+Next: Phase 2 sub-stage 2K — V1 UX/product completion (Home, Search, Details,
+Player, Downloads, Extensions: loading/empty/error states, phone + Android TV).
+Next: Phase 2 sub-stage 2L — release preparation (versioning, signing config,
+minify/shrink, permissions, release APK) and V1 acceptance.
 Next: the official extension catalogue in a separate SPECTA-Extensions
 repository — still future work, NOT YET AUTHORIZED — DO NOT START.
 Previous (COMPLETE) sub-stage 2G-C (background_downloader adapter, real MP4

@@ -1,0 +1,42 @@
+{
+  "_fixture_note": "DERIVED, not a recording. The envelope is the real search response shape; the `docs` array has been edited to contain the specific malformed rows the extension must survive individually — a document with no identifier, a document with no title, a document that is a bare string, a null entry, a document whose `year` is a non-numeric string, and two valid documents. The two valid rows are copies of real documents from search_movies.json.",
+  "responseHeader": {
+    "status": 0,
+    "QTime": 12,
+    "params": {
+      "wt": "json"
+    }
+  },
+  "response": {
+    "numFound": 7,
+    "start": 0,
+    "docs": [
+      {
+        "title": "A document whose identifier is missing",
+        "year": 1999
+      },
+      {
+        "identifier": "a_document_whose_title_is_missing"
+      },
+      "this is not an object at all",
+      null,
+      {
+        "identifier": "a_document_with_a_non_numeric_year",
+        "title": "Non numeric year",
+        "year": "not-a-year"
+      },
+      {
+        "downloads": 103,
+        "identifier": "namus-kanla-yazilir_movie",
+        "mediatype": "movies",
+        "title": "Namus Kanla Yazılır, Turkish Movie"
+      },
+      {
+        "downloads": 126,
+        "identifier": "jesus-film-kru-language",
+        "mediatype": "movies",
+        "title": "JESUS Film Kru Language"
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "_fixture_note": "SYNTHETIC, constructed by hand (not a recording). It is deliberately NOT a recording because the failure it models must be proven deterministically: a `/metadata/<id>` document that is valid JSON but exposes no `metadata` object at all. The extension must fail the operation with a clear message instead of inventing a title.",
+  "created": 1790000000,
+  "dir": "/0/items/absent_item",
+  "server": "dn600000.us.archive.org",
+  "files": []
+}

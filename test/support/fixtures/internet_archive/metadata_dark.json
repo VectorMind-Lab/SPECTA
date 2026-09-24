@@ -1,0 +1,24 @@
+{
+  "_fixture_note": "REAL recording. GET https://archive.org/metadata/night_of_the_living_dead on 2026-09-24. The Archive answered 200 with `is_dark: true` and NO metadata object and NO files array. This is the real shape of a restricted item and is kept verbatim because it is the case the extension must report honestly rather than pretend it can play.",
+  "created": 1790185490,
+  "d1": "ia601606.us.archive.org",
+  "d2": "ia801606.us.archive.org",
+  "dir": "/24/items/night_of_the_living_dead",
+  "is_dark": true,
+  "server": "ia801606.us.archive.org",
+  "simplelists": {
+    "flagged_as_porn": {
+      "@gerhard_van_niekerk": {
+        "sys_changed_by": {
+          "source": "details page"
+        },
+        "sys_last_changed": "2025-02-21 02:21:37.857033"
+      }
+    }
+  },
+  "uniq": 1513531727,
+  "workable_servers": [
+    "ia801606.us.archive.org",
+    "ia601606.us.archive.org"
+  ]
+}

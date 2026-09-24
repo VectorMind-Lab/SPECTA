@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<!-- SYNTHETIC, constructed by hand (not a recording). A provider returning an
+     HTML error page instead of JSON is a real, common failure — the Archive
+     serves one for some gateway errors. The extension must classify this as a
+     failure rather than mining a value out of it. -->
+<html>
+  <head><title>502 Bad Gateway</title></head>
+  <body><h1>502 Bad Gateway</h1><p>nginx</p></body>
+</html>

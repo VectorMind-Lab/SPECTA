@@ -1,0 +1,89 @@
+{
+  "_fixture_note": "REAL recording. GET https://archive.org/metadata/TheFastandtheFuriousJohnIreland1954goofyrip on 2026-09-24. Trimmed to remove generated thumbnail entries. This item is deliberately kept because it differs from the first fixture in ways the extension must survive: `year` is a STRING, `runtime` is ABSENT (so duration must come from a file's `length`), and the original file is an AVI/DivX that must never be reported as an MP4.",
+  "dir": "/0/items/TheFastandtheFuriousJohnIreland1954goofyrip",
+  "server": "dn600303.us.archive.org",
+  "metadata": {
+    "identifier": "TheFastandtheFuriousJohnIreland1954goofyrip",
+    "title": "The Fast And The Furious",
+    "creator": "Roger Corman",
+    "mediatype": "movies",
+    "collection": [
+      "feature_films_unsorted",
+      "feature_films",
+      "moviesandfilms"
+    ],
+    "description": "http://imdb.com/title/tt0046969/\nA man wrongly imprisoned for murder (John Ireland) breaks out of jail. He wants to clear his name, but with the police pursuing him, he's forced to take a beautiful young woman, driving a fast sports car, hostage and slip into a cross-border sports car race to try to make it to Mexico before the police get him",
+    "date": "1955",
+    "year": "1955",
+    "subject": "drag Racing; action;",
+    "publicdate": "2007-11-26 12:27:16",
+    "addeddate": "2007-11-26 12:26:37",
+    "uploader": "radiofreeperu@yahoo.com",
+    "director": "John Ireland",
+    "publisher": "American Releasing Corporation",
+    "sound": "sound",
+    "color": "Black and white",
+    "language": "English",
+    "coverage": "1:12:36",
+    "backup_location": "ia903601_14"
+  },
+  "files": [
+    {
+      "name": "TheFastandtheFuriousJohnIreland1954goofyrip.avi",
+      "source": "original",
+      "format": "DivX",
+      "title": "The Fast And The Furious",
+      "md5": "66c96798c9b774677a5518785b368656",
+      "mtime": "1196068056",
+      "size": "732006400",
+      "crc32": "55db4e9c",
+      "sha1": "1274c8f5bb9a943bb92de3c202a895131d31c882",
+      "length": "4356.07",
+      "height": "384",
+      "width": "512"
+    },
+    {
+      "name": "TheFastandtheFuriousJohnIreland1954goofyrip.mp4",
+      "source": "derivative",
+      "title": "The Fast And The Furious",
+      "format": "h.264",
+      "original": "TheFastandtheFuriousJohnIreland1954goofyrip.avi",
+      "mtime": "1540598465",
+      "size": "453457956",
+      "md5": "c91038fdc6eaaa1521828f536deb1848",
+      "crc32": "a578c1b7",
+      "sha1": "fed5283209d5cdbfbaa1d267cab647a890ea0583",
+      "length": "4356.1",
+      "height": "480",
+      "width": "640"
+    },
+    {
+      "name": "TheFastandtheFuriousJohnIreland1954goofyrip.ogv",
+      "source": "derivative",
+      "format": "Ogg Video",
+      "original": "TheFastandtheFuriousJohnIreland1954goofyrip.avi",
+      "md5": "8e28e18f72ab184cd9f4ef91a6684a77",
+      "mtime": "1227994673",
+      "size": "314116787",
+      "crc32": "a6713148",
+      "sha1": "7241b27129d9f0ce039efd32db60c10715f74ed9",
+      "length": "4356.06",
+      "height": "304",
+      "width": "400"
+    },
+    {
+      "name": "TheFastandtheFuriousJohnIreland1954goofyrip_512kb.mp4",
+      "source": "derivative",
+      "format": "512Kb MPEG4",
+      "original": "TheFastandtheFuriousJohnIreland1954goofyrip.avi",
+      "md5": "2c3d0791e60a67173c11d06a0471bf79",
+      "mtime": "1227992563",
+      "size": "315869226",
+      "crc32": "e8725eed",
+      "sha1": "63e1123c6bec3dab85d97a858a09d3ba822d6830",
+      "length": "4356.05",
+      "height": "240",
+      "width": "320"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "_fixture_note": "REAL recording. GET https://archive.org/advancedsearch.php?q=mediatype:movies AND collection:feature_films&fl[]=identifier&fl[]=title&fl[]=year&fl[]=mediatype&fl[]=downloads&rows=3&page=1&output=json on 2026-09-24. Kept verbatim, including the two documents that have no `year` — the case the extension must map to a null year rather than inventing one.",
+  "responseHeader": {
+    "status": 0,
+    "QTime": 80,
+    "params": {
+      "query": "mediatype:movies AND collection:feature_films",
+      "qin": "mediatype:movies AND collection:feature_films",
+      "fields": "identifier,title,year,mediatype,downloads",
+      "wt": "json",
+      "rows": 3,
+      "start": 0
+    }
+  },
+  "response": {
+    "numFound": 28488,
+    "start": 0,
+    "docs": [
+      {
+        "downloads": 103,
+        "identifier": "namus-kanla-yazilir_movie",
+        "mediatype": "movies",
+        "title": "Namus Kanla Yazılır, Turkish Movie"
+      },
+      {
+        "downloads": 31,
+        "identifier": "nazar-ke-samne-1995-xvi-drip-mp-3-torrent",
+        "mediatype": "movies",
+        "title": "Nazar Ke Samne 1995 Xvi DRip Mp 3 Torrent"
+      },
+      {
+        "downloads": 126,
+        "identifier": "jesus-film-kru-language",
+        "mediatype": "movies",
+        "title": "JESUS Film Kru Language"
+      }
+    ]
+  }
+}

@@ -7,13 +7,28 @@ source failures.
 ## Status
 
 **Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
-**Phase 2 — application build-out: sub-stages 2A–2F (incl. the 2F resume follow-up), 2G-A/2G-B/2G-C (download foundation, orchestration, AND real engine integration) and 2H (extension integration & lifecycle foundation) COMPLETE; 2I open.**
+**Phase 2 — application build-out: sub-stages 2A–2F (incl. the 2F resume follow-up), 2G-A/2G-B/2G-C (download foundation, orchestration, AND real engine integration), 2H (extension integration & lifecycle foundation) and 2I (first real reference extension) COMPLETE; 2J open.**
 
-`flutter analyze` reports no issues and **803 tests pass** (14 skipped: the
-real-engine group needs the JS bridge on `PATH`, `tool/run_tests_real_js.sh`;
-with the bridge active the run passes 817 with nothing skipped). Two of the
-skipped tests are the Phase 2H real-QuickJS lifecycle suite; with the bridge
-active the extension suites alone pass 351/351.
+`flutter analyze` reports no issues and **850 tests pass** with the JS bridge
+active (1 skip: the opt-in live Internet Archive suite, which is run
+explicitly and passed 4/4). Without the bridge the real-engine groups —
+including the new Phase 2I engine suite — are skipped and reported as
+unverified, never as passing.
+
+**Phase 2I — first real reference extension: COMPLETE (2026-09-24).**
+`extensions/internet_archive_reference.js` is a real, single-file extension on
+the unchanged extension contract, targeting the Internet Archive's genuinely
+public movie catalogue. It proves the whole chain — `search()` → discovery →
+`details()` → metadata → `getSources()` → SourceManager validation + ranking →
+ranked source pool — with the real QuickJS engine offline against recorded
+fixtures, and against the **live provider** in an opt-in suite (a real item
+resolved to a real MP4 URL that an independent `HEAD` confirmed as
+`200 video/mp4`). No Core file changed, and a test now **enforces** that: it
+scans every `.dart` file under `lib/` for provider markers and fails on any hit.
+Remove this extension, install another compatible one, and Core needs no change.
+The owner's original target (PrimeFlix) was rejected for requiring the
+provider's client-side decryption secret; see
+docs/PHASE_2I_REFERENCE_EXTENSION_REPORT.md.
 
 **Phase 2H — Extension Integration & Lifecycle Foundation: COMPLETE (2026-09-23).**
 The extension runtime is now a properly managed, persistent, application-level

@@ -1,0 +1,20 @@
+{
+  "_fixture_note": "REAL recording. GET https://archive.org/advancedsearch.php?q=mediatype:movies AND title:(nosuchtitlezzzqqq)&fl[]=identifier&rows=2&output=json on 2026-09-24. A genuinely empty result is a SUCCESS, not a failure: the extension must return an empty list so SPECTA can show 'no results' rather than an error.",
+  "responseHeader": {
+    "status": 0,
+    "QTime": 220,
+    "params": {
+      "query": "mediatype:movies AND title:nosuchtitlezzzqqq",
+      "qin": "mediatype:movies AND title:(nosuchtitlezzzqqq)",
+      "fields": "identifier",
+      "wt": "json",
+      "rows": 2,
+      "start": 0
+    }
+  },
+  "response": {
+    "numFound": 0,
+    "start": 0,
+    "docs": []
+  }
+}
