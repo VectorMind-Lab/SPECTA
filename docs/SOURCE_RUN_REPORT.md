@@ -457,3 +457,53 @@ Two things worth recording honestly:
 
 Still open, unchanged: check 21 (Node 0 refusal, needs Slice 8) and check 22
 (A7 file unlink, not observable on a release build).
+
+## 11. REQUIREMENTS CLARIFICATION — 2026-09-28 (no code, no tests)
+
+**Status: documentation only. Analyze not re-run, suite not re-run, nothing built.
+No implementation slice proposed or started.**
+
+The owner clarified the direction of the Sources system. The full capture is
+`SOURCE_SYSTEM_PLAN.md` §13. This entry records only what changed in the
+run's standing state.
+
+| Item | Before | After |
+|---|---|---|
+| Slice 8 (Node 0 / GitHub sync) | BLOCKED pending a repository | Repository **exists** (private). Blocked instead on decisions §13.2, §13.3, §13.4. |
+| Node numbering | A6 recorded, unexercised on device | Owner re-confirmed: Node 0 = official, Node 1+ = user. |
+| Green dot | A provenance mark per Slices 5/7 | Re-confirmed: **official provenance only**, never quality. |
+| Site names in UI | H6 already required | Re-confirmed. SPECTA will diverge from the Zangetsu reference, which does show the provider name. |
+
+### 11.1 The one open decision that actually blocks work
+
+"Accept any type of source" (open system) and locked decision **A1** (the
+`// ==SpectaExtension==` manifest gate stays as is) are in direct conflict.
+An app that executes JS needs an agreed calling contract, so the honest
+options are (a) arbitrary executable JS — which reverses A1 and F, (b) deliberate
+per-dialect adapters, or (c) store anything, run only SPECTA-contract files.
+**Recommended: (b).** Not chosen unilaterally.
+
+### 11.2 Correction to an earlier claim in this report
+
+An earlier pass characterised third-party provider files (Zangetsu's, and
+`maxmovies-cc.js`) as incompatible with SPECTA. That was stated too strongly.
+Zangetsu was **not** installed and its Settings were **not** inspected; only two
+of its URLs were read. What is actually established is narrower: those files use
+a different ecosystem's header, so **the current parser** rejects them. Whether
+they *should* be supported is a product decision, not a finding. Recorded
+corrected rather than left to stand.
+
+### 11.3 Secret hygiene re-verified
+
+Tracked-file scan for token-shaped strings: **0 real matches**
+(`docs/GITHUB_CHECKPOINT_REPORT.md` matches only the literal pattern names in
+prose). `H:\dev\SPECTA\.env` is untracked, git-ignored (`.gitignore:17`), and
+contains only `TMDB_API_KEY` by name. **No GitHub token has been used, and
+none was created or requested.** The older token in
+`C:\Users\PORTCR\Music\SPECTA APK\.env` remains compromised and unrevoked by me.
+
+### 11.4 Standing numbers unchanged
+
+`flutter analyze` clean and **1259 passed / 39 skipped / 0 failed** still describe
+Slices 1–7 + 7b at commits `cbcc18b`, `3afcd4a`, `02b0f3c`. They are **not**
+re-validated by this entry, because this entry changed no Dart file.

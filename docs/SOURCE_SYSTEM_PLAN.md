@@ -3,10 +3,18 @@
 Status: **PLAN ONLY — NOT STARTED. No code written against this document without
 explicit owner approval.**
 
-Date: 2026-09-27
+Date: 2026-09-27 (Slices 1–7 + 7b done; §13 added 2026-09-28)
 Scope: Slices 1–7 below. **Slice 8 (SPECTA official distribution / Node 0 sync)
 is BLOCKED and deliberately excluded** pending the real repository layout and a
 genuine SPECTA-compatible sample file (decision G).
+
+> **Owner clarification of 2026-09-28 is captured in §13.** It changes Slice 8 from
+> "waiting for a repository" to "repository exists, decisions pending". Nothing in
+> §0–§12 changed. No code has been written against §13.
+>
+> **Known pre-existing defect in this file:** lines 318–344 are a stray duplicate of
+> §1 (lines 43–69) that predates 2026-09-28. Left in place rather than silently
+> rewritten, and flagged here so it is not mistaken for a second decision table.
 
 ---
 
@@ -342,3 +350,134 @@ EXPLANATION, not the rule.
 No `@package` fallback is invented. That would be unspecified behaviour.
 
 ---
+
+## 13. OWNER CLARIFICATION — 2026-09-28 (requirements only, no code)
+
+**Status: AWAITING WRITTEN CONFIRMATION. No slice is authorised. No code was
+written against this section.**
+
+### 13.1 What the owner has now confirmed
+
+| # | Confirmation | Effect on the plan |
+|---|---|---|
+| H1 | The product is an **open** system. Any user may supply any source, by any route. | Confirms "no provider allowlist" (A1) in spirit. Does **not** yet define what SPECTA can *execute* — see §13.2. |
+| H2 | Terminology is **Sources**, never "Extensions", in all user-facing copy. | Slices 1 and 5 already satisfy this. Internals keep `ExtensionManager`/`extension_id` per A2. |
+| H3 | Official owner sources are **Node 0** onward; user-imported sources are **Node 1** onward. Node 0 is the owner's GitHub-backed source. | Matches A6 exactly, and re-confirms D/Q4: **only Node 0 is undeletable.** |
+| H4 | The green dot marks **official/owner provenance only** — never a quality score, never a site identity. | Matches Slices 5 and 7 as built. Gated only on `TrustLevel.official`. |
+| H5 | Node labels (`Node 0`, `Node 1`, …) are the **only** identifier shown on cards and on Source Health. | Already verified on device in 7b. |
+| H6 | **No site, brand, provider name, provider-supplied title, or filesystem path** may appear on any source surface. | Zangetsu's own detail page *does* show the provider name — SPECTA will not. |
+| H7 | Deleting a node must stop that source from working — the node owns its JS. Deleting Node 0 is refused. | Matches A7 + D as built. |
+| H8 | Node 0 pulls its JS from the owner's **private** GitHub repository. | Replaces the "Slice 8 is blocked" state in §9. |
+
+### 13.2 The one genuine contradiction — needs an answer before any code
+
+§9 and the earlier audit concluded that third-party files such as
+`maxmovies-cc.js` are rejected because they declare a **different ecosystem's**
+header (`// ==Extension==` with `@package`) rather than SPECTA's
+`// ==SpectaExtension==` with `@id`. Decision **A1 locks that gate in place.**
+
+H1 says "any source, from anywhere, any type of file."
+
+**These cannot both be true, and this is a decision, not a wording problem.**
+An app that executes a `.js` file needs *some* agreed calling contract — SPECTA
+has to know which functions to call and what shape they return. So the real
+question is which of three things "any type of source" means:
+
+- **(a) Arbitrary executable JS** — the gate is removed or loosened and SPECTA
+  attempts to run whatever it is given. Highest openness; also the highest risk
+  (untrusted code in-process; weakens A1 and F). Requires an explicit owner
+  decision to change A1.
+- **(b) Adapters for known dialects** — SPECTA stays closed, and support for
+  `==Extension==`-style files is added deliberately, per dialect, with tests.
+  Keeps A1. Each dialect becomes a named, reviewed, test-covered adapter.
+- **(c) Store-only** — the file is accepted and kept, and only files matching
+  SPECTA's contract are *runnable*. Maximum openness of *storage*, execution gate
+  intact.
+
+**Recommendation: (b), or (c) if openness matters more than execution.**
+Option (a) is the only one that requires actively reversing a locked security
+decision, and I will not do that on an ambiguous reading of "any type". Both the
+Zangetsu files and `maxmovies-cc.js` point to (b).
+
+### 13.3 The imported-JS runtime contract (undefined — needed even for (b) and (c))
+
+An imported file must be able to do something. The minimum shape is still
+unwritten. Needed from the owner, or derived from the real `SPECTA-Extensions`
+files:
+
+- required entry points, and their signatures
+- what a source returns for search / details / episode list / stream resolution
+- how a source declares failure, and how retry/backoff is signalled
+- the `apiVersion` range a source may declare
+- whether sources are sandboxed, time-limited, or run on the UI isolate
+
+**I will not invent this.** A wrong guess produces a manifest and a runtime that
+the real owner files do not satisfy — exactly the failure mode the Zangetsu
+inspection exposed.
+
+### 13.4 Node 0 / GitHub sync (partially defined)
+
+Confirmed: private repository, owner-controlled, feeds Node 0.
+Still undefined, and each is a decision I should not make unilaterally:
+
+| # | Question | Note |
+|---|---|---|
+| H8a | Repository layout — flat `.js` files, or a manifest/index file listing them? | Determines whether SPECTA needs an index parser. |
+| H8b | Reachable by raw HTTPS, or via the GitHub API? | A private repo needs auth either way. |
+| H8c | **Authentication** | See §13.5. The one with a real security consequence. |
+| H8d | Sync trigger — on app start, manual only, or on a timer? | Affects battery and data use. |
+| H8e | Update policy — silent, notify-and-ask, or automatic? | |
+| H8f | Failure behaviour — offline, private-repo error, expired token: what does the user see, given that no site or brand may be shown? | |
+| H8g | Does a failed update leave the working copy in place? | Recommended: yes, always keep last-known-good. |
+| H8h | Is Node 0 refreshed in place, or does each version get its own node? | |
+
+### 13.5 GitHub credential handling — a hard constraint, not a preference
+
+The owner has a private repository and intends to supply a **short-lived token**.
+These rules are not negotiable, and are already enforced in this repo:
+
+1. **Do not paste the token into chat.** Anything sent to a chat is written to a
+   transcript. Put it in a file that is already git-ignored.
+2. `H:\dev\SPECTA\.env` exists, is **git-ignored** (`.gitignore:17`), and holds
+   only `TMDB_API_KEY`. It is the correct place for a new variable.
+3. **The token must not be compiled into the APK.** §12 already says this. A
+   token inside a shipped APK is extractable by anyone who unpacks it, which
+   makes the private repository effectively public. If a private repo must be
+   fetched from a released app, the credential has to be a per-device token the
+   user supplies — an architecture decision, not an implementation detail.
+4. It must not be echoed by tooling. Where I inspect `.env` files, I read
+   **variable names only**, never values.
+5. A token that has appeared in chat, a log, a commit, or build output is
+   **compromised and must be rotated**. The earlier token in
+   `C:\Users\PORTCR\Music\SPECTA APK\.env` is already in that state.
+
+**Verified 2026-09-28:** a token-shaped-string scan over tracked files returned
+**zero** real matches. `docs/GITHUB_CHECKPOINT_REPORT.md` matched only because it
+contains the *literal* pattern names in prose. `.env` is untracked. No secret is
+in git history.
+
+### 13.6 Zangetsu reference — what was actually checked
+
+To correct an earlier overstatement of mine: I inspected two Zangetsu URLs and
+their provider files. I did **not** install Zangetsu or open its Settings — it
+is not installed on the test device. What the evidence does show:
+
+- Its provider files carry a different ecosystem's header and no SPECTA manifest,
+  so SPECTA's current parser rejects them. That is a **provisional
+  implementation finding about the current parser**, not a verdict on whether
+  they should be supported.
+- The reference app's UI **does** display the provider name, with a provenance
+  badge beside it, and its detail page offers an **Auto Resolve** row naming a
+  provider as the current resolver. H6 forbids that in SPECTA, so SPECTA's
+  equivalent must show the **node label** (`Node 1`, `Node 2`) where Zangetsu
+  shows a site name. A deliberate divergence from the reference.
+
+### 13.7 Blocked pending written confirmation
+
+1. §13.2 — which of (a)/(b)/(c) "any type of source" means. **Blocks Slice 8.**
+2. §13.3 — the runtime/API contract for an imported source.
+3. §13.4 — H8a–H8h, especially **H8c authentication**, which determines whether
+   a token can live on the device at all.
+4. Whether Node 0's GitHub sync ships in the same release as user source import.
+
+Until items 1–3 are answered, no implementation slice is proposed.
