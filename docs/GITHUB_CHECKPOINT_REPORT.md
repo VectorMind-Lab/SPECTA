@@ -4,10 +4,27 @@
 **Phase:** GitHub Checkpoint (current task)
 **Status:** COMPLETE — VERIFIED (second pass)
 
+> **SCOPE NOTE added 2026-09-28.** This report concerns
+> `VectorMind-Lab/SPECTA` — the application's own **source-control** repository,
+> which is private. It is **NOT** the official extension catalogue and has no
+> bearing on it.
+>
+> The official source catalogue, `SPECTA-Extensions`, is **PUBLIC** and requires
+> **no token**. `ExtensionCatalogueClient.defaultIndexUrl` is a public
+> `raw.githubusercontent.com/SPECTA-Extensions/...` URL. No GitHub token exists in
+> the APK, in assets, in `repository.json`, in source JS, in logs, or in these
+> docs, and none is required. Earlier planning text that described the catalogue
+> as private and token-gated was factually wrong and is corrected in
+> `SOURCE_SYSTEM_PLAN.md` §14.2.
+
 ## Purpose
 
 Establish the private main SPECTA source-control repository on GitHub for
 version control, backup/recovery, collaboration, and controlled development.
+
+**This is the app's private development repository. It is separate from the
+public official source catalogue, and its visibility grants nothing to the
+application's trust model: distribution location is not identity.**
 
 ---
 

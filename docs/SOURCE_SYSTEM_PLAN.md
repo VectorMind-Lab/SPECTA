@@ -22,7 +22,7 @@ genuine SPECTA-compatible sample file (decision G).
 
 | # | Decision | Consequence |
 |---|---|---|
-| A1 | No origin allowlist. The `// ==SpectaExtension==` manifest + API-version gate stays exactly as is. | No validation logic is removed anywhere. |
+| A1 | ~~No origin allowlist. The `// ==SpectaExtension==` manifest + API-version gate stays exactly as is.~~ **PARTLY SUPERSEDED 2026-09-28 — see §14.** The "no origin allowlist" half stands and is permanent. The "manifest gate is the whole story" half is **wrong as a product statement**: SPECTA is an open platform, so a supported foreign format must be brought in through a compatibility layer, not refused for lacking SPECTA's header. The gate remains a *validity* check for the native format; it is no longer the *entry ticket* for the platform. | No origin allowlist is retained. Validation is not removed — it is *reached through* a format-compatibility layer. See §14.2. |
 | A2 | Internals keep `ExtensionManager` / `ExtensionRecord` / `extension_id` / `extensions` table. Only user-facing copy changes. | No class/table renames. No persistence rename. |
 | A3 | TMDB / TVMaze / AniList attribution untouched. | Zero changes in those files. |
 | A4 | Node order is user-reorderable. Node 0 is **not** pinned to the top; the user may move it anywhere. It stays undeletable regardless of position. | Persisted `node_order`, independent of `node_locked`. No hidden pinning rule. |
@@ -481,3 +481,97 @@ is not installed on the test device. What the evidence does show:
 4. Whether Node 0's GitHub sync ships in the same release as user source import.
 
 Until items 1–3 are answered, no implementation slice is proposed.
+
+---
+
+## 14. OPEN SOURCE PLATFORM REQUIREMENT — 2026-09-28 (supersedes §13)
+
+**This section is the current product requirement. Where it conflicts with §0–§13,
+§14 wins.** It was written by the owner directly and corrects an earlier
+mis-framing of the requirement by the agent. The superseded text is left in place,
+marked, rather than deleted — no history is rewritten.
+
+Task record: `docs/SOURCE_PLATFORM_TASK_REPORT.md`.
+
+### 14.1 The eight statements of record
+
+1. **SPECTA is an open source platform.** Any user may create, import or provide
+   their own source and use it with the app.
+2. **Users can create and import their own sources** — their own JS, community JS,
+   a file import, a URL, or another ecosystem's format.
+3. **The native SPECTA contract remains supported.** It is one format, not the
+   only one.
+4. **External/community formats are supported through compatibility mechanisms**,
+   judged by actual inspection and testing — not by assumption.
+5. **A source is not rejected merely for lacking the SPECTA header/manifest.**
+6. **Official provenance and compatibility are separate.** A source can be
+   unofficial and perfectly compatible.
+7. **The green dot means official provenance only** (verified Ed25519). It must
+   never be used to block a compatible user or community source.
+8. **The official catalogue repo is public. No token, anywhere.**
+
+### 14.2 What is superseded, and what is not
+
+| Previously recorded | Status now | Reason |
+|---|---|---|
+| A1 "manifest + API gate stays exactly as is" | **PARTLY SUPERSEDED** | The no-allowlist half is permanent. The manifest gate is no longer the platform's entry ticket; a supported foreign format must be convertible. The gate still validates the *native* format. |
+| §13.2 "choose (a) arbitrary JS, (b) adapters, or (c) store-only" | **WITHDRAWN — invalid question** | That framing came from the current implementation, not from the requirement. The requirement is "support it", so the answer is a compatibility layer. No owner choice is being solicited. |
+| §13.2 "different header is the real problem" | **WITHDRAWN as a product statement** | A differing header is a *compatibility* gap to bridge, not a rejection reason. |
+| §13.3 "the runtime contract is undefined, we must not invent it" | **SUPERSEDED in intent** | The native contract already exists in code (`extension_contract.dart`) and is not up for renegotiation. What is new is the *mapping* from a foreign format into it, which §14 requires be designed and tested. |
+| §13.4 "Node 0 pulls from a **private** GitHub repository" | **FACTUALLY WRONG — CORRECTED** | The official `SPECTA-Extensions` catalogue is **public**. The private repository in `docs/GITHUB_CHECKPOINT_REPORT.md` is `VectorMind-Lab/SPECTA`, the application's own **source-control** repo — a different thing, not the extension catalogue. No token is required to read the catalogue, and none exists in the code. |
+| §13.5 token-handling precautions | **KEPT, but largely moot** | Precautions were sound. With a public catalogue there is no token to handle for Node 0. They remain in force for any future credentialed feature. |
+
+### 14.3 Security boundary — "open" is bounded
+
+Open source **input** does not mean unrestricted **native** access. The runtime
+stays sandboxed, and the following remain out of scope and are not to be built
+in support of any format:
+
+- unrestricted native code execution
+- bypassing Android platform security
+- bypassing DRM, access controls, CAPTCHA or anti-bot systems
+- stealing tokens or cookies
+- extracting protected media
+- access to private device data
+- granting native permissions to source JS
+
+Broad compatibility is the goal; a controlled runtime is the boundary.
+
+### 14.4 Node scheme — unchanged, do not revisit
+
+Official: `Node 0, Node A, Node B, Node C`. User/community: `Node 1, Node 2, ...`.
+Only Node 0 undeletable. Each installed source is its own node, individually
+enabled/disabled, and **OFF is not DELETE**. No numbering-after-deletion rule and
+no `Node 0.1` scheme is to be invented; if a genuine decision is required, work
+stops and is reported. Node 0 is not assumed to have the highest priority.
+
+### 14.5 Corrected statement about third-party provider files
+
+Earlier text in this plan and in `SOURCE_RUN_REPORT.md` treated the Zangetsu and
+`maxmovies-cc.js` files as out of scope because they use a different ecosystem's
+header. That is a statement about the *current parser*, not about the product.
+
+Under §14, those files are **candidates for a compatibility layer**, to be
+inspected on their actual terms and supported where technically reasonable. What
+is still true: SPECTA must not copy a third-party provider repository into itself
+as official data, must not hardcode provider names, and must not build a provider
+allowlist. A source is supported as a *format*, not endorsed as a *provider*.
+
+## 15. PLANNED CHANGES (Slice 1, then Slice 2)
+
+**Slice 1 — Sources screen UI.** Root causes found by inspection: the header's
+action cluster is a `SingleChildScrollView(scrollDirection: Axis.horizontal)`, so
+primary actions sit off-screen and must be swiped to; and the node card is three
+rows plus a conditional update row at `EdgeInsets.all(16)`. Changes: remove the
+horizontal scroll, add an always-visible `+ Add Source` primary action opening a
+sheet of only the routes the code supports, and compact the card. Every install
+route keeps converging on the existing `_processManifest` boundary. No schema
+change, no internal renames.
+
+**Slice 2 — source compatibility.** For each external format actually available,
+record identification method, entry points, inputs, return shapes, runtime
+requirements, compatibility status, whether an adapter is required, security
+considerations and test result. Implement the compatibility layer that normalises
+a supported format into the native internal representation. **Installation success
+and runtime/resolution success are reported separately** — a source is not called
+working merely because it installed.

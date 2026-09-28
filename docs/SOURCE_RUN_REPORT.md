@@ -507,3 +507,22 @@ none was created or requested.** The older token in
 `flutter analyze` clean and **1259 passed / 39 skipped / 0 failed** still describe
 Slices 1–7 + 7b at commits `cbcc18b`, `3afcd4a`, `02b0f3c`. They are **not**
 re-validated by this entry, because this entry changed no Dart file.
+
+## 12. OPEN-PLATFORM REQUIREMENT CORRECTION — 2026-09-28
+
+**Status: documentation correction. No code changed in this entry.**
+
+`SOURCE_SYSTEM_PLAN.md` §14 is now the authoritative product requirement. This
+entry records what changes in this report's standing state.
+
+| Item | Correction |
+|---|---|
+| "Slice 8 blocked pending a private repository" | **Wrong premise.** The official `SPECTA-Extensions` catalogue is **public**; `defaultIndexUrl` is already a public `raw.githubusercontent.com` URL. The private repo named in `GITHUB_CHECKPOINT_REPORT.md` is `VectorMind-Lab/SPECTA`, the app's own source-control repo, not the extension catalogue. |
+| §11.1 "recommended (b) — dialect adapters" | **Withdrawn as a question to put to the owner.** The requirement is that external formats be supported, so a compatibility layer is the work, not an owner choice. |
+| §11.2 "current parser rejects them" | Still true, and now reframed: it is a **compatibility gap to bridge**, not a product verdict. |
+| Green dot | Confirmed as **official provenance only**, and explicitly **never** a gate on compatibility. |
+| Token/secret handling | No token exists or is needed. Verified again this run: no token-shaped string in any tracked file or in history. |
+
+Nothing in the previously recorded test counts changes here. `flutter analyze`
+and the `1259 passed / 39 skipped / 0 failed` figures still describe Slices 1-7
+and 7b; they are not re-validated by a docs-only change.
