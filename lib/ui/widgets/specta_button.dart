@@ -93,10 +93,7 @@ class SpectaSecondaryButton extends StatelessWidget {
           ],
           Text(
             label,
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600),
           ),
         ],
       ),

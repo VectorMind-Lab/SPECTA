@@ -18,8 +18,7 @@ final class SearchRequest {
 
   /// Normalized query: trimmed and whitespace-collapsed. A blank normalized
   /// query marks the request invalid — SPECTA must not dispatch it.
-  String get normalizedQuery =>
-      query.trim().replaceAll(RegExp(r'\s+'), ' ');
+  String get normalizedQuery => query.trim().replaceAll(RegExp(r'\s+'), ' ');
 
   bool get isValid => normalizedQuery.isNotEmpty && page >= 1;
 
@@ -71,6 +70,7 @@ final class DiscoveryItem {
     required this.references,
     this.year,
     this.cover,
+    this.externalIds,
   });
 
   /// Stable discovery identity (the deduplication key). Deterministic for a
@@ -92,6 +92,9 @@ final class DiscoveryItem {
 
   /// First available cover URL among the references, if any.
   final String? cover;
+
+  /// External catalogue identity observed for this work, when available.
+  final ExternalIds? externalIds;
 
   /// Every extension that discovered this work, with their references.
   /// Ordered by first observation. Deduplication appends; it never drops.
@@ -202,14 +205,13 @@ final class DiscoveryResult {
   /// True when at least one extension was queried and every queried extension
   /// failed — distinct from an honest empty result.
   bool get allQueriedFailed =>
-      outcomes.isNotEmpty &&
-      successes.isEmpty &&
-      failures.isNotEmpty;
+      outcomes.isNotEmpty && successes.isEmpty && failures.isNotEmpty;
 
   /// True when no extension could be queried at all (nothing enabled with the
   /// search capability).
   bool get noExtensionAvailable =>
-      outcomes.isEmpty || outcomes.every((ExtensionDiscoveryOutcome o) => o.isSkipped);
+      outcomes.isEmpty ||
+      outcomes.every((ExtensionDiscoveryOutcome o) => o.isSkipped);
 
   @override
   String toString() =>

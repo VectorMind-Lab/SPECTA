@@ -4,11 +4,10 @@ import 'package:specta/core/extensions/verification/signing_protocol.dart';
 
 /// SPECTA extension API versions supported by this build of the application.
 ///
-/// Extensions declare an `@apiVersion` in their manifest.  An extension whose
-/// API version is not in [supported] is rejected with a controlled
-/// [ExtensionFailureType.unsupported] error before it is ever executed.
+/// The integer remains the compatibility major version. The optional semver
+/// contract version is additive and is validated separately.
 abstract final class SpectaApiVersion {
-  /// The current extension contract version this build implements.
+  /// Current extension contract major version implemented by this build.
   static const int current = 2;
 
   /// Set of API major versions this build can run.
@@ -16,6 +15,36 @@ abstract final class SpectaApiVersion {
 
   /// Returns true when [version] is supported by this build.
   static bool isCompatible(int version) => supported.contains(version);
+}
+
+/// Additive contract revision supported by the host.
+abstract final class SpectaContractVersion {
+  static const String legacy = '2.0.0';
+  static const String anime = '2.1.0';
+
+  /// Parses a strict `major.minor.patch` contract version.
+  static ({int major, int minor, int patch})? tryParse(String value) {
+    final Match? match = RegExp(r'^(\d+)\.(\d+)\.(\d+)$').firstMatch(value);
+    if (match == null) return null;
+    return (
+      major: int.parse(match.group(1)!),
+      minor: int.parse(match.group(2)!),
+      patch: int.parse(match.group(3)!),
+    );
+  }
+
+  /// Whether this host can run the declared contract version.
+  static bool isCompatible(String value) {
+    final version = tryParse(value);
+    return version != null &&
+            version.major == SpectaApiVersion.current &&
+            version.minor == 0 &&
+            version.patch >= 0 ||
+        version != null &&
+            version.major == SpectaApiVersion.current &&
+            version.minor == 1 &&
+            version.patch >= 0;
+  }
 }
 
 /// Strongly typed extension manifest parsed from the `// ==SpectaExtension==`
@@ -41,6 +70,7 @@ final class ExtensionManifest {
     required this.apiVersion,
     required this.type,
     required this.signature,
+    this.contractVersion,
     this.capabilities = const <ExtensionCapability>{},
     this.description,
     this.language,
@@ -62,6 +92,14 @@ final class ExtensionManifest {
 
   /// Extension contract API major version declared by the extension.
   final int apiVersion;
+
+  /// Optional additive contract revision, e.g. `2.1.0`.
+  /// Null means the legacy `2.0.0` contract and is omitted from signed metadata.
+  final String? contractVersion;
+
+  /// Effective contract revision used by the host.
+  String get effectiveContractVersion =>
+      contractVersion ?? SpectaContractVersion.legacy;
 
   /// Content type the extension provides.
   final ExtensionContentType type;
@@ -90,6 +128,24 @@ final class ExtensionManifest {
   /// Whether this build of SPECTA supports the manifest's API version.
   bool get isApiCompatible => SpectaApiVersion.isCompatible(apiVersion);
 
+  /// Whether the declared additive contract revision is supported.
+  bool get isContractCompatible {
+    if (contractVersion == null) {
+      return type != ExtensionContentType.anime &&
+          type != ExtensionContentType.moviesSeriesAnime;
+    }
+    if (!SpectaContractVersion.isCompatible(contractVersion!)) return false;
+    final version = SpectaContractVersion.tryParse(contractVersion!)!;
+    if (type == ExtensionContentType.anime ||
+        type == ExtensionContentType.moviesSeriesAnime) {
+      return version.minor >= 1;
+    }
+    return true;
+  }
+
+  /// Whether the manifest is supported by this build.
+  bool get isCompatible => isApiCompatible && isContractCompatible;
+
   /// Whether the manifest carries a signature (pre-requisite for Official).
   bool get hasSignature => signature != null && signature!.isNotEmpty;
 
@@ -104,6 +160,7 @@ final class ExtensionManifest {
   /// be editable without invalidating its signature.
   Map<String, dynamic> signedMetadata() => <String, dynamic>{
     'apiVersion': apiVersion,
+    if (contractVersion != null) 'contractVersion': contractVersion,
     'author': author,
     if (capabilities.isNotEmpty)
       'capabilities': ExtensionCapability.encodeDeclaration(capabilities),
@@ -209,6 +266,7 @@ final class ManifestParser {
       author: validator.require('author'),
       apiVersion: validator.requireInt('apiVersion'),
       type: validator.requireContentType('type'),
+      contractVersion: validator.optionalContractVersion('contractVersion'),
       signature: validator.optional('signature'),
       capabilities: validator.optionalCapabilities('capabilities'),
       description: validator.optional('description'),
@@ -283,8 +341,8 @@ final class ManifestValidator {
 
     if (resolved == null) {
       throw ManifestParseException(
-        'Unsupported content type "$rawValue". SPECTA Phase 1 supports '
-        'movie, series, and movies_series.',
+        'Unsupported content type "$rawValue". Supported types include '
+        'movie, series, anime, and their explicit combined scopes.',
       );
     }
     return resolved;
@@ -293,6 +351,18 @@ final class ManifestValidator {
   String? optional(String key) {
     final String? value = _fields[key];
     if (value == null || value.isEmpty) return null;
+    return value;
+  }
+
+  /// Parses the optional additive contract revision.
+  String? optionalContractVersion(String key) {
+    final String? value = optional(key);
+    if (value == null) return null;
+    if (SpectaContractVersion.tryParse(value) == null) {
+      throw ManifestParseException(
+        'Field $key must be a semantic version such as 2.0.0, got: $value',
+      );
+    }
     return value;
   }
 

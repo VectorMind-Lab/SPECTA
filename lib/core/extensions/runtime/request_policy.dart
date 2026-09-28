@@ -290,8 +290,7 @@ final class ExtensionRequestPolicy {
 
     final List<InternetAddress> addresses;
     try {
-      final HostResolver resolver =
-          hostResolver ?? _defaultHostResolver;
+      final HostResolver resolver = hostResolver ?? _defaultHostResolver;
       addresses = await resolver(host).timeout(resolveTimeout);
     } on TimeoutException {
       return RequestPolicyDecision.deny(
@@ -379,8 +378,10 @@ final class ExtensionRequestPolicy {
       final int kind = _ipv4BlockKind(tail);
       return kind == _none ? null : IpBlockKind.values[kind];
     }
-    final List<String> groups =
-        lower.split(':').where((String g) => g.isNotEmpty).toList();
+    final List<String> groups = lower
+        .split(':')
+        .where((String g) => g.isNotEmpty)
+        .toList();
     if (groups.length != 3 || groups[0] != 'ffff') return null;
     final int? hi = int.tryParse(groups[1], radix: 16);
     final int? lo = int.tryParse(groups[2], radix: 16);
@@ -505,7 +506,8 @@ final class ExtensionRequestPolicy {
       return RequestPolicyDecision.deny(
         reason: RequestDenialReason.schemeNotAllowed,
         failureType: ExtensionFailureType.unsupported,
-        detail: 'Scheme "${resolved.scheme}" is not allowed. Allowed: '
+        detail:
+            'Scheme "${resolved.scheme}" is not allowed. Allowed: '
             '${_sorted(allowedSchemes).join(", ")}',
       );
     }
@@ -528,12 +530,12 @@ enum IpBlockKind {
 
   @override
   String toString() => switch (this) {
-        loopback => 'loopback',
-        private => 'private',
-        linkLocal => 'link-local',
-        uniqueLocal => 'unique-local',
-        unspecified => 'unspecified',
-      };
+    loopback => 'loopback',
+    private => 'private',
+    linkLocal => 'link-local',
+    uniqueLocal => 'unique-local',
+    unspecified => 'unspecified',
+  };
 }
 
 /// Resolves a hostname to its addresses before a request is dispatched.

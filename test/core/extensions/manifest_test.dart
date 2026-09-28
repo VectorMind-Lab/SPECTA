@@ -62,11 +62,28 @@ void main() {
       expect(manifest.apiVersion, 3);
     });
 
-    test('throws on invalid content type', () {
-      expect(
-        () => ManifestParser.parse(_manifestWithType('anime')),
-        throwsA(isA<ManifestParseException>()),
+    test('accepts anime content type', () {
+      final ExtensionManifest manifest = ManifestParser.parse(
+        _manifestWithType('anime'),
       );
+      expect(manifest.type, ExtensionContentType.anime);
+    });
+
+    test('parses an explicit anime contract revision', () {
+      final ExtensionManifest manifest = ManifestParser.parse(_animeManifest);
+      expect(manifest.type, ExtensionContentType.anime);
+      expect(manifest.contractVersion, '2.1.0');
+      expect(manifest.effectiveContractVersion, '2.1.0');
+      expect(manifest.isCompatible, isTrue);
+    });
+
+    test('a legacy anime manifest without contractVersion is incompatible', () {
+      final ExtensionManifest manifest = ManifestParser.parse(
+        _manifestWithType('anime'),
+      );
+      expect(manifest.contractVersion, isNull);
+      expect(manifest.effectiveContractVersion, '2.0.0');
+      expect(manifest.isCompatible, isFalse);
     });
 
     test('parses comma-separated content type (movies,series)', () {
@@ -81,6 +98,20 @@ void main() {
         _manifestWithType('movie'),
       );
       expect(manifest.type, ExtensionContentType.movie);
+    });
+
+    test('throws on a malformed contract revision', () {
+      expect(
+        () => ManifestParser.parse(_manifestWithContractVersion('2.1')),
+        throwsA(isA<ManifestParseException>()),
+      );
+    });
+
+    test('rejects an unsupported future contract revision', () {
+      final ExtensionManifest manifest = ManifestParser.parse(
+        _manifestWithContractVersion('2.9.0'),
+      );
+      expect(manifest.isCompatible, isFalse);
     });
 
     test('throws on malformed manifest (no header block)', () {
@@ -161,6 +192,29 @@ String _manifestWithApiVersion(String version) =>
     '// @author Test Author\n'
     '// @apiVersion $version\n'
     '// @type movies_series\n'
+    '$_manifestHeaderEnd\n';
+
+const String _animeManifest =
+    '$_manifestHeaderStart\n'
+    '// @id com.example.anime\n'
+    '// @name Anime Extension\n'
+    '// @version 1.0.0\n'
+    '// @author Test Author\n'
+    '// @apiVersion 2\n'
+    '// @contractVersion 2.1.0\n'
+    '// @type anime\n'
+    '$_manifestHeaderEnd\n'
+    'console.log("hello");\n';
+
+String _manifestWithContractVersion(String version) =>
+    '$_manifestHeaderStart\n'
+    '// @id com.example.test\n'
+    '// @name Test Extension\n'
+    '// @version 1.0.0\n'
+    '// @author Test Author\n'
+    '// @apiVersion 2\n'
+    '// @contractVersion $version\n'
+    '// @type movie\n'
     '$_manifestHeaderEnd\n';
 
 String _manifestWithType(String type) =>

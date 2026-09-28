@@ -74,7 +74,7 @@ abstract interface class ExtensionHttpTransport {
 ///   running in the background after the failure is reported.
 final class DartIoHttpTransport implements ExtensionHttpTransport {
   DartIoHttpTransport({HttpClient? client, this.policy})
-      : _client = client ?? HttpClient();
+    : _client = client ?? HttpClient();
 
   final HttpClient _client;
 
@@ -121,8 +121,9 @@ final class DartIoHttpTransport implements ExtensionHttpTransport {
 
         if (currentBody != null) request.write(currentBody);
 
-        final HttpClientResponse response =
-            await request.close().timeout(deadline.remaining());
+        final HttpClientResponse response = await request.close().timeout(
+          deadline.remaining(),
+        );
 
         final int status = response.statusCode;
         if (_isRedirect(status)) {
@@ -145,22 +146,17 @@ final class DartIoHttpTransport implements ExtensionHttpTransport {
           }
           final ExtensionRequestPolicy? activePolicy = policy;
           if (activePolicy != null) {
-            final RequestPolicyDecision? hopDecision =
-                activePolicy.evaluateRedirect(
-              current: current,
-              locationHeader: location,
-            );
+            final RequestPolicyDecision? hopDecision = activePolicy
+                .evaluateRedirect(current: current, locationHeader: location);
             if (hopDecision != null) {
               return ExtensionHttpResult(
                 failureType: hopDecision.failureType,
                 error: '${hopDecision.reason!.code}: ${hopDecision.detail}',
               );
             }
-            final Uri target = current.resolveUri(
-              Uri.parse(location.trim()),
-            );
-            final RequestPolicyDecision targetDecision =
-                await activePolicy.evaluateTarget(target);
+            final Uri target = current.resolveUri(Uri.parse(location.trim()));
+            final RequestPolicyDecision targetDecision = await activePolicy
+                .evaluateTarget(target);
             if (targetDecision.isDenied) {
               return ExtensionHttpResult(
                 failureType: targetDecision.failureType,
@@ -182,8 +178,8 @@ final class DartIoHttpTransport implements ExtensionHttpTransport {
               '${current.scheme}://${current.host}:${current.port}'
                   .toLowerCase();
           final Uri next = current.resolveUri(Uri.parse(location.trim()));
-          final String nextOrigin =
-              '${next.scheme}://${next.host}:${next.port}'.toLowerCase();
+          final String nextOrigin = '${next.scheme}://${next.host}:${next.port}'
+              .toLowerCase();
           if (nextOrigin != currentOrigin) {
             currentHeaders = Map<String, String>.from(currentHeaders)
               ..removeWhere(
@@ -347,8 +343,8 @@ final class DartIoHttpTransport implements ExtensionHttpTransport {
 /// a slow-drip server can no longer reset the clock per chunk.
 final class Deadline {
   Deadline(Duration budget)
-      : _end = DateTime.now().add(budget),
-        _budget = budget;
+    : _end = DateTime.now().add(budget),
+      _budget = budget;
 
   final DateTime _end;
   final Duration _budget;
@@ -408,9 +404,9 @@ final class ControlledExtensionRuntimeApi implements ExtensionRuntimeApi {
     ExtensionRequestPolicy policy = const ExtensionRequestPolicy(),
     ExtensionHttpTransport? transport,
     this.logSink,
-  })  : policy = policy,
-        transport = transport ?? DartIoHttpTransport(policy: policy),
-        _ownsTransport = transport == null;
+  }) : policy = policy,
+       transport = transport ?? DartIoHttpTransport(policy: policy),
+       _ownsTransport = transport == null;
 
   final ExtensionRequestPolicy policy;
   final ExtensionHttpTransport transport;

@@ -70,7 +70,9 @@ abstract final class MetadataNormalizer {
       return NormalizedDetails.dropped('title exceeds $maxFieldLength chars');
     }
     if (url.length > maxFieldLength) {
-      return NormalizedDetails.dropped('reference exceeds $maxFieldLength chars');
+      return NormalizedDetails.dropped(
+        'reference exceeds $maxFieldLength chars',
+      );
     }
     if (raw.type != expectedType) {
       return NormalizedDetails.dropped(
@@ -83,6 +85,7 @@ abstract final class MetadataNormalizer {
         extensionId: reference.extensionId,
         referenceUrl: url,
         title: title,
+        externalIds: raw.externalIds,
         originalTitle: _cleanOptional(raw.originalTitle),
         cover: _cleanOptional(raw.cover),
         backdrop: _cleanOptional(raw.backdrop),
@@ -114,8 +117,10 @@ abstract final class MetadataNormalizer {
     if (raw.isEmpty) return const <SeriesSeason>[];
 
     final List<MediaSeason> sorted = <MediaSeason>[...raw]
-      ..sort((MediaSeason a, MediaSeason b) =>
-          a.seasonNumber.compareTo(b.seasonNumber));
+      ..sort(
+        (MediaSeason a, MediaSeason b) =>
+            a.seasonNumber.compareTo(b.seasonNumber),
+      );
 
     final List<SeriesSeason> seasons = <SeriesSeason>[];
     int? lastSeasonNumber;
@@ -142,8 +147,10 @@ abstract final class MetadataNormalizer {
     if (raw.isEmpty) return const <SeriesEpisode>[];
 
     final List<MediaEpisode> sorted = <MediaEpisode>[...raw]
-      ..sort((MediaEpisode a, MediaEpisode b) =>
-          a.episodeNumber.compareTo(b.episodeNumber));
+      ..sort(
+        (MediaEpisode a, MediaEpisode b) =>
+            a.episodeNumber.compareTo(b.episodeNumber),
+      );
 
     final List<SeriesEpisode> episodes = <SeriesEpisode>[];
     int? lastEpisodeNumber;

@@ -40,18 +40,17 @@ final class PlaybackRequest {
     int? seasonNumber,
     int? episodeNumber,
     Duration? startPosition,
-  }) =>
-      PlaybackRequest(
-        candidates: pool.ranked,
-        playbackKey: playbackKey,
-        title: title,
-        subtitle: subtitle,
-        mediaKey: mediaKey,
-        mediaType: mediaType,
-        seasonNumber: seasonNumber,
-        episodeNumber: episodeNumber,
-        startPosition: startPosition,
-      );
+  }) => PlaybackRequest(
+    candidates: pool.ranked,
+    playbackKey: playbackKey,
+    title: title,
+    subtitle: subtitle,
+    mediaKey: mediaKey,
+    mediaType: mediaType,
+    seasonNumber: seasonNumber,
+    episodeNumber: episodeNumber,
+    startPosition: startPosition,
+  );
 
   /// Opens a direct candidate list (already-ordered RankedSources). Used for
   /// direct opens and by tests.
@@ -99,19 +98,21 @@ final class PlaybackRequest {
 }
 
 /// How long one candidate may take to reach a playable state.
-final Provider<Duration> playbackOpenTimeoutProvider =
-    Provider<Duration>((Ref ref) => const Duration(seconds: 45));
+final Provider<Duration> playbackOpenTimeoutProvider = Provider<Duration>(
+  (Ref ref) => const Duration(seconds: 45),
+);
 
 /// How long a mid-playback stall may last before the candidate is failed.
-final Provider<Duration> playbackStallTimeoutProvider =
-    Provider<Duration>((Ref ref) => const Duration(seconds: 30));
+final Provider<Duration> playbackStallTimeoutProvider = Provider<Duration>(
+  (Ref ref) => const Duration(seconds: 30),
+);
 
 /// Creates the real engine (MediaKit). Tests override this provider with a
 /// fake factory for deterministic, engine-free playback tests.
 final Provider<PlaybackEngine Function()> playbackEngineFactoryProvider =
     Provider<PlaybackEngine Function()>(
-  (Ref ref) => MediaKitPlaybackEngine.new,
-);
+      (Ref ref) => MediaKitPlaybackEngine.new,
+    );
 
 /// The progress sink binding.
 ///
@@ -120,11 +121,11 @@ final Provider<PlaybackEngine Function()> playbackEngineFactoryProvider =
 /// player needed. Tests override this with an in-memory sink (or a fake).
 final Provider<PlaybackProgressSink> playbackProgressSinkProvider =
     Provider<PlaybackProgressSink>((Ref ref) {
-  return PersistentPlaybackProgressSink(
-    ref.watch(libraryStoreProvider),
-    onChanged: () => ref.read(libraryRevisionProvider.notifier).bump(),
-  );
-});
+      return PersistentPlaybackProgressSink(
+        ref.watch(libraryStoreProvider),
+        onChanged: () => ref.read(libraryRevisionProvider.notifier).bump(),
+      );
+    });
 
 /// Drives one playback session over the engine seam.
 ///
@@ -239,8 +240,7 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
     final bool wasActive = switch (state.status) {
       PlaybackStatus.playing ||
       PlaybackStatus.paused ||
-      PlaybackStatus.buffering =>
-        true,
+      PlaybackStatus.buffering => true,
       _ => false,
     };
 
@@ -331,9 +331,7 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
     if (_disposed || _candidates.isEmpty) return;
     await open(
       PlaybackRequest.direct(
-        <RankedSource>[
-          for (final PlaybackCandidate c in _candidates) c.ranked,
-        ],
+        <RankedSource>[for (final PlaybackCandidate c in _candidates) c.ranked],
         playbackKey: _progressKey,
         title: _title,
         subtitle: _subtitleLine,
@@ -513,7 +511,9 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
       state = _copyCurrent(status: PlaybackStatus.switchingSource);
       ExtensionSource? refreshed;
       try {
-        refreshed = await ref.read(sourceServiceProvider).refresh(
+        refreshed = await ref
+            .read(sourceServiceProvider)
+            .refresh(
               extensionId: candidate.extensionId,
               reference: candidate.reference,
             );
@@ -556,7 +556,7 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
         type: PlaybackFailureType.sourcesExhausted,
         message: _refreshedOnce
             ? 'None of the available sources could be played, and no '
-                'refreshed source was available.'
+                  'refreshed source was available.'
             : 'None of the available sources could be played.',
       ),
     );
@@ -670,12 +670,12 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
         }
 
       case EngineProgress(
-          :final Duration position,
-          :final Duration duration,
-          :final Duration buffered,
-          :final double rate,
-          :final double volume,
-        ):
+        :final Duration position,
+        :final Duration duration,
+        :final Duration buffered,
+        :final double rate,
+        :final double volume,
+      ):
         if (_awaitingTerminal) {
           // The honest playable signal: media position is actually advancing.
           // (EnginePlaying is optimistic — see the EnginePlaying case.)
@@ -754,7 +754,9 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
     final String? key = _progressKey;
     if (key == null || _candidates.isEmpty) return;
     try {
-      ref.read(playbackProgressSinkProvider).report(
+      ref
+          .read(playbackProgressSinkProvider)
+          .report(
             targetKey: key,
             elapsed: _elapsedWatch,
             position: state.position,
@@ -834,8 +836,8 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
 
   PlaybackCandidate? get _safeCurrent =>
       _candidates.isEmpty || _index >= _candidates.length
-          ? null
-          : _candidates[_index];
+      ? null
+      : _candidates[_index];
 
   /// A light copy of the live session state: the candidate list and failure
   /// list are re-read from the live fields (a just-recorded failure or a
@@ -905,7 +907,7 @@ class PlaybackSessionNotifier extends Notifier<PlaybackSnapshot> {
 
 /// The current playback session state.
 final NotifierProvider<PlaybackSessionNotifier, PlaybackSnapshot>
-    playbackSessionProvider =
+playbackSessionProvider =
     NotifierProvider<PlaybackSessionNotifier, PlaybackSnapshot>(
       PlaybackSessionNotifier.new,
     );

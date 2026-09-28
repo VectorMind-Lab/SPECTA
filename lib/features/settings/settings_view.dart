@@ -9,13 +9,27 @@ import '../settings/state/download_concurrency.dart';
 import 'state/auto_update_state.dart';
 import '../../ui/widgets/specta_card.dart';
 
+/// The exact attribution sentence TMDB's terms of use require, reproduced
+/// without alteration:
+/// "You shall place the following notice prominently on your application..."
+///
+/// Public so the settings test can assert the required wording has not drifted,
+/// since getting this string wrong is exactly the kind of silent regression that
+/// no other test would catch.
+const String tmdbAttributionNotice =
+    'This product uses the TMDB API but is not endorsed or certified by TMDB.';
+
+/// The address TMDB asks to be used when linking back to their site.
+const String tmdbHomepageUrl = 'https://www.themoviedb.org';
+
 /// SPECTA settings.
 ///
 /// Implements the settings surfaces that exist today: appearance (theme
 /// preset, persisted), downloads (concurrency, persisted), extensions
-/// (auto-update, persisted), and the foundation diagnostics reader that was
-/// the Phase 0 home screen. Every control is wired to real state; no control
-/// pretends to configure something that does not exist.
+/// (auto-update, persisted), the foundation diagnostics reader that was the
+/// Phase 0 home screen, and About & Credits (attribution for the third-party
+/// services SPECTA depends on). Every control is wired to real state; no
+/// control pretends to configure something that does not exist.
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
 
@@ -31,6 +45,8 @@ class SettingsView extends ConsumerWidget {
         _ExtensionsCard(),
         SizedBox(height: 16),
         _DiagnosticsCard(),
+        SizedBox(height: 16),
+        _AboutCreditsCard(),
         SizedBox(height: 24),
       ],
     );
@@ -144,10 +160,7 @@ class _ThemePresetChip extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  colors: <Color>[
-                    preset.primaryAccent,
-                    preset.secondaryAccent,
-                  ],
+                  colors: <Color>[preset.primaryAccent, preset.secondaryAccent],
                 ),
               ),
             ),
@@ -157,7 +170,9 @@ class _ThemePresetChip extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? preset.primaryAccent : SpectaColors.textSecondary,
+                color: selected
+                    ? preset.primaryAccent
+                    : SpectaColors.textSecondary,
               ),
             ),
           ],
@@ -176,6 +191,8 @@ class _DownloadsCard extends ConsumerWidget {
     final DownloadConcurrencyNotifier notifier = ref.read(
       downloadConcurrencyProvider.notifier,
     );
+    final bool isDefault =
+        concurrency == DownloadConcurrencyNotifier.defaultConcurrency;
 
     return _SettingsSection(
       icon: Icons.download_rounded,
@@ -186,26 +203,39 @@ class _DownloadsCard extends ConsumerWidget {
           Text(
             'Concurrent downloads (max '
             '${DownloadConcurrencyNotifier.maxConcurrency})',
-            style: const TextStyle(
-              fontSize: 12,
-              color: SpectaColors.textMuted,
-            ),
+            style: const TextStyle(fontSize: 12, color: SpectaColors.textMuted),
           ),
           const SizedBox(height: 10),
           Row(
             children: <Widget>[
-              Text('$concurrency',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: SpectaColors.textPrimary,
-                  )),
+              Text(
+                '$concurrency',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: SpectaColors.textPrimary,
+                ),
+              ),
+              // E1/E3: show the CURRENT value's status, not just the number. The
+              // "(default)" wording matches the theme chips so the two cards use
+              // one consistent term. Only a real value is ever shown.
+              if (isDefault)
+                const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Text(
+                    '(default)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: SpectaColors.textSecondary,
+                    ),
+                  ),
+                ),
               const SizedBox(width: 16),
               IconButton.filledTonal(
                 onPressed:
                     concurrency > DownloadConcurrencyNotifier.minConcurrency
-                        ? () async => notifier.set(concurrency - 1)
-                        : null,
+                    ? () async => notifier.set(concurrency - 1)
+                    : null,
                 icon: const Icon(Icons.remove),
                 tooltip: 'Fewer concurrent downloads',
               ),
@@ -213,8 +243,8 @@ class _DownloadsCard extends ConsumerWidget {
               IconButton.filledTonal(
                 onPressed:
                     concurrency < DownloadConcurrencyNotifier.maxConcurrency
-                        ? () async => notifier.set(concurrency + 1)
-                        : null,
+                    ? () async => notifier.set(concurrency + 1)
+                    : null,
                 icon: const Icon(Icons.add),
                 tooltip: 'More concurrent downloads',
               ),
@@ -236,22 +266,192 @@ class _ExtensionsCard extends ConsumerWidget {
     return _SettingsSection(
       icon: Icons.extension_rounded,
       title: 'Extensions',
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Expanded(
-            child: Text(
-              'Auto-update extensions & sources',
-              style: TextStyle(
-                fontSize: 13,
-                color: SpectaColors.textPrimary,
+          Row(
+            children: <Widget>[
+              const Expanded(
+                child: Text(
+                  'Auto-update extensions & sources',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: SpectaColors.textPrimary,
+                  ),
+                ),
               ),
+              Switch(
+                value: autoUpdate,
+                onChanged: (bool value) async => ref
+                    .read(autoUpdateExtensionsProvider.notifier)
+                    .setEnabled(value),
+              ),
+            ],
+          ),
+          // E1 + E2: this switch changes what SPECTA does on its own, so it
+          // states its current value AND the consequence, in one plain line.
+          // It reports only real state — no promise about a specific version.
+          const SizedBox(height: 6),
+          Text(
+            autoUpdate
+                ? 'On — SPECTA checks for newer versions of your extensions. '
+                      'You choose what to install.'
+                : 'Off — extensions stay on the version you installed.',
+            style: const TextStyle(fontSize: 12, color: SpectaColors.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Attribution for the third-party services SPECTA uses.
+///
+/// ## Why this is a real, visible section rather than a buried link
+///
+/// TMDB's terms of use are specific, and the placement here is chosen to meet
+/// them exactly rather than to hide the credit:
+///
+/// * *"You shall use the TMDB logo to identify your use of the TMDB APIs."*
+///   The logo is the approved "Primary short (blue)" mark, fetched unmodified
+///   from TMDB's own logos & attribution page by `tool/render_tmdb_logo.py`.
+///   It is never recoloured, stretched, flipped or rotated.
+/// * *"You shall place the following notice prominently on your
+///   application..."* — the required sentence appears verbatim below.
+/// * *"...the attribution must be within your application's 'About' or
+///   'Credits' type section."* — which is exactly where this is, and why the
+///   notice is a permanently visible line rather than something collapsed
+///   behind a disclosure.
+/// * *"Any use of the TMDB logo... shall be less prominent than the logo or
+///   mark that primarily describes the application."* — SPECTA's own mark sits
+///   above it and the logo is rendered small.
+///
+/// The API itself is described honestly as **metadata only**: TMDB does not
+/// supply playback sources, and nothing here should imply that it does.
+class _AboutCreditsCard extends StatelessWidget {
+  const _AboutCreditsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final Color accent = Theme.of(context).colorScheme.primary;
+
+    return _SettingsSection(
+      icon: Icons.info_outline_rounded,
+      title: 'About & Credits',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  'assets/images/app_icon.png',
+                  width: 40,
+                  height: 40,
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (
+                    BuildContext context,
+                    Object error,
+                    StackTrace? stackTrace,
+                  ) => const SizedBox(width: 40, height: 40),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Text(
+                      'SPECTA',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2.4,
+                        color: SpectaColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'A login-free player for your own sources.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: SpectaColors.textSecondary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(color: SpectaColors.outline, height: 1),
+          const SizedBox(height: 14),
+
+          const Text(
+            'METADATA',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.6,
+              color: SpectaColors.textMuted,
             ),
           ),
-          Switch(
-            value: autoUpdate,
-            onChanged: (bool value) async => ref
-                .read(autoUpdateExtensionsProvider.notifier)
-                .setEnabled(value),
+          const SizedBox(height: 10),
+
+          // The approved mark, at its native aspect ratio. Width-constrained
+          // only, so Flutter scales the height proportionally and the mark can
+          // never be stretched.
+          Image.asset(
+            'assets/images/tmdb_logo.png',
+            width: 150,
+            filterQuality: FilterQuality.high,
+            errorBuilder:
+                (BuildContext context, Object error, StackTrace? stackTrace) =>
+                    Text(
+                      'TMDB',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2.0,
+                        color: accent,
+                      ),
+                    ),
+          ),
+          const SizedBox(height: 10),
+
+          const Text(
+            tmdbAttributionNotice,
+            style: TextStyle(
+              fontSize: 12,
+              color: SpectaColors.textSecondary,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          // Shown as text, not as a button: SPECTA ships no URL launcher, and
+          // a control that cannot open anything would be a decorative button.
+          const SelectableText(
+            tmdbHomepageUrl,
+            style: TextStyle(
+              fontSize: 12,
+              color: SpectaColors.textMuted,
+              height: 1.45,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+          Text(
+            'TMDB supplies artwork, titles and descriptions. Playback sources '
+            'come only from the extensions you install.',
+            style: const TextStyle(
+              fontSize: 11,
+              color: SpectaColors.textMuted,
+              height: 1.45,
+            ),
           ),
         ],
       ),

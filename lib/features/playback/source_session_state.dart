@@ -84,7 +84,9 @@ class SourceSessionNotifier extends Notifier<SourceSessionState> {
 
     final SourcePool pool;
     try {
-      pool = await ref.read(sourceServiceProvider).resolve(
+      pool = await ref
+          .read(sourceServiceProvider)
+          .resolve(
             reference: reference,
             extensions: extensions,
             preference: preference,
@@ -140,7 +142,7 @@ class SourceSessionNotifier extends Notifier<SourceSessionState> {
 
 /// The current source-resolution session state.
 final NotifierProvider<SourceSessionNotifier, SourceSessionState>
-    sourceSessionProvider =
+sourceSessionProvider =
     NotifierProvider<SourceSessionNotifier, SourceSessionState>(
       SourceSessionNotifier.new,
     );

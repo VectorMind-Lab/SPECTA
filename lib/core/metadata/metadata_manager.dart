@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../anilist/anilist_client.dart';
+import '../anilist/anilist_providers.dart';
 import '../discovery/discovery_coordinator.dart';
 import '../discovery/discovery_models.dart';
 import '../identity/title_key.dart';
@@ -12,6 +14,11 @@ import '../extensions/contract/result_models.dart';
 import '../extensions/manager/extension_manager.dart';
 import '../extensions/manager/extension_providers.dart';
 import '../extensions/runtime/extension_runtime.dart';
+import '../tmdb/tmdb_client.dart';
+import '../tmdb/tmdb_providers.dart';
+import '../tvmaze/tvmaze_client.dart';
+import '../tvmaze/tvmaze_providers.dart';
+import 'catalogue_enricher.dart';
 import 'metadata_models.dart';
 import 'metadata_normalizer.dart';
 
@@ -182,9 +189,10 @@ abstract final class MetadataManager {
     try {
       final SpectaResult<MediaDetails> response = await manager
           .callOperation<MediaDetails>(
-        reference.extensionId,
-        (ExtensionRuntime r) => r.details(url: reference.url),
-      ).timeout(timeout);
+            reference.extensionId,
+            (ExtensionRuntime r) => r.details(url: reference.url),
+          )
+          .timeout(timeout);
 
       if (response.isErr) {
         return ReferenceOutcome._(
@@ -259,23 +267,31 @@ abstract final class MetadataManager {
   ) {
     if (valid.isEmpty) return null;
 
+    final String key = item.type == MediaType.anime
+        ? MediaIdentity.anilistKey(
+            valid.first.externalIds?.anilistId ??
+                (throw StateError('anime metadata requires an AniList ID')),
+          )!
+        : identityKey(
+            normalizedTitle: _keyTitle(item.title),
+            type: item.type,
+            year: item.year,
+          );
+
     return MetadataItem(
-      key: identityKey(
-        normalizedTitle: _keyTitle(item.title),
-        type: item.type,
-        year: item.year,
-      ),
+      key: key,
       title: valid.first.title,
       type: item.type,
       year: item.year,
-      cover: valid.map((ReferenceMetadata r) => r.cover).firstWhere(
-            (String? c) => c != null,
-            orElse: () => item.cover,
-          ),
+      cover: valid
+          .map((ReferenceMetadata r) => r.cover)
+          .firstWhere((String? c) => c != null, orElse: () => item.cover),
       backdrop: valid
           .map((ReferenceMetadata r) => r.backdrop)
           .firstWhere((String? b) => b != null, orElse: () => null),
       details: valid,
+      canonicalId: item.type == MediaType.anime ? key : null,
+      identityVersion: item.type == MediaType.anime ? 2 : 1,
     );
   }
 
@@ -289,16 +305,92 @@ abstract final class MetadataManager {
 /// provider graph — no second instance.
 final Provider<MetadataService> metadataServiceProvider =
     Provider<MetadataService>((Ref ref) {
-      return MetadataService(manager: ref.watch(extensionManagerProvider));
+      // The catalogue clients are resolved LAZILY inside `enrich`, not here.
+      // Reading them eagerly would construct the metadata cache (and therefore
+      // the Drift database) for every consumer of plain extension metadata,
+      // which is a side effect the metadata layer must not impose on callers.
+      return MetadataService(
+        manager: ref.watch(extensionManagerProvider),
+        resolveTmdb: () => ref.read(tmdbClientProvider),
+        resolveTvmaze: () => ref.read(tvmazeClientProvider),
+        resolveAnilist: () => ref.read(anilistClientProvider),
+      );
     });
 
 /// Stateless service wrapper so UI state notifiers can request metadata
 /// without depending on the manager's static shape.
 final class MetadataService {
-  const MetadataService({required this.manager});
+  const MetadataService({
+    required this.manager,
+    this.tmdb,
+    this.tvmaze,
+    this.anilist,
+    this.resolveTmdb,
+    this.resolveTvmaze,
+    this.resolveAnilist,
+  });
 
   final ExtensionManager manager;
 
+  /// Optional catalogue providers, supplied directly (tests).
+  final TmdbClient? tmdb;
+  final TvmazeClient? tvmaze;
+  final AniListClient? anilist;
+
+  /// Optional lazy resolvers, used by the app graph so that building the
+  /// service never forces the local database open.
+  final TmdbClient Function()? resolveTmdb;
+  final TvmazeClient Function()? resolveTvmaze;
+  final AniListClient Function()? resolveAnilist;
+
+  /// TMDB client, or null when the build has none.
+  TmdbClient? get effectiveTmdb => tmdb ?? resolveTmdb?.call();
+
+  /// TVMaze client, or null when unavailable.
+  TvmazeClient? get effectiveTvmaze => tvmaze ?? resolveTvmaze?.call();
+
+  /// AniList client, or null when unavailable.
+  AniListClient? get effectiveAnilist => anilist ?? resolveAnilist?.call();
+
   Future<MetadataResult> metadataFor(DiscoveryItem item) =>
       MetadataManager.metadataFor(item: item, manager: manager);
+
+  /// Extension metadata enriched with TMDB/TVMaze catalogue data.
+  ///
+  /// The identity of [item] is never changed: `key`, `type`, `year`,
+  /// `canonicalId` and `identityVersion` are carried through untouched, so a
+  /// provider answer can never create a duplicate identity for a work.
+  /// Provider states are reported as data in [EnrichmentResult.reports].
+  ///
+  /// Pass [knownResult] when the caller ALREADY ran the extension round for this
+  /// item. Without it the round runs a second time, so every reference's
+  /// `details()` executes twice — pure duplicated latency on the screen that is
+  /// already the slowest, and it also made the two rounds disagree whenever an
+  /// extension's answer was not stable.
+  ///
+  /// [item]'s own key/year/cover are forwarded so a CATALOGUE-ONLY item (one the
+  /// catalogue discovered, with no extension behind it) can be COMPLETED under
+  /// the identity it already has, rather than being refused — which is what left
+  /// a real device showing "Details could not be loaded — the extensions could
+  /// not be reached" for a title the app had just listed on its Home rail.
+  Future<EnrichmentResult> enrichedMetadataFor(
+    DiscoveryItem item, {
+    MetadataResult? knownResult,
+  }) async {
+    final MetadataResult base = knownResult ?? await metadataFor(item);
+    final TmdbClient? tmdb = effectiveTmdb;
+    return CatalogueEnricher.enrich(
+      base: base.item,
+      type: item.type,
+      title: item.title,
+      year: item.year,
+      tmdb: tmdb,
+      tvmaze: effectiveTvmaze,
+      anilist: effectiveAnilist,
+      anilistId: item.externalIds?.anilistId,
+      identityKey: item.key,
+      cover: item.cover,
+      imageBaseUrl: tmdb?.config.imageBaseUrl,
+    );
+  }
 }

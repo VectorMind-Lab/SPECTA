@@ -317,7 +317,7 @@ class Extension extends SpectaExtension {}
 // @version 1.0.0
 // @author Test
 // @apiVersion 2
-// @type anime
+// @type documentary
 // ==/SpectaExtension==
 class Extension extends SpectaExtension {}
 ''';
@@ -437,11 +437,19 @@ class Extension extends SpectaExtension {}
     });
 
     test('rollback restores previous version when available', () async {
-      final ExtensionRecord record = _testRecord('com.example.test');
+      // A rollback point only ever exists because a NEWER version replaced this
+      // one, so the installed record and the snapshot must differ in version.
+      // (Identical versions are not a rollback: that is the state a completed
+      // restore leaves behind, and `rollback()` refuses it.)
+      final ExtensionRecord record = _testRecord(
+        'com.example.test',
+        version: '2.0.0',
+      );
       await registry.install(record);
       final ExtensionVersionRecord previous = _testVersion('com.example.test');
       await registry.saveVersion(previous);
 
+      expect(await manager.isRollbackAvailable('com.example.test'), isTrue);
       final bool result = await manager.rollback('com.example.test');
       expect(result, isTrue);
 
@@ -449,6 +457,18 @@ class Extension extends SpectaExtension {}
         'com.example.test',
       );
       expect(updated!.filePath, previous.filePath);
+      expect(updated.version, '1.0.0');
+    });
+
+    test('rollback refuses when the snapshot is already current', () async {
+      // The state a completed restore leaves behind: the snapshot and the
+      // installed record are the same version, so there is nothing to roll back
+      // to and the call must not report success.
+      await registry.install(_testRecord('com.example.test'));
+      await registry.saveVersion(_testVersion('com.example.test'));
+
+      expect(await manager.isRollbackAvailable('com.example.test'), isFalse);
+      expect(await manager.rollback('com.example.test'), isFalse);
     });
 
     test('rollback returns false when extension not found', () async {
@@ -598,12 +618,13 @@ ExtensionRecord _testRecord(
   String id, {
   bool enabled = true,
   String filePath = '/fake/path.js',
+  String version = '1.0.0',
 }) {
   final DateTime now = DateTime.now().toUtc();
   return ExtensionRecord(
     id: id,
     name: 'Test Extension',
-    version: '1.0.0',
+    version: version,
     author: 'Test Author',
     apiVersion: 2,
     contentType: 'movie',

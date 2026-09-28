@@ -14,13 +14,16 @@ abstract final class SpectaMigrations {
   /// Phase 2F = v3 (watch_progress: library / history / watch progress).
   /// Phase 2F resume follow-up = v4 (media_references: durable provenance).
   /// Phase 2G = v5 (downloads: durable download records / queue).
-  static const int schemaVersion = 5;
+  /// Metadata catalogue cache = v6 (persistent TMDB/TVMaze TTL payloads).
+  /// Contract metadata = v7 (extension contract revision).
+  /// Canonical identity metadata = v8 (provider identity columns).
+  static const int schemaVersion = 8;
 
   /// Migration step applied when moving *to* the keyed version.
-  static final Map<int, Future<void> Function(Migrator m)> _steps =
-      <int, Future<void> Function(Migrator m)>{
-        2: (Migrator m) async {
-          await m.database.customStatement('''
+  static final Map<int, Future<void> Function(Migrator m)>
+  _steps = <int, Future<void> Function(Migrator m)>{
+    2: (Migrator m) async {
+      await m.database.customStatement('''
         CREATE TABLE extensions (
           id TEXT NOT NULL,
           name TEXT NOT NULL,
@@ -40,7 +43,7 @@ abstract final class SpectaMigrations {
         )
       ''');
 
-          await m.database.customStatement('''
+      await m.database.customStatement('''
         CREATE TABLE extension_versions (
           id TEXT NOT NULL,
           extension_id TEXT NOT NULL,
@@ -54,7 +57,7 @@ abstract final class SpectaMigrations {
         )
       ''');
 
-          await m.database.customStatement('''
+      await m.database.customStatement('''
         CREATE TABLE extension_failure_logs (
           id TEXT NOT NULL,
           extension_id TEXT NOT NULL,
@@ -68,14 +71,14 @@ abstract final class SpectaMigrations {
           FOREIGN KEY (extension_id) REFERENCES extensions (id)
         )
       ''');
-        },
-        3: (Migrator m) async {
-          // Phase 2F — persistent watch progress. Additive only: no existing
-          // table is touched, so an installed v2 database upgrades in place.
-          // Column names match Drift's generated table exactly (snake_case of
-          // the Dart getters) so both the migration path and the fresh
-          // `createAll()` path produce the same schema.
-          await m.database.customStatement('''
+    },
+    3: (Migrator m) async {
+      // Phase 2F — persistent watch progress. Additive only: no existing
+      // table is touched, so an installed v2 database upgrades in place.
+      // Column names match Drift's generated table exactly (snake_case of
+      // the Dart getters) so both the migration path and the fresh
+      // `createAll()` path produce the same schema.
+      await m.database.customStatement('''
         CREATE TABLE watch_progress (
           id TEXT NOT NULL,
           media_key TEXT NOT NULL,
@@ -92,12 +95,12 @@ abstract final class SpectaMigrations {
           PRIMARY KEY (id)
         )
       ''');
-        },
-        4: (Migrator m) async {
-          // Phase 2F resume follow-up — durable discovery provenance so a
-          // persisted Continue Watching item can be re-opened through the
-          // metadata layer without a title search. Additive only.
-          await m.database.customStatement('''
+    },
+    4: (Migrator m) async {
+      // Phase 2F resume follow-up — durable discovery provenance so a
+      // persisted Continue Watching item can be re-opened through the
+      // metadata layer without a title search. Additive only.
+      await m.database.customStatement('''
         CREATE TABLE media_references (
           media_key TEXT NOT NULL,
           ordinal INTEGER NOT NULL,
@@ -106,18 +109,18 @@ abstract final class SpectaMigrations {
           PRIMARY KEY (media_key, ordinal)
         )
       ''');
-        },
-        5: (Migrator m) async {
-          // Phase 2G — durable download records. Additive only: no existing
-          // table is touched, so an installed v4 database upgrades in place.
-          // Column names match Drift's generated table exactly (snake_case of
-          // the Dart getters) so both the migration path and the fresh
-          // `createAll()` path produce the same schema.
-          //
-          // Identity = the playback identity (media key, episode-qualified for
-          // episodes). No source URL is stored: recovery re-resolves through
-          // the current SourceManager using the stored provenance.
-          await m.database.customStatement('''
+    },
+    5: (Migrator m) async {
+      // Phase 2G — durable download records. Additive only: no existing
+      // table is touched, so an installed v4 database upgrades in place.
+      // Column names match Drift's generated table exactly (snake_case of
+      // the Dart getters) so both the migration path and the fresh
+      // `createAll()` path produce the same schema.
+      //
+      // Identity = the playback identity (media key, episode-qualified for
+      // episodes). No source URL is stored: recovery re-resolves through
+      // the current SourceManager using the stored provenance.
+      await m.database.customStatement('''
         CREATE TABLE downloads (
           id TEXT NOT NULL,
           media_key TEXT NOT NULL,
@@ -143,8 +146,42 @@ abstract final class SpectaMigrations {
           PRIMARY KEY (id)
         )
       ''');
-        },
-      };
+    },
+    6: (Migrator m) async {
+      await m.database.customStatement('''
+        CREATE TABLE metadata_cache (
+          source TEXT NOT NULL,
+          media_key TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          expires_at DATETIME NOT NULL,
+          updated_at DATETIME NOT NULL,
+          PRIMARY KEY (source, media_key)
+        )
+      ''');
+    },
+    7: (Migrator m) async {
+      await m.database.customStatement(
+        "ALTER TABLE extensions ADD COLUMN contract_version TEXT NOT NULL DEFAULT '2.0.0'",
+      );
+      await m.database.customStatement(
+        "ALTER TABLE extension_versions ADD COLUMN contract_version TEXT NOT NULL DEFAULT '2.0.0'",
+      );
+    },
+    8: (Migrator m) async {
+      for (final String table in <String>[
+        'watch_progress',
+        'downloads',
+        'media_references',
+      ]) {
+        await m.database.customStatement(
+          'ALTER TABLE $table ADD COLUMN canonical_id TEXT',
+        );
+        await m.database.customStatement(
+          'ALTER TABLE $table ADD COLUMN identity_version INTEGER NOT NULL DEFAULT 1',
+        );
+      }
+    },
+  };
 
   /// Applies every step needed to move from [from] to [to].
   static Future<void> apply(

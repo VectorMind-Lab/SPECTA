@@ -10,49 +10,50 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:specta/core/discovery/discovery_models.dart';
 import 'package:specta/core/extensions/contract/result_models.dart';
 import 'package:specta/core/metadata/metadata_manager.dart';
+import 'package:specta/core/metadata/metadata_models.dart';
 import 'package:specta/features/details/details_state.dart';
 import 'package:specta/features/details/details_view.dart';
 
 import '../../support/discovery_test_harness.dart';
 
 String _moviePayload(String url) => jsonEncode(<String, Object?>{
-      'id': 'm1',
-      'title': 'Test Movie',
-      'type': 'movie',
-      'url': url,
-      'year': 2020,
-      'description': 'A test movie description.',
-      'genres': <String>['action', 'sci-fi'],
-      'rating': 7.9,
-      'duration': 7200,
-    });
+  'id': 'm1',
+  'title': 'Test Movie',
+  'type': 'movie',
+  'url': url,
+  'year': 2020,
+  'description': 'A test movie description.',
+  'genres': <String>['action', 'sci-fi'],
+  'rating': 7.9,
+  'duration': 7200,
+});
 
 String _seriesPayload(String url) => jsonEncode(<String, Object?>{
-      'id': 's1',
-      'title': 'Test Series',
-      'type': 'series',
-      'url': url,
-      'year': 2021,
-      'seasons': <Map<String, Object?>>[
+  'id': 's1',
+  'title': 'Test Series',
+  'type': 'series',
+  'url': url,
+  'year': 2021,
+  'seasons': <Map<String, Object?>>[
+    <String, Object?>{
+      'seasonNumber': 1,
+      'title': 'Season One',
+      'episodes': <Map<String, Object?>>[
         <String, Object?>{
-          'seasonNumber': 1,
-          'title': 'Season One',
-          'episodes': <Map<String, Object?>>[
-            <String, Object?>{
-              'episodeNumber': 1,
-              'url': '$url/e1',
-              'title': 'Pilot',
-              'duration': 2700,
-            },
-            <String, Object?>{
-              'episodeNumber': 2,
-              'url': '$url/e2',
-              'title': 'Second',
-            },
-          ],
+          'episodeNumber': 1,
+          'url': '$url/e1',
+          'title': 'Pilot',
+          'duration': 2700,
+        },
+        <String, Object?>{
+          'episodeNumber': 2,
+          'url': '$url/e2',
+          'title': 'Second',
         },
       ],
-    });
+    },
+  ],
+});
 
 DiscoveryItem _item(MediaType type, String extensionId, String url) =>
     DiscoveryItem(
@@ -77,8 +78,11 @@ Future<ProviderContainer> _openAndPump(
   String payload,
 ) async {
   await tester.runAsync(
-    () => h.installExtension(tempDirHolder!, extensionId,
-        capabilities: 'search,details'),
+    () => h.installExtension(
+      tempDirHolder!,
+      extensionId,
+      capabilities: 'search,details',
+    ),
   );
   h.sandbox.setAsyncResult(
     'JSON.stringify(await _spectaInstance.details("$url"))',
@@ -129,14 +133,19 @@ void main() {
       final DiscoveryTestHarness h = DiscoveryTestHarness();
       const String url = 'https://example.com/movie/1';
 
-      await _openAndPump(tester, h, MediaType.movie, 'extA', url,
-          _moviePayload(url));
+      await _openAndPump(
+        tester,
+        h,
+        MediaType.movie,
+        'extA',
+        url,
+        _moviePayload(url),
+      );
 
       expect(find.text('Test Movie'), findsWidgets);
       expect(find.textContaining('Movie'), findsWidgets);
       expect(find.textContaining('2020'), findsWidgets);
-      expect(
-          find.textContaining('A test movie description.'), findsOneWidget);
+      expect(find.textContaining('A test movie description.'), findsOneWidget);
       expect(find.text('action'), findsOneWidget);
       expect(find.text('sci-fi'), findsOneWidget);
     });
@@ -145,8 +154,14 @@ void main() {
       final DiscoveryTestHarness h = DiscoveryTestHarness();
       const String url = 'https://example.com/series/1';
 
-      await _openAndPump(tester, h, MediaType.series, 'extA', url,
-          _seriesPayload(url));
+      await _openAndPump(
+        tester,
+        h,
+        MediaType.series,
+        'extA',
+        url,
+        _seriesPayload(url),
+      );
 
       expect(find.text('Seasons (1)'), findsOneWidget);
       expect(find.text('Season One'), findsOneWidget);
@@ -160,8 +175,9 @@ void main() {
   });
 
   group('DetailsView — failure and retry', () {
-    testWidgets('shows an honest failure state and offers retry',
-        (tester) async {
+    testWidgets('shows an honest failure state and offers retry', (
+      tester,
+    ) async {
       final DiscoveryTestHarness h = DiscoveryTestHarness();
       const String url = 'https://example.com/movie/1';
 
@@ -191,8 +207,9 @@ void main() {
       expect(find.text('Retry'), findsOneWidget);
     });
 
-    testWidgets('retry succeeds once the extension is healthy again',
-        (tester) async {
+    testWidgets('retry succeeds once the extension is healthy again', (
+      tester,
+    ) async {
       final DiscoveryTestHarness h = DiscoveryTestHarness();
       const String url = 'https://example.com/movie/1';
 
@@ -206,8 +223,11 @@ void main() {
       addTearDown(container.dispose);
 
       await tester.runAsync(
-        () => h.installExtension(tempDirHolder!, 'extA',
-            capabilities: 'search,details'),
+        () => h.installExtension(
+          tempDirHolder!,
+          'extA',
+          capabilities: 'search,details',
+        ),
       );
       h.sandbox.setAsyncError(
         'JSON.stringify(await _spectaInstance.details("$url"))',
@@ -246,19 +266,87 @@ void main() {
   });
 
   group('DetailsView — TV focus', () {
-    testWidgets('back button is present and season cards are tappable',
-        (tester) async {
+    testWidgets('back button is present and season cards are tappable', (
+      tester,
+    ) async {
       final DiscoveryTestHarness h = DiscoveryTestHarness();
       const String url = 'https://example.com/series/1';
 
-      await _openAndPump(tester, h, MediaType.series, 'extA', url,
-          _seriesPayload(url));
+      await _openAndPump(
+        tester,
+        h,
+        MediaType.series,
+        'extA',
+        url,
+        _seriesPayload(url),
+      );
 
       expect(find.byType(BackButton), findsOneWidget);
       // The season card responds to activation (D-pad select routes to tap).
       await tester.tap(find.text('Season One'));
       await tester.pumpAndSettle();
       expect(find.text('Pilot'), findsOneWidget);
+    });
+  });
+
+  group('DetailsView - catalogue-only titles', () {
+    testWidgets('a title with no extension behind it offers no Play button', (
+      WidgetTester tester,
+    ) async {
+      // Reproduces the real device state: Home's Popular rail lists a title
+      // TMDB discovered, the user taps it, and there is NO extension to play it.
+      // Rendering Play here is a promise SPECTA cannot keep.
+      final ProviderContainer container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      container
+          .read(detailsSessionProvider.notifier)
+          .state = const DetailsState(
+        status: DetailsStatus.success,
+        generation: 1,
+        item: DiscoveryItem(
+          key: 'the matrix|movie|1999',
+          title: 'The Matrix',
+          type: MediaType.movie,
+          year: 1999,
+          references: <DiscoveryReference>[],
+        ),
+        metadata: MetadataItem(
+          key: 'the matrix|movie|1999',
+          title: 'The Matrix',
+          type: MediaType.movie,
+          year: 1999,
+          details: <ReferenceMetadata>[
+            ReferenceMetadata(
+              extensionId: 'tmdb',
+              referenceUrl: 'movie:603',
+              title: 'The Matrix',
+              description: 'A hacker learns the truth.',
+              isProviderMetadata: true,
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: DetailsView()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The record is shown in full - the fix is not a blank screen. (The
+      // title appears twice: app bar and header.)
+      expect(find.text('The Matrix'), findsWidgets);
+      expect(find.text('A hacker learns the truth.'), findsOneWidget);
+      // But nothing that would lead nowhere.
+      expect(find.text('Play'), findsNothing);
+      expect(find.text('Download'), findsNothing);
+      expect(
+        find.textContaining('No streaming source for this title yet'),
+        findsOneWidget,
+      );
     });
   });
 }

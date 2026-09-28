@@ -10,16 +10,15 @@ ExtensionSource _src({
   List<SubtitleTrack>? subtitles,
   List<AudioTrack>? audioTracks,
   bool isAdaptive = false,
-}) =>
-    ExtensionSource(
-      url: url,
-      type: type,
-      quality: quality,
-      isAdaptive: isAdaptive,
-      headers: headers,
-      subtitles: subtitles,
-      audioTracks: audioTracks,
-    );
+}) => ExtensionSource(
+  url: url,
+  type: type,
+  quality: quality,
+  isAdaptive: isAdaptive,
+  headers: headers,
+  subtitles: subtitles,
+  audioTracks: audioTracks,
+);
 
 void main() {
   group('SourceValidator — accepted', () {
@@ -43,9 +42,7 @@ void main() {
     });
 
     test('missing optional fields are tolerated (quality, label, tracks)', () {
-      final ValidatedSource v = SourceValidator.validate(
-        _src(quality: null),
-      );
+      final ValidatedSource v = SourceValidator.validate(_src(quality: null));
       expect(v.isDropped, isFalse);
       expect(v.source!.quality, isNull); // never invented
     });
@@ -78,9 +75,7 @@ void main() {
 
     test('unsupported scheme (javascript:)', () {
       expect(
-        SourceValidator.validate(
-          _src(url: 'javascript:alert(1)'),
-        ).isDropped,
+        SourceValidator.validate(_src(url: 'javascript:alert(1)')).isDropped,
         isTrue,
       );
     });
@@ -127,11 +122,7 @@ void main() {
     test('subtitle track without url', () {
       expect(
         SourceValidator.validate(
-          _src(
-            subtitles: <SubtitleTrack>[
-              const SubtitleTrack(url: ''),
-            ],
-          ),
+          _src(subtitles: <SubtitleTrack>[const SubtitleTrack(url: '')]),
         ).isDropped,
         isTrue,
       );

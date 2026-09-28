@@ -59,26 +59,32 @@ final class FakeDownloadEngine implements DownloadEngine {
       .fold(0, (int a, int b) => a + b);
 
   bool isActive(String downloadId) =>
-      (_inFlight[downloadId] ?? const <Completer<DownloadAttemptResult>>[])
-          .any((Completer<DownloadAttemptResult> c) => !c.isCompleted);
+      (_inFlight[downloadId] ?? const <Completer<DownloadAttemptResult>>[]).any(
+        (Completer<DownloadAttemptResult> c) => !c.isCompleted,
+      );
 
   void emitProgress(String downloadId, int bytes, {int? totalBytes}) {
-    _events.add(DownloadEngineProgress(
-      downloadId: downloadId,
-      bytesOnDisk: bytes,
-      totalBytes: totalBytes,
-    ));
+    _events.add(
+      DownloadEngineProgress(
+        downloadId: downloadId,
+        bytesOnDisk: bytes,
+        totalBytes: totalBytes,
+      ),
+    );
   }
 
   void completeWith(int bytes, {int? totalBytes}) {
-    script.add((DownloadAttemptInput input) =>
-        DownloadAttemptResult.completed(bytes, totalBytes: totalBytes));
+    script.add(
+      (DownloadAttemptInput input) =>
+          DownloadAttemptResult.completed(bytes, totalBytes: totalBytes),
+    );
   }
 
   void failWith(DownloadFailure failure, int bytes) {
     script.add(
-        (DownloadAttemptInput input) => DownloadAttemptResult.failed(
-            failure, bytes));
+      (DownloadAttemptInput input) =>
+          DownloadAttemptResult.failed(failure, bytes),
+    );
   }
 
   /// Settles the OLDEST in-flight attempt for [downloadId]. No-op when
@@ -109,8 +115,9 @@ final class FakeDownloadEngine implements DownloadEngine {
     }
     final Completer<DownloadAttemptResult> completer =
         Completer<DownloadAttemptResult>();
-    (_inFlight[input.downloadId] ??= <Completer<DownloadAttemptResult>>[])
-        .add(completer);
+    (_inFlight[input.downloadId] ??= <Completer<DownloadAttemptResult>>[]).add(
+      completer,
+    );
     try {
       return await completer.future;
     } finally {
@@ -156,8 +163,9 @@ final class FakeDownloadEngine implements DownloadEngine {
     }
     final Completer<DownloadAttemptResult> completer =
         Completer<DownloadAttemptResult>();
-    (_inFlight[downloadId] ??= <Completer<DownloadAttemptResult>>[])
-        .add(completer);
+    (_inFlight[downloadId] ??= <Completer<DownloadAttemptResult>>[]).add(
+      completer,
+    );
     try {
       return await completer.future;
     } finally {
@@ -196,8 +204,7 @@ final class FakeDownloadClock implements DownloadClock {
   void advance(Duration duration) {
     _now = _now.add(duration);
     for (int i = _pendingDelays.length - 1; i >= 0; i--) {
-      final (DateTime deadline, Completer<void> completer) =
-          _pendingDelays[i];
+      final (DateTime deadline, Completer<void> completer) = _pendingDelays[i];
       if (deadline.isAfter(_now)) continue;
       _pendingDelays.removeAt(i);
       if (!completer.isCompleted) completer.complete();

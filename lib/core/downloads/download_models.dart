@@ -66,40 +66,39 @@ enum DownloadStatus {
   }
 
   bool get isActive => this == queued || this == downloading || this == paused;
-  bool get isTerminal => this == completed || this == failed || this == cancelled;
+  bool get isTerminal =>
+      this == completed || this == failed || this == cancelled;
 }
 
 /// The download state machine as data: which transitions are allowed.
 abstract final class DownloadStateMachine {
   static const Map<DownloadStatus, Set<DownloadStatus>> _allowed =
       <DownloadStatus, Set<DownloadStatus>>{
-    DownloadStatus.queued: <DownloadStatus>{
-      DownloadStatus.downloading,
-      DownloadStatus.cancelled,
-    },
-    DownloadStatus.downloading: <DownloadStatus>{
-      DownloadStatus.paused,
-      DownloadStatus.completed,
-      DownloadStatus.failed,
-      DownloadStatus.cancelled,
-    },
-    DownloadStatus.paused: <DownloadStatus>{
-      DownloadStatus.downloading,
-      // Explicit user resume when SPECTA's concurrency policy has no free
-      // slot: the download joins the queue (fair FIFO order) instead of
-      // silently exceeding the limit.
-      DownloadStatus.queued,
-      DownloadStatus.cancelled,
-    },
-    DownloadStatus.failed: <DownloadStatus>{
-      DownloadStatus.queued,
-      DownloadStatus.cancelled,
-    },
-    DownloadStatus.cancelled: <DownloadStatus>{
-      DownloadStatus.queued,
-    },
-    DownloadStatus.completed: <DownloadStatus>{},
-  };
+        DownloadStatus.queued: <DownloadStatus>{
+          DownloadStatus.downloading,
+          DownloadStatus.cancelled,
+        },
+        DownloadStatus.downloading: <DownloadStatus>{
+          DownloadStatus.paused,
+          DownloadStatus.completed,
+          DownloadStatus.failed,
+          DownloadStatus.cancelled,
+        },
+        DownloadStatus.paused: <DownloadStatus>{
+          DownloadStatus.downloading,
+          // Explicit user resume when SPECTA's concurrency policy has no free
+          // slot: the download joins the queue (fair FIFO order) instead of
+          // silently exceeding the limit.
+          DownloadStatus.queued,
+          DownloadStatus.cancelled,
+        },
+        DownloadStatus.failed: <DownloadStatus>{
+          DownloadStatus.queued,
+          DownloadStatus.cancelled,
+        },
+        DownloadStatus.cancelled: <DownloadStatus>{DownloadStatus.queued},
+        DownloadStatus.completed: <DownloadStatus>{},
+      };
 
   /// Whether [from] may move to [to]. Illegal transitions are refused by the
   /// manager instead of silently rewritten.
@@ -131,10 +130,10 @@ enum DownloadWaitReason {
 
   /// User-facing, non-technical wording.
   String get message => switch (this) {
-        DownloadWaitReason.waitingForWifi => 'Waiting for Wi-Fi',
-        DownloadWaitReason.insufficientStorage => 'Not enough free storage',
-        DownloadWaitReason.waitingForSlot => 'Waiting in queue',
-      };
+    DownloadWaitReason.waitingForWifi => 'Waiting for Wi-Fi',
+    DownloadWaitReason.insufficientStorage => 'Not enough free storage',
+    DownloadWaitReason.waitingForSlot => 'Waiting in queue',
+  };
 }
 
 /// Network policy for downloads. Default is conservative (Wi-Fi only).
@@ -199,11 +198,11 @@ enum NetworkPolicyVerdict {
   bool get isAllowed => this == NetworkPolicyVerdict.allowed;
 
   DownloadWaitReason? get waitReason => switch (this) {
-        NetworkPolicyVerdict.allowed => null,
-        NetworkPolicyVerdict.blockedMetered => DownloadWaitReason.waitingForWifi,
-        NetworkPolicyVerdict.blockedOffline => DownloadWaitReason.waitingForWifi,
-        NetworkPolicyVerdict.blockedUnknown => DownloadWaitReason.waitingForWifi,
-      };
+    NetworkPolicyVerdict.allowed => null,
+    NetworkPolicyVerdict.blockedMetered => DownloadWaitReason.waitingForWifi,
+    NetworkPolicyVerdict.blockedOffline => DownloadWaitReason.waitingForWifi,
+    NetworkPolicyVerdict.blockedUnknown => DownloadWaitReason.waitingForWifi,
+  };
 }
 
 /// Evaluates [policy] against [access]. Pure and unit-tested.
@@ -235,6 +234,8 @@ final class DownloadRequest {
     this.subtitleLine,
     this.seasonNumber,
     this.episodeNumber,
+    this.canonicalId,
+    this.identityVersion = 1,
     required this.extensions,
     required this.pool,
   });
@@ -252,6 +253,12 @@ final class DownloadRequest {
   final String? subtitleLine;
   final int? seasonNumber;
   final int? episodeNumber;
+
+  /// Canonical provider identity, e.g. `anilist:123`.
+  final String? canonicalId;
+
+  /// 1 = legacy title/type/year key; 2 = provider canonical key.
+  final int identityVersion;
 
   /// The extension ids + references the pool was resolved over — the same
   /// resolution inputs the playback pipeline uses (provenance, not URLs of
@@ -273,6 +280,8 @@ final class DownloadRecord {
     this.subtitleLine,
     this.seasonNumber,
     this.episodeNumber,
+    this.canonicalId,
+    this.identityVersion = 1,
     required this.status,
     this.waitReason,
     required this.bytesDownloaded,
@@ -295,6 +304,8 @@ final class DownloadRecord {
   final String? subtitleLine;
   final int? seasonNumber;
   final int? episodeNumber;
+  final String? canonicalId;
+  final int identityVersion;
   final DownloadStatus status;
 
   /// Why the queue is not starting this job (null when it is running or
@@ -341,6 +352,8 @@ final class DownloadRecord {
     Object? waitReason = _unset,
     int? bytesDownloaded,
     Object? totalBytes = _unset,
+    Object? canonicalId = _unset,
+    int? identityVersion,
     Object? sourceExtensionId = _unset,
     Object? sourceReference = _unset,
     Object? sourceLabel = _unset,
@@ -357,6 +370,10 @@ final class DownloadRecord {
       subtitleLine: subtitleLine,
       seasonNumber: seasonNumber,
       episodeNumber: episodeNumber,
+      canonicalId: identical(canonicalId, _unset)
+          ? this.canonicalId
+          : canonicalId as String?,
+      identityVersion: identityVersion ?? this.identityVersion,
       status: status ?? this.status,
       waitReason: identical(waitReason, _unset)
           ? this.waitReason
@@ -446,26 +463,26 @@ enum DownloadAttemptOutcomeKind {
 
 final class DownloadAttemptResult {
   const DownloadAttemptResult.completed(int bytes, {this.totalBytes})
-      : kind = DownloadAttemptOutcomeKind.completed,
-        bytesOnDisk = bytes,
-        failure = null;
+    : kind = DownloadAttemptOutcomeKind.completed,
+      bytesOnDisk = bytes,
+      failure = null;
 
   const DownloadAttemptResult.paused(int bytes)
-      : kind = DownloadAttemptOutcomeKind.paused,
-        bytesOnDisk = bytes,
-        totalBytes = null,
-        failure = null;
+    : kind = DownloadAttemptOutcomeKind.paused,
+      bytesOnDisk = bytes,
+      totalBytes = null,
+      failure = null;
 
   const DownloadAttemptResult.cancelled(int bytes)
-      : kind = DownloadAttemptOutcomeKind.cancelled,
-        bytesOnDisk = bytes,
-        totalBytes = null,
-        failure = null;
+    : kind = DownloadAttemptOutcomeKind.cancelled,
+      bytesOnDisk = bytes,
+      totalBytes = null,
+      failure = null;
 
   const DownloadAttemptResult.failed(this.failure, int bytes)
-      : kind = DownloadAttemptOutcomeKind.failed,
-        bytesOnDisk = bytes,
-        totalBytes = null;
+    : kind = DownloadAttemptOutcomeKind.failed,
+      bytesOnDisk = bytes,
+      totalBytes = null;
 
   final DownloadAttemptOutcomeKind kind;
 

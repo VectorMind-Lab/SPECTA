@@ -18,24 +18,25 @@ import '../../support/in_memory_library_store.dart';
 import '../../support/in_memory_settings_store.dart';
 
 HomeFeed _feed({required String title, int? year}) => HomeFeed(
-      status: HomeFeedStatus.ready,
-      items: <DiscoveryItem>[
-        DiscoveryItem(
-          key: 'item-key',
-          title: title,
-          type: MediaType.movie,
-          year: year,
-          references: const <DiscoveryReference>[
-            DiscoveryReference(extensionId: 'com.test.a', url: 'https://x/1'),
-          ],
-        ),
+  status: HomeFeedStatus.ready,
+  items: <DiscoveryItem>[
+    DiscoveryItem(
+      key: 'item-key',
+      title: title,
+      type: MediaType.movie,
+      year: year,
+      references: const <DiscoveryReference>[
+        DiscoveryReference(extensionId: 'com.test.a', url: 'https://x/1'),
       ],
-    );
+    ),
+  ],
+);
 
 Future<void> _pumpShell(
   WidgetTester tester,
   InMemorySettingsStore store, {
   required HomeFeed feed,
+  TrendingFeed? trending,
 }) async {
   tester.view.physicalSize = const Size(1200, 2200);
   tester.view.devicePixelRatio = 1.0;
@@ -52,6 +53,13 @@ Future<void> _pumpShell(
         // widget test supplies a deterministic feed instead of installing
         // extensions.
         homeFeedProvider.overrideWith((Ref ref) async => feed),
+        // The catalogue rail has its own provider; supply it deterministically
+        // so these tests never reach a live metadata provider.
+        trendingFeedProvider.overrideWith(
+          (Ref ref) async =>
+              trending ??
+              const TrendingFeed(status: TrendingStatus.notConfigured),
+        ),
         foundationStatusProvider.overrideWith(
           (Ref ref) async => const <FoundationStatusItem>[
             FoundationStatusItem('SQLite schema', 'v1'),
@@ -61,9 +69,7 @@ Future<void> _pumpShell(
       ],
       // The shell is normally hosted inside MaterialApp; the test host
       // supplies the same Directionality/Theme ancestry.
-      child: const MaterialApp(
-        home: SpectaAppShell(),
-      ),
+      child: const MaterialApp(home: SpectaAppShell()),
     ),
   );
   await tester.pumpAndSettle();
@@ -99,8 +105,46 @@ void main() {
       feed: const HomeFeed(status: HomeFeedStatus.noExtensions),
     );
 
-    expect(find.textContaining('No extensions are installed yet'), findsOneWidget);
+    expect(
+      find.textContaining('No extensions are installed yet'),
+      findsOneWidget,
+    );
     expect(find.text('New on SPECTA'), findsNothing);
+  });
+
+  // Regression, found on a REAL DEVICE: with zero extensions installed the Home
+  // layout returned early, so the metadata-backed "Popular" rail was never
+  // reached and the screen showed only the install notice. The extension feed
+  // being empty must not hide content the catalogue already supplied.
+  testWidgets('catalogue content still renders with zero extensions', (
+    WidgetTester tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      InMemorySettingsStore(),
+      // Exactly what a no-extension round produces, PLUS catalogue data.
+      feed: const HomeFeed(status: HomeFeedStatus.noExtensions),
+      trending: const TrendingFeed(
+        status: TrendingStatus.ready,
+        items: <DiscoveryItem>[
+          DiscoveryItem(
+            key: 'anilist:1',
+            title: 'Cowboy Bebop',
+            type: MediaType.anime,
+            year: 1998,
+            references: <DiscoveryReference>[],
+          ),
+        ],
+      ),
+    );
+
+    // The catalogue result is visible.
+    expect(find.text('Cowboy Bebop'), findsOneWidget);
+    // And the reason the extension rail is empty is still explained, not hidden.
+    expect(
+      find.textContaining('No extensions are installed yet'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a degraded feed is shown with a partial notice', (

@@ -96,11 +96,7 @@ void main() {
 
     final SpectaResult<ExtensionRecord> installed = await manager
         .importExtension(filePath: file.path);
-    expect(
-      installed.isOk,
-      isTrue,
-      reason: installed.failureOrNull?.message,
-    );
+    expect(installed.isOk, isTrue, reason: installed.failureOrNull?.message);
 
     final SpectaResult<ExtensionRuntime> loaded = await manager.loadRuntime(
       _extensionId,
@@ -120,8 +116,7 @@ void main() {
   /// names the operation), so both fields are joined here: asserting on the
   /// message alone would silently stop checking the provider reason.
   String failureText(SpectaFailure failure) {
-    final String? detail =
-        failure is ExtensionFailure ? failure.detail : null;
+    final String? detail = failure is ExtensionFailure ? failure.detail : null;
     return '${failure.message} | ${detail ?? ''}';
   }
 
@@ -145,7 +140,8 @@ void main() {
       expect(
         record.trustLevel,
         TrustLevel.unverified,
-        reason: 'the reference extension is unsigned by design and must never '
+        reason:
+            'the reference extension is unsigned by design and must never '
             'be classified Official',
       );
 
@@ -154,7 +150,10 @@ void main() {
         _extensionId,
       );
       expect(loaded.isOk, isTrue, reason: loaded.failureOrNull?.message);
-      expect(logs, contains('info:Internet Archive reference extension loaded'));
+      expect(
+        logs,
+        contains('info:Internet Archive reference extension loaded'),
+      );
     });
 
     test('declares only capabilities SPECTA actually grants it', () async {
@@ -182,8 +181,7 @@ void main() {
       expect(value.searchPagination, isTrue);
     });
 
-    test('search() returns normalized results from a recorded response',
-        () async {
+    test('search() returns normalized results from a recorded response', () async {
       final ExtensionManager manager = await installAndLoad();
 
       final SpectaResult<List<SearchResult>> search = await call(
@@ -220,8 +218,7 @@ void main() {
       expect(requested, contains('chaplin'));
     });
 
-    test('search() sanitises query characters that are search operators',
-        () async {
+    test('search() sanitises query characters that are search operators', () async {
       final ExtensionManager manager = await installAndLoad();
 
       await call(
@@ -241,7 +238,8 @@ void main() {
       expect(
         RegExp(r'title:\((.*?)\) OR').firstMatch(requested)!.group(1),
         'a b AND c d',
-        reason: 'every Solr operator character in the user input must be '
+        reason:
+            'every Solr operator character in the user input must be '
             'removed, not merely escaped',
       );
     });
@@ -259,8 +257,7 @@ void main() {
       expect(search.valueOrNull, isEmpty);
     });
 
-    test('search() skips malformed rows without losing the valid ones',
-        () async {
+    test('search() skips malformed rows without losing the valid ones', () async {
       final ExtensionManager manager = await installAndLoad();
 
       final SpectaResult<List<SearchResult>> search = await call(
@@ -303,14 +300,12 @@ void main() {
       expect(requested, contains('page=2'));
     });
 
-    test('details() builds movie metadata, stripping provider HTML',
-        () async {
+    test('details() builds movie metadata, stripping provider HTML', () async {
       final ExtensionManager manager = await installAndLoad();
 
       final SpectaResult<MediaDetails> details = await call(
         manager,
-        (ExtensionRuntime r) =>
-            r.details(url: 'charlie_chaplin_film_fest'),
+        (ExtensionRuntime r) => r.details(url: 'charlie_chaplin_film_fest'),
       );
       expect(details.isOk, isTrue, reason: details.failureOrNull?.message);
 
@@ -342,25 +337,27 @@ void main() {
       expect(transport.sawMetadataRequest, isTrue);
     });
 
-    test('details() reads a string year and falls back to a file duration',
-        () async {
-      final ExtensionManager manager = await installAndLoad();
+    test(
+      'details() reads a string year and falls back to a file duration',
+      () async {
+        final ExtensionManager manager = await installAndLoad();
 
-      final SpectaResult<MediaDetails> details = await call(
-        manager,
-        (ExtensionRuntime r) =>
-            r.details(url: 'TheFastandtheFuriousJohnIreland1954goofyrip'),
-      );
-      expect(details.isOk, isTrue, reason: details.failureOrNull?.message);
+        final SpectaResult<MediaDetails> details = await call(
+          manager,
+          (ExtensionRuntime r) =>
+              r.details(url: 'TheFastandtheFuriousJohnIreland1954goofyrip'),
+        );
+        expect(details.isOk, isTrue, reason: details.failureOrNull?.message);
 
-      final MediaDetails movie = details.valueOrNull!;
-      // The provider reports `"year": "1955"` as a STRING.
-      expect(movie.year, 1955);
-      // No `runtime` field exists, so duration comes from the first file's
-      // `length` (4356.1s -> 4356).
-      expect(movie.durationSeconds, 4356);
-      expect(movie.genres, <String>['drag Racing', 'action']);
-    });
+        final MediaDetails movie = details.valueOrNull!;
+        // The provider reports `"year": "1955"` as a STRING.
+        expect(movie.year, 1955);
+        // No `runtime` field exists, so duration comes from the first file's
+        // `length` (4356.1s -> 4356).
+        expect(movie.durationSeconds, 4356);
+        expect(movie.genres, <String>['drag Racing', 'action']);
+      },
+    );
 
     test('details() fails honestly on a restricted item', () async {
       final ExtensionManager manager = await installAndLoad();
@@ -374,13 +371,13 @@ void main() {
       expect(
         failureText(details.failureOrNull!),
         contains('not publicly available'),
-        reason: 'a restricted item is a distinguished outcome, not a generic '
+        reason:
+            'a restricted item is a distinguished outcome, not a generic '
             'error and never a fabricated payload',
       );
     });
 
-    test('details() fails honestly when the payload has no metadata',
-        () async {
+    test('details() fails honestly when the payload has no metadata', () async {
       final ExtensionManager manager = await installAndLoad();
 
       final SpectaResult<MediaDetails> details = await call(
@@ -395,8 +392,7 @@ void main() {
       );
     });
 
-    test('details() fails honestly on a non-JSON provider response',
-        () async {
+    test('details() fails honestly on a non-JSON provider response', () async {
       final ExtensionManager manager = await installAndLoad();
 
       final SpectaResult<MediaDetails> details = await call(
@@ -435,8 +431,7 @@ void main() {
       );
     });
 
-    test('getSources() reports every playable MP4 and nothing else',
-        () async {
+    test('getSources() reports every playable MP4 and nothing else', () async {
       final ExtensionManager manager = await installAndLoad();
 
       final SpectaResult<List<ExtensionSource>> sources = await call(
@@ -450,10 +445,14 @@ void main() {
       expect(
         list.length,
         2,
-        reason: 'the item has exactly two MP4 derivatives; the Ogg, MPEG2 and '
+        reason:
+            'the item has exactly two MP4 derivatives; the Ogg, MPEG2 and '
             'DivX files must NOT be reported as MP4',
       );
-      expect(list.every((ExtensionSource s) => s.type == SourceType.mp4), isTrue);
+      expect(
+        list.every((ExtensionSource s) => s.type == SourceType.mp4),
+        isTrue,
+      );
 
       // Ordered as the provider lists them, best first: the h.264 480p
       // derivative, then the 240p one.
@@ -461,8 +460,11 @@ void main() {
       expect(list[1].quality, '240p');
       expect(list[0].label, 'Source 1');
       expect(list[1].label, 'Source 2');
-      expect(list[0].url, 'https://archive.org/download/charlie_chaplin_film_'
-          'fest/charlie_chaplin_film_fest.mp4');
+      expect(
+        list[0].url,
+        'https://archive.org/download/charlie_chaplin_film_'
+        'fest/charlie_chaplin_film_fest.mp4',
+      );
       expect(list[1].url, contains('charlie_chaplin_film_fest_512kb.mp4'));
       expect(
         list.every((ExtensionSource s) => s.url.startsWith('https://')),
@@ -472,31 +474,34 @@ void main() {
       expect(list.every((ExtensionSource s) => s.url.length <= 2048), isTrue);
     });
 
-    test('getSources() attaches only the subtitles that belong to the file',
-        () async {
-      final ExtensionManager manager = await installAndLoad();
+    test(
+      'getSources() attaches only the subtitles that belong to the file',
+      () async {
+        final ExtensionManager manager = await installAndLoad();
 
-      final SpectaResult<List<ExtensionSource>> sources = await call(
-        manager,
-        (ExtensionRuntime r) =>
-            r.getSources(reference: 'charlie_chaplin_film_fest'),
-      );
+        final SpectaResult<List<ExtensionSource>> sources = await call(
+          manager,
+          (ExtensionRuntime r) =>
+              r.getSources(reference: 'charlie_chaplin_film_fest'),
+        );
 
-      final List<SubtitleTrack> subtitles = sources.valueOrNull!.first.subtitles!;
-      expect(subtitles.length, 1);
-      expect(
-        subtitles.single.url,
-        'https://archive.org/download/charlie_chaplin_film_fest/'
-        'charlie_chaplin_film_fest.asr.srt',
-      );
-      // `asr` is the provider's transcription marker, NOT a language code.
-      expect(
-        subtitles.single.language,
-        isNull,
-        reason: 'a marker must not be reported as a language',
-      );
-      expect(subtitles.single.label, isNull);
-    });
+        final List<SubtitleTrack> subtitles =
+            sources.valueOrNull!.first.subtitles!;
+        expect(subtitles.length, 1);
+        expect(
+          subtitles.single.url,
+          'https://archive.org/download/charlie_chaplin_film_fest/'
+          'charlie_chaplin_film_fest.asr.srt',
+        );
+        // `asr` is the provider's transcription marker, NOT a language code.
+        expect(
+          subtitles.single.language,
+          isNull,
+          reason: 'a marker must not be reported as a language',
+        );
+        expect(subtitles.single.label, isNull);
+      },
+    );
 
     test('getSources() reports NO sources rather than promoting a non-MP4 '
         'file', () async {
@@ -504,8 +509,7 @@ void main() {
 
       final SpectaResult<List<ExtensionSource>> sources = await call(
         manager,
-        (ExtensionRuntime r) =>
-            r.getSources(reference: 'no_playable_item'),
+        (ExtensionRuntime r) => r.getSources(reference: 'no_playable_item'),
       );
 
       expect(
@@ -532,29 +536,35 @@ void main() {
       );
     });
 
-    test('refreshSource() re-resolves and is honest when nothing is playable',
-        () async {
-      final ExtensionManager manager = await installAndLoad();
+    test(
+      'refreshSource() re-resolves and is honest when nothing is playable',
+      () async {
+        final ExtensionManager manager = await installAndLoad();
 
-      final SpectaResult<ExtensionSource> refreshed = await call(
-        manager,
-        (ExtensionRuntime r) =>
-            r.refreshSource(reference: 'charlie_chaplin_film_fest'),
-      );
-      expect(refreshed.isOk, isTrue, reason: refreshed.failureOrNull?.message);
-      expect(refreshed.valueOrNull!.quality, '480p');
+        final SpectaResult<ExtensionSource> refreshed = await call(
+          manager,
+          (ExtensionRuntime r) =>
+              r.refreshSource(reference: 'charlie_chaplin_film_fest'),
+        );
+        expect(
+          refreshed.isOk,
+          isTrue,
+          reason: refreshed.failureOrNull?.message,
+        );
+        expect(refreshed.valueOrNull!.quality, '480p');
 
-      final SpectaResult<ExtensionSource> empty = await call(
-        manager,
-        (ExtensionRuntime r) =>
-            r.refreshSource(reference: 'no_playable_item'),
-      );
-      expect(empty.isErr, isTrue);
-      expect(
-        failureText(empty.failureOrNull!),
-        contains('no playable source'),
-      );
-    });
+        final SpectaResult<ExtensionSource> empty = await call(
+          manager,
+          (ExtensionRuntime r) =>
+              r.refreshSource(reference: 'no_playable_item'),
+        );
+        expect(empty.isErr, isTrue);
+        expect(
+          failureText(empty.failureOrNull!),
+          contains('no playable source'),
+        );
+      },
+    );
 
     test('healthCheck() answers, and shutdown() retires the runtime', () async {
       final ExtensionManager manager = await installAndLoad();
@@ -569,24 +579,26 @@ void main() {
       expect(afterShutdown.isErr, isTrue);
     });
 
-    test('two identical rounds produce identical results (deterministic)',
-        () async {
-      final ExtensionManager manager = await installAndLoad();
+    test(
+      'two identical rounds produce identical results (deterministic)',
+      () async {
+        final ExtensionManager manager = await installAndLoad();
 
-      final SpectaResult<List<SearchResult>> first = await call(
-        manager,
-        (ExtensionRuntime r) => r.search(query: 'chaplin', page: 1),
-      );
-      final SpectaResult<List<SearchResult>> second = await call(
-        manager,
-        (ExtensionRuntime r) => r.search(query: 'chaplin', page: 1),
-      );
+        final SpectaResult<List<SearchResult>> first = await call(
+          manager,
+          (ExtensionRuntime r) => r.search(query: 'chaplin', page: 1),
+        );
+        final SpectaResult<List<SearchResult>> second = await call(
+          manager,
+          (ExtensionRuntime r) => r.search(query: 'chaplin', page: 1),
+        );
 
-      expect(
-        first.valueOrNull!.map((SearchResult r) => r.url).toList(),
-        second.valueOrNull!.map((SearchResult r) => r.url).toList(),
-      );
-    });
+        expect(
+          first.valueOrNull!.map((SearchResult r) => r.url).toList(),
+          second.valueOrNull!.map((SearchResult r) => r.url).toList(),
+        );
+      },
+    );
   }, skip: skip);
 
   group('Phase 2I end-to-end — extension through SPECTA Core', () {
@@ -683,19 +695,21 @@ void main() {
       expect(restricted.allQueriedFailed, isTrue);
     });
 
-    test('disabling the extension removes it from discovery entirely',
-        () async {
-      final ExtensionManager manager = await installAndLoad();
+    test(
+      'disabling the extension removes it from discovery entirely',
+      () async {
+        final ExtensionManager manager = await installAndLoad();
 
-      await manager.setEnabled(_extensionId, false);
+        await manager.setEnabled(_extensionId, false);
 
-      final DiscoveryResult discovery = await DiscoveryCoordinator.discover(
-        request: const SearchRequest(query: 'chainprobe'),
-        manager: manager,
-      );
+        final DiscoveryResult discovery = await DiscoveryCoordinator.discover(
+          request: const SearchRequest(query: 'chainprobe'),
+          manager: manager,
+        );
 
-      expect(discovery.items, isEmpty);
-      expect(discovery.noExtensionAvailable, isTrue);
-    });
+        expect(discovery.items, isEmpty);
+        expect(discovery.noExtensionAvailable, isTrue);
+      },
+    );
   }, skip: skip);
 }

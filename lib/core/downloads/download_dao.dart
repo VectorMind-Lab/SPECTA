@@ -20,19 +20,20 @@ class DownloadDao implements DownloadStore {
 
   @override
   Future<List<DownloadRecord>> all() async {
-    final List<DownloadRow> rows = await (_db.select(_db.downloads)
-          ..orderBy(<OrderingTerm Function($DownloadsTable)>[
-            ($DownloadsTable t) => OrderingTerm.asc(t.createdAt),
-          ]))
-        .get();
+    final List<DownloadRow> rows =
+        await (_db.select(_db.downloads)
+              ..orderBy(<OrderingTerm Function($DownloadsTable)>[
+                ($DownloadsTable t) => OrderingTerm.asc(t.createdAt),
+              ]))
+            .get();
     return rows.map(_toModel).toList(growable: false);
   }
 
   @override
   Future<DownloadRecord?> recordFor(String id) async {
-    final DownloadRow? row = await (_db.select(_db.downloads)
-          ..where(($DownloadsTable t) => t.id.equals(id)))
-        .getSingleOrNull();
+    final DownloadRow? row = await (_db.select(
+      _db.downloads,
+    )..where(($DownloadsTable t) => t.id.equals(id))).getSingleOrNull();
     return row == null ? null : _toModel(row);
   }
 
@@ -43,6 +44,8 @@ class DownloadDao implements DownloadStore {
         .insertOnConflictUpdate(
           DownloadsCompanion.insert(
             id: record.id,
+            canonicalId: Value<String?>(record.canonicalId),
+            identityVersion: Value<int>(record.identityVersion),
             mediaKey: record.mediaKey,
             mediaType: record.mediaType.code,
             title: record.title,
@@ -69,9 +72,9 @@ class DownloadDao implements DownloadStore {
 
   @override
   Future<void> remove(String id) async {
-    await (_db.delete(_db.downloads)
-          ..where(($DownloadsTable t) => t.id.equals(id)))
-        .go();
+    await (_db.delete(
+      _db.downloads,
+    )..where(($DownloadsTable t) => t.id.equals(id))).go();
   }
 
   @override
@@ -80,34 +83,37 @@ class DownloadDao implements DownloadStore {
   }
 
   DownloadRecord _toModel(DownloadRow row) => DownloadRecord(
-        id: row.id,
-        mediaKey: row.mediaKey,
-        // Rows are only ever written by SPECTA with a valid code; an
-        // unrecognised value degrades to a movie rather than crashing a
-        // screen for one bad row (same rule as the library DAO).
-        mediaType: MediaType.fromCode(row.mediaType) ?? MediaType.movie,
-        title: row.title,
-        subtitleLine: row.subtitleLine,
-        seasonNumber: row.seasonNumber,
-        episodeNumber: row.episodeNumber,
-        status: DownloadStatus.fromCode(row.state) ?? DownloadStatus.failed,
-        waitReason: DownloadWaitReason.fromCode(row.waitReason),
-        bytesDownloaded: row.bytesDownloaded,
-        totalBytes: row.totalBytes,
-        filePath: row.filePath,
-        sourceExtensionId: row.sourceExtensionId,
-        sourceReference: row.sourceReference,
-        sourceLabel: row.sourceLabel,
-        attempt: row.attempt,
-        failure: row.errorCode == null
-            ? null
-            : DownloadFailure(
-                type: DownloadFailureType.fromCode(row.errorCode) ??
-                    DownloadFailureType.sourcesExhausted,
-                message: row.errorMessage ?? '',
-              ),
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-        completedAt: row.completedAt,
-      );
+    id: row.id,
+    canonicalId: row.canonicalId,
+    identityVersion: row.identityVersion,
+    mediaKey: row.mediaKey,
+    // Rows are only ever written by SPECTA with a valid code; an
+    // unrecognised value degrades to a movie rather than crashing a
+    // screen for one bad row (same rule as the library DAO).
+    mediaType: MediaType.fromCode(row.mediaType) ?? MediaType.movie,
+    title: row.title,
+    subtitleLine: row.subtitleLine,
+    seasonNumber: row.seasonNumber,
+    episodeNumber: row.episodeNumber,
+    status: DownloadStatus.fromCode(row.state) ?? DownloadStatus.failed,
+    waitReason: DownloadWaitReason.fromCode(row.waitReason),
+    bytesDownloaded: row.bytesDownloaded,
+    totalBytes: row.totalBytes,
+    filePath: row.filePath,
+    sourceExtensionId: row.sourceExtensionId,
+    sourceReference: row.sourceReference,
+    sourceLabel: row.sourceLabel,
+    attempt: row.attempt,
+    failure: row.errorCode == null
+        ? null
+        : DownloadFailure(
+            type:
+                DownloadFailureType.fromCode(row.errorCode) ??
+                DownloadFailureType.sourcesExhausted,
+            message: row.errorMessage ?? '',
+          ),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    completedAt: row.completedAt,
+  );
 }

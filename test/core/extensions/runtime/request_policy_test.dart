@@ -41,13 +41,17 @@ void main() {
     });
 
     test('HEAD is allowed', () async {
-      expect((await policy.evaluate(_request(method: 'HEAD'))).isDenied,
-          isFalse);
+      expect(
+        (await policy.evaluate(_request(method: 'HEAD'))).isDenied,
+        isFalse,
+      );
     });
 
     test('the method check is case-insensitive', () async {
-      expect((await policy.evaluate(_request(method: 'get'))).isDenied,
-          isFalse);
+      expect(
+        (await policy.evaluate(_request(method: 'get'))).isDenied,
+        isFalse,
+      );
     });
 
     test('an allowed decision carries no reason or failure type', () async {
@@ -94,8 +98,7 @@ void main() {
 
     test('the scheme check is case-insensitive', () async {
       expect(
-        (await policy.evaluate(_request(url: 'HTTPS://example.test')))
-            .isDenied,
+        (await policy.evaluate(_request(url: 'HTTPS://example.test'))).isDenied,
         isFalse,
       );
       expect(
@@ -240,8 +243,10 @@ void main() {
       expect(RequestDenialReason.bodyTooLarge.code, 'BODY_TOO_LARGE');
       expect(RequestDenialReason.notAbsolute.code, 'NOT_ABSOLUTE');
       // §37 additions.
-      expect(RequestDenialReason.privateHostBlocked.code,
-          'PRIVATE_HOST_BLOCKED');
+      expect(
+        RequestDenialReason.privateHostBlocked.code,
+        'PRIVATE_HOST_BLOCKED',
+      );
       expect(RequestDenialReason.hostLookupFailed.code, 'HOST_LOOKUP_FAILED');
       expect(RequestDenialReason.redirectBlocked.code, 'REDIRECT_BLOCKED');
     });

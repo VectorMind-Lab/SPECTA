@@ -1,0 +1,178 @@
+﻿00:00 +0: loading C:/Users/PORTCR/Music/SPECTA APK/SPECTA/integration_test/phase1_device_verification_test.dart
+Running Gradle task 'assembleDebug'...                          
+Downloading file from: https://github.com/media-kit/libmpv-android-video-build/releases/download/v1.1.7/default-arm64-v8a.jar
+Downloading file from: https://github.com/media-kit/libmpv-android-video-build/releases/download/v1.1.7/default-armeabi-v7a.jar
+Downloading file from: https://github.com/media-kit/libmpv-android-video-build/releases/download/v1.1.7/default-x86_64.jar
+Downloading file from: https://github.com/media-kit/libmpv-android-video-build/releases/download/v1.1.7/default-x86.jar
+flutter.bat : WARNING: Your app uses the 
+following plugins that apply Kotlin Gradle 
+Plugin (KGP): cryptography_flutter, flutter_js
+At line:1 char:77
++ ...  logcat -c; & 
+'H:\flutter\bin\flutter.bat' test 
+integration_test/phas ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (WA 
+   RNING: Your a...ter, flutter_js:String) [],  
+   RemoteException
+    + FullyQualifiedErrorId : NativeCommandErro 
+   r
+ 
+Future versions of Flutter will fail to build 
+if your app uses plugins that apply KGP.
+
+Please check the changelogs of these plugins 
+and upgrade to a version that supports Built-in 
+Kotlin.
+If no such version exists, report the issue to 
+the plugin. If necessary, here is a guide on 
+filing
+an issue against a plugin: https://docs.flutter.
+dev/release/breaking-changes/migrate-to-built-in
+-kotlin/for-app-developers#report-incompatible-k
+otlin-gradle-plugin-usage-to-plugin-authors
+
+If you are a plugin author, please migrate your 
+plugin to Built-in Kotlin using this guide: http
+s://docs.flutter.dev/release/breaking-changes/mi
+grate-to-built-in-kotlin/for-plugin-authors
+warning: [options] source value 8 is obsolete 
+and will be removed in a future release
+warning: [options] target value 8 is obsolete 
+and will be removed in a future release
+warning: [options] To suppress warnings about 
+obsolete options, use -Xlint:-options.
+3 warnings
+warning: [options] source value 8 is obsolete 
+and will be removed in a future release
+warning: [options] target value 8 is obsolete 
+and will be removed in a future release
+warning: [options] To suppress warnings about 
+obsolete options, use -Xlint:-options.
+3 warnings
+Running Gradle task 'assembleDebug'...                            665.7s
+ΓêÜ Built build\app\outputs\flutter-apk\app-debug.apk
+Installing build\app\outputs\flutter-apk\app-debug.apk...           7.5s
+00:00 +0: PHASE 1 ΓÇö real device runtime verification app startup renders and the foundation self-check reads SQLite
+[SPECTA-P1] startup :: building SpectaStartup (Riverpod graph + manager)
+[SPECTA-P1] startup :: SPECTA home rendered
+ΓòÉΓòÉΓòí EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK Γò₧ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "v2": []>
+   Which: means none were found but one was expected
+foundation self-check must report SQLite schema v2 read back from the on-device database
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure>.<anonymous closure> (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase1_device_verification_test.dart:224:9)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase1_device_verification_test.dart line 224
+The test description was:
+  app startup renders and the foundation self-check reads SQLite
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+00:29 +0 -1: PHASE 1 ΓÇö real device runtime verification app startup renders and the foundation self-check reads SQLite [E]
+  Test failed. See exception logs above.
+  The test description was: app startup renders and the foundation self-check reads SQLite
+  
+00:29 +0 -1: PHASE 1 ΓÇö real device runtime verification SpectaDatabase opens, migrates and round-trips on device
+WARNING (drift): It looks like you've created the database class SpectaDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$SpectaDatabase (package:specta/core/database/specta_database.g.dart:5258:39)
+#4      new SpectaDatabase (package:specta/core/database/specta_database.dart:37:7)
+#5      main.<anonymous closure>.<anonymous closure>.<anonymous closure> (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase1_device_verification_test.dart:251:35)
+#6      LiveTestWidgetsFlutterBinding.runAsync (package:flutter_test/src/binding.dart:3035:28)
+#7      WidgetTester.runAsync (package:flutter_test/src/widget_tester.dart:838:17)
+#8      main.<anonymous closure>.<anonymous closure> (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase1_device_verification_test.dart:250:20)
+#9      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:29)
+<asynchronous suspension>
+#10     TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+#11     StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+ΓòÉΓòÉΓòí EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK Γò₧ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+The following TestFailure was thrown while running async test code:
+Expected: <2>
+  Actual: <8>
+
+When the exception was thrown, this was the stack:
+#0      fail (package:matcher/src/expect/expect.dart:187:31)
+#1      _expect (package:matcher/src/expect/expect.dart:182:3)
+#2      expect (package:matcher/src/expect/expect.dart:65:3)
+#3      expect (package:flutter_test/src/widget_tester.dart:473:18)
+#4      main.<anonymous closure>.<anonymous closure>.<anonymous closure> (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase1_device_verification_test.dart:253:11)
+#5      LiveTestWidgetsFlutterBinding.runAsync (package:flutter_test/src/binding.dart:3035:28)
+#6      WidgetTester.runAsync (package:flutter_test/src/widget_tester.dart:838:17)
+#7      main.<anonymous closure>.<anonymous closure> (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase1_device_verification_test.dart:250:20)
+#8      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:29)
+<asynchronous suspension>
+#9      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+00:30 +0 -2: PHASE 1 ΓÇö real device runtime verification SpectaDatabase opens, migrates and round-trips on device [E]
+  Test failed. See exception logs above.
+  The test description was: SpectaDatabase opens, migrates and round-trips on device
+  
+00:30 +0 -2: PHASE 1 ΓÇö real device runtime verification QuickJS lifecycle on the real FFI bridge
+[SPECTA-P1] engine :: evaluate + async promise bridging OK
+[SPECTA-P1] engine :: no ambient host APIs; only the message bridge exists
+[SPECTA-P1] engine :: dispose OK
+[SPECTA-P1] engine :: fresh engine after dispose OK
+00:30 +1 -2: PHASE 1 ΓÇö real device runtime verification ExtensionManager installs, loads and calls operations on the real engine
+[SPECTA-P1] manager :: probe written to /data/user/0/net.specta.app/code_cache/specta_p1_probe/probe_lifecycle.js
+[SPECTA-P1] manager :: import OK ΓÇö trust unverified (unsigned, by design)
+[SPECTA-P1] ext-log :: info: probe extension loaded on device
+[SPECTA-P1] manager :: loadRuntime OK on the real QuickJS FFI bridge
+[SPECTA-P1] manager :: capabilities() parsed from real JS OK
+[SPECTA-P1] manager :: getSources() OK (mp4)
+[SPECTA-P1] manager :: healthCheck OK
+[SPECTA-P1] manager :: shutdown OK
+[SPECTA-P1] manager :: uninstall OK
+00:31 +2 -2: PHASE 1 ΓÇö real device runtime verification controlled network path over the device network stack
+[SPECTA-P1] network :: device has connectivity to example.com:443
+[SPECTA-P1] ext-log :: info: probe extension loaded on device
+[SPECTA-P1] ext-log :: debug: request GET https://example.com -> 200 in 3863ms
+[SPECTA-P1] network :: extension request() over https OK ΓÇö response carried back to JS
+00:36 +3 -2: PHASE 1 ΓÇö real device runtime verification request policy refuses file:// and DELETE before any transport activity
+[SPECTA-P1] policy :: file:// refused: SCHEME_NOT_ALLOWED: Scheme "file" is not allowed. Allowed: http, https
+[SPECTA-P1] policy :: DELETE refused: METHOD_NOT_ALLOWED: Method "DELETE" is not allowed. Allowed: GET, HEAD, POST
+[SPECTA-P1] policy :: zero transport activity across both refusals
+00:36 +4 -2: PHASE 1 ΓÇö real device runtime verification capability gate: undeclared network refused before the host API
+[SPECTA-P1] gate :: network refusal: CAPABILITY_ERROR: this extension did not declare the "network" capability, so request() is unavailable.
+00:36 +5 -2: PHASE 1 ΓÇö real device runtime verification declared logging reaches the host sink through the real channel
+[SPECTA-P1] gate :: declared log() reached the host sink on device
+00:36 +6 -2: PHASE 1 ΓÇö real device runtime verification an unregistered message channel does not crash the host
+No channel specta_unknown_channel registered
+[SPECTA-P1] channels :: unregistered channel outcome: returned:undefined
+[SPECTA-P1] channels :: engine healthy after the unregistered-channel probe
+00:36 +7 -2: PHASE 1 ΓÇö real device runtime verification failure isolation: JS exception, malformed load, registry failure record, recovery
+unhandled promise rejection: Error: deliberate device failure
+    at boom (<eval>)
+    at <anonymous> (<eval>)
+    at <eval> (<eval>)
+
+[SPECTA-P1] isolation :: JS exception contained as JsEvalException ΓÇö host alive
+[SPECTA-P1] isolation :: malformed load contained: RUNTIME_ERROR [device.verify.probe/load] Extension failed to load
+[SPECTA-P1] isolation :: failure recorded in the Drift registry (1 row(s))
+[SPECTA-P1] isolation :: fresh sandbox loads cleanly after a failed load
+00:36 +8 -2: (tearDownAll)
+00:38 +8 -2: Some tests failed.
+
+Failing tests:
+  C:/Users/PORTCR/Music/SPECTA APK/SPECTA/integration_test/phase1_device_verification_test.dart: PHASE 1 ΓÇö real device runtime verification SpectaDatabase opens, migrates and round-trips on device
+  C:/Users/PORTCR/Music/SPECTA APK/SPECTA/integration_test/phase1_device_verification_test.dart: PHASE 1 ΓÇö real device runtime verification app startup renders and the foundation self-check reads SQLite

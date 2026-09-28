@@ -57,16 +57,15 @@ abstract final class DiscoveryCoordinator {
     /// Test seam: shortens the per-extension timeout so timeout isolation is
     /// deterministically testable. Production callers never pass it.
     Duration? perExtensionTimeoutOverride,
-  }) =>
-      _run(
-        manager: manager,
-        page: request.page,
-        operation: 'search',
-        capability: ExtensionCapability.search,
-        call: (ExtensionRuntime r) =>
-            r.search(query: request.normalizedQuery, page: request.page),
-        perExtensionTimeoutOverride: perExtensionTimeoutOverride,
-      );
+  }) => _run(
+    manager: manager,
+    page: request.page,
+    operation: 'search',
+    capability: ExtensionCapability.search,
+    call: (ExtensionRuntime r) =>
+        r.search(query: request.normalizedQuery, page: request.page),
+    perExtensionTimeoutOverride: perExtensionTimeoutOverride,
+  );
 
   /// Runs one `latest(page)` round across the enabled LATEST-capable
   /// extensions (the Home feed).
@@ -79,15 +78,14 @@ abstract final class DiscoveryCoordinator {
     required int page,
     required ExtensionManager manager,
     Duration? perExtensionTimeoutOverride,
-  }) =>
-      _run(
-        manager: manager,
-        page: page,
-        operation: 'latest',
-        capability: ExtensionCapability.latest,
-        call: (ExtensionRuntime r) => r.latest(page: page),
-        perExtensionTimeoutOverride: perExtensionTimeoutOverride,
-      );
+  }) => _run(
+    manager: manager,
+    page: page,
+    operation: 'latest',
+    capability: ExtensionCapability.latest,
+    call: (ExtensionRuntime r) => r.latest(page: page),
+    perExtensionTimeoutOverride: perExtensionTimeoutOverride,
+  );
 
   /// The shared round: one capability-gated operation across every enabled
   /// extension, aggregated identically for both `search` and `latest`.
@@ -97,7 +95,7 @@ abstract final class DiscoveryCoordinator {
     required String operation,
     required ExtensionCapability capability,
     required Future<SpectaResult<List<SearchResult>>> Function(ExtensionRuntime)
-        call,
+    call,
     required Duration? perExtensionTimeoutOverride,
   }) async {
     final List<ExtensionRecord> candidates =
@@ -139,7 +137,7 @@ abstract final class DiscoveryCoordinator {
     required ExtensionCapability capability,
     required int page,
     required Future<SpectaResult<List<SearchResult>>> Function(ExtensionRuntime)
-        call,
+    call,
     required Duration timeout,
   }) async {
     // Load (or reuse) the runtime. A failed load is a failed outcome, not a
@@ -164,10 +162,8 @@ abstract final class DiscoveryCoordinator {
 
     try {
       final SpectaResult<List<SearchResult>> response = await manager
-          .callOperation<List<SearchResult>>(
-        record.id,
-        call,
-      ).timeout(timeout);
+          .callOperation<List<SearchResult>>(record.id, call)
+          .timeout(timeout);
 
       if (response.isErr) {
         return ExtensionDiscoveryOutcome.failed(

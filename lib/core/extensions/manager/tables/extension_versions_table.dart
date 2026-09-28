@@ -17,6 +17,10 @@ class ExtensionVersions extends Table {
   /// File path of this version's extension `.js` file.
   TextColumn get filePath => text()();
 
+  /// Contract revision active for this saved extension version.
+  TextColumn get contractVersion =>
+      text().withDefault(const Constant('2.0.0'))();
+
   /// Whether this is the currently active version.
   IntColumn get isCurrent => integer().withDefault(const Constant(0))();
 

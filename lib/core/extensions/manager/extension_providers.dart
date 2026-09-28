@@ -2,6 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/database_providers.dart';
+import '../catalogue/extension_catalogue_client.dart';
+import '../distribution/dart_io_extension_download_transport.dart';
+import '../distribution/extension_downloader.dart';
+import '../distribution/extension_storage.dart';
 import '../runtime/controlled_runtime_api.dart';
 import '../runtime/flutter_js_sandbox.dart';
 import '../runtime/runtime_api.dart';
@@ -72,5 +76,33 @@ final Provider<ExtensionLifecycleService> extensionLifecycleServiceProvider =
     Provider<ExtensionLifecycleService>((Ref ref) {
       return ExtensionLifecycleService(
         manager: ref.watch(extensionManagerProvider),
+        downloader: ExtensionDownloader(
+          ref.watch(extensionDownloadTransportProvider),
+        ),
+        storage: ref.watch(extensionStorageProvider),
+      );
+    });
+
+/// Extension download transport (Phase D). Overridable in tests so no test ever
+/// touches the network.
+final Provider<ExtensionDownloadTransport> extensionDownloadTransportProvider =
+    Provider<ExtensionDownloadTransport>((Ref ref) {
+      return DartIoExtensionDownloadTransport();
+    });
+
+/// Where downloaded extensions are written. App-private in production.
+final Provider<ExtensionStorage> extensionStorageProvider =
+    Provider<ExtensionStorage>((Ref ref) {
+      return const AppPrivateExtensionStorage();
+    });
+
+/// The official extension catalogue client (Phase D).
+///
+/// DISCOVERY ONLY — a catalogue entry grants no trust. Kept separate from the
+/// lifecycle service so browsing the catalogue can never install anything.
+final Provider<ExtensionCatalogueClient> extensionCatalogueClientProvider =
+    Provider<ExtensionCatalogueClient>((Ref ref) {
+      return ExtensionCatalogueClient(
+        transport: ref.watch(extensionDownloadTransportProvider),
       );
     });

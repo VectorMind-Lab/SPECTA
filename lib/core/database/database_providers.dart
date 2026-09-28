@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'daos/metadata_cache_dao.dart';
 import 'daos/settings_dao.dart';
 import 'settings_store.dart';
 import 'specta_database.dart';
@@ -25,3 +26,9 @@ final Provider<SettingsStore> settingsStoreProvider = Provider<SettingsStore>((
 ) {
   return SettingsDao(ref.watch(spectaDatabaseProvider));
 });
+
+/// Persistent catalogue metadata cache shared by TMDB and TVMaze.
+final Provider<MetadataCacheDao> metadataCacheDaoProvider =
+    Provider<MetadataCacheDao>((Ref ref) {
+      return MetadataCacheDao(ref.watch(spectaDatabaseProvider));
+    });

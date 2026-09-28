@@ -94,6 +94,5 @@ abstract final class TitleKey {
     required String title,
     required String typeCode,
     required int? year,
-  }) =>
-      '${normalize(title)}|$typeCode|${year?.toString() ?? 'none'}';
+  }) => '${normalize(title)}|$typeCode|${year?.toString() ?? 'none'}';
 }

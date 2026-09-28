@@ -13,6 +13,7 @@ final class ExtensionRecord {
     required this.author,
     required this.apiVersion,
     required this.contentType,
+    this.contractVersion = '2.0.0',
     this.signature,
     required this.trustLevel,
     required this.enabled,
@@ -29,6 +30,7 @@ final class ExtensionRecord {
   final String author;
   final int apiVersion;
   final String contentType;
+  final String contractVersion;
   final String? signature;
   final TrustLevel trustLevel;
   final bool enabled;
@@ -45,6 +47,7 @@ final class ExtensionRecord {
     String? author,
     int? apiVersion,
     String? contentType,
+    String? contractVersion,
     String? Function()? signature,
     TrustLevel? trustLevel,
     bool? enabled,
@@ -61,6 +64,7 @@ final class ExtensionRecord {
       author: author ?? this.author,
       apiVersion: apiVersion ?? this.apiVersion,
       contentType: contentType ?? this.contentType,
+      contractVersion: contractVersion ?? this.contractVersion,
       signature: signature != null ? signature() : this.signature,
       trustLevel: trustLevel ?? this.trustLevel,
       enabled: enabled ?? this.enabled,
@@ -92,6 +96,7 @@ final class ExtensionVersionRecord {
     required this.isCurrent,
     required this.isRollbackPoint,
     required this.createdAt,
+    this.contractVersion = '2.0.0',
   });
 
   final String id;
@@ -101,6 +106,7 @@ final class ExtensionVersionRecord {
   final bool isCurrent;
   final bool isRollbackPoint;
   final DateTime createdAt;
+  final String contractVersion;
 }
 
 /// A single recorded failure for health tracking.

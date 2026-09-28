@@ -44,6 +44,7 @@ class SpectaThemePresetNotifier extends Notifier<SpectaThemePreset> {
 /// Default is [SpectaThemePreset.cyanTeal] (the SPECTA brand theme).
 /// User can change this through settings to customize accent colors.
 final NotifierProvider<SpectaThemePresetNotifier, SpectaThemePreset>
-    spectaThemePresetProvider = NotifierProvider<SpectaThemePresetNotifier, SpectaThemePreset>(
-  SpectaThemePresetNotifier.new,
-);
+spectaThemePresetProvider =
+    NotifierProvider<SpectaThemePresetNotifier, SpectaThemePreset>(
+      SpectaThemePresetNotifier.new,
+    );

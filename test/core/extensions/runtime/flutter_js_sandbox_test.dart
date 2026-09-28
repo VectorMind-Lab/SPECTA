@@ -200,9 +200,9 @@ void main() {
       // resolved here and no host rules run; production keeps blocking ON.
       final ControlledExtensionRuntimeApi controller =
           ControlledExtensionRuntimeApi(
-        transport: transport,
-        policy: const ExtensionRequestPolicy(blockPrivateHosts: false),
-      );
+            transport: transport,
+            policy: const ExtensionRequestPolicy(blockPrivateHosts: false),
+          );
       final FlutterJsSandbox sandbox = FlutterJsSandbox();
       final ExtensionRuntime runtime = ExtensionRuntime(
         sandbox: sandbox,
@@ -237,9 +237,9 @@ void main() {
         // §37.5 (2G-C pre-flight): test-only policy (see the request test).
         final ControlledExtensionRuntimeApi controller =
             ControlledExtensionRuntimeApi(
-          transport: transport,
-          policy: const ExtensionRequestPolicy(blockPrivateHosts: false),
-        );
+              transport: transport,
+              policy: const ExtensionRequestPolicy(blockPrivateHosts: false),
+            );
         final FlutterJsSandbox sandbox = FlutterJsSandbox();
         final ExtensionRuntime runtime = ExtensionRuntime(
           sandbox: sandbox,

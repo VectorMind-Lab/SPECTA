@@ -1,12 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+<!-- The native launch window: what Android draws between tapping the icon and
+     Flutter's first frame. It is deliberately SPECTA's own canvas colour with
+     the brand mark centred, so the transition into the Flutter splash
+     (lib/features/splash/splash_page.dart) does not flash.
 
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
+     The stock template used `@android:color/white`, which made every launch
+     start with a white flash on a light-mode device. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/specta_launch_background" />
+
+    <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+            android:src="@drawable/specta_launch_icon" />
+    </item>
 </layer-list>

@@ -46,28 +46,30 @@ class _ScriptedSourcesSandbox extends ScriptedJsSandbox {
 String _sourcesPayload(List<Map<String, Object?>> sources) =>
     jsonEncode(sources);
 
-Map<String, Object?> _mp4(String url, {String? quality}) =>
-    <String, Object?>{'url': url, 'type': 'mp4', 'quality': quality};
+Map<String, Object?> _mp4(String url, {String? quality}) => <String, Object?>{
+  'url': url,
+  'type': 'mp4',
+  'quality': quality,
+};
 
 DownloadRecord _record({
   String id = 'movie1',
   String? extensionId = 'extA',
   String? reference = 'refA',
-}) =>
-    DownloadRecord(
-      id: id,
-      mediaKey: id,
-      mediaType: MediaType.movie,
-      title: 'Title $id',
-      status: DownloadStatus.failed,
-      bytesDownloaded: 0,
-      filePath: '/unused/$id.mp4',
-      sourceExtensionId: extensionId,
-      sourceReference: reference,
-      attempt: 1,
-      createdAt: DateTime(2026, 9, 21),
-      updatedAt: DateTime(2026, 9, 21),
-    );
+}) => DownloadRecord(
+  id: id,
+  mediaKey: id,
+  mediaType: MediaType.movie,
+  title: 'Title $id',
+  status: DownloadStatus.failed,
+  bytesDownloaded: 0,
+  filePath: '/unused/$id.mp4',
+  sourceExtensionId: extensionId,
+  sourceReference: reference,
+  attempt: 1,
+  createdAt: DateTime(2026, 9, 21),
+  updatedAt: DateTime(2026, 9, 21),
+);
 
 void main() {
   late Directory tempDir;
@@ -82,8 +84,7 @@ void main() {
       } on Object catch (_) {}
     });
     sandbox = _ScriptedSourcesSandbox();
-    final DiscoveryTestHarness harness =
-        DiscoveryTestHarness(sandbox: sandbox);
+    final DiscoveryTestHarness harness = DiscoveryTestHarness(sandbox: sandbox);
     await harness.installExtension(
       tempDir,
       'extA',
@@ -95,42 +96,54 @@ void main() {
   });
 
   group('captured-pool freshness (2G-C §25)', () {
-    test('serves the pool captured at enqueue when no failure preceded',
-        () async {
-      final SourcePool captured = SourcePool(
-        ranked: const <RankedSource>[],
-        outcomes: const <ExtensionSourceOutcome>[],
-        reference: 'refA',
-      );
-      resolver.rememberPool('movie1', captured);
+    test(
+      'serves the pool captured at enqueue when no failure preceded',
+      () async {
+        final SourcePool captured = SourcePool(
+          ranked: const <RankedSource>[],
+          outcomes: const <ExtensionSourceOutcome>[],
+          reference: 'refA',
+        );
+        resolver.rememberPool('movie1', captured);
 
-      final SourcePool? pool =
-          await resolver.resolveSource(_record(), lastFailure: null);
+        final SourcePool? pool = await resolver.resolveSource(
+          _record(),
+          lastFailure: null,
+        );
 
-      expect(identical(pool, captured), isTrue,
-          reason: 'the freshest user-provided resolution is served as-is');
-    });
+        expect(
+          identical(pool, captured),
+          isTrue,
+          reason: 'the freshest user-provided resolution is served as-is',
+        );
+      },
+    );
 
-    test('a non-invalidating failure (networkError) keeps the captured pool',
-        () async {
-      final SourcePool captured = SourcePool(
-        ranked: const <RankedSource>[],
-        outcomes: const <ExtensionSourceOutcome>[],
-        reference: 'refA',
-      );
-      resolver.rememberPool('movie1', captured);
+    test(
+      'a non-invalidating failure (networkError) keeps the captured pool',
+      () async {
+        final SourcePool captured = SourcePool(
+          ranked: const <RankedSource>[],
+          outcomes: const <ExtensionSourceOutcome>[],
+          reference: 'refA',
+        );
+        resolver.rememberPool('movie1', captured);
 
-      final SourcePool? pool = await resolver.resolveSource(
-        _record(),
-        lastFailure: DownloadFailure(
-          type: DownloadFailureType.networkError,
-          message: DownloadFailureType.networkError.message,
-        ),
-      );
+        final SourcePool? pool = await resolver.resolveSource(
+          _record(),
+          lastFailure: DownloadFailure(
+            type: DownloadFailureType.networkError,
+            message: DownloadFailureType.networkError.message,
+          ),
+        );
 
-      expect(identical(pool, captured), isTrue,
-          reason: 'a network drop does not invalidate the source URL');
-    });
+        expect(
+          identical(pool, captured),
+          isTrue,
+          reason: 'a network drop does not invalidate the source URL',
+        );
+      },
+    );
 
     test('a source-invalidating failure (httpError) discards the captured '
         'pool and re-resolves through the SourceManager', () async {
@@ -156,40 +169,46 @@ void main() {
 
       expect(pool, isNotNull);
       expect(pool!.ranked, hasLength(1));
-      expect(pool.ranked.single.source.url, 'https://fresh.example/video.mp4',
-          reason: 'the STALE captured pool is gone; the answer is the FRESH '
-              'SourceManager resolution');
-    });
-
-    test('every source-invalidating failure type discards the captured pool',
-        () async {
-      final SourcePool captured = SourcePool(
-        ranked: const <RankedSource>[],
-        outcomes: const <ExtensionSourceOutcome>[],
-        reference: 'refA',
+      expect(
+        pool.ranked.single.source.url,
+        'https://fresh.example/video.mp4',
+        reason:
+            'the STALE captured pool is gone; the answer is the FRESH '
+            'SourceManager resolution',
       );
-      for (final DownloadFailureType type
-          in DownloadSourceResolver.sourceInvalidatingFailures) {
-        resolver.rememberPool('movie1', captured);
-        sandbox.sourcesScripts['refA'] =
-            _sourcesPayload(<Map<String, Object?>>[
-          _mp4('https://fresh.example/${type.code}.mp4'),
-        ]);
-
-        final SourcePool? pool = await resolver.resolveSource(
-          _record(),
-          lastFailure: DownloadFailure(
-            type: type,
-            message: type.message,
-          ),
-        );
-
-        expect(pool, isNotNull, reason: '${type.code} must re-resolve');
-        expect(pool!.ranked.single.source.url,
-            'https://fresh.example/${type.code}.mp4',
-            reason: '${type.code} must NOT be answered from the stale pool');
-      }
     });
+
+    test(
+      'every source-invalidating failure type discards the captured pool',
+      () async {
+        final SourcePool captured = SourcePool(
+          ranked: const <RankedSource>[],
+          outcomes: const <ExtensionSourceOutcome>[],
+          reference: 'refA',
+        );
+        for (final DownloadFailureType type
+            in DownloadSourceResolver.sourceInvalidatingFailures) {
+          resolver.rememberPool('movie1', captured);
+          sandbox.sourcesScripts['refA'] = _sourcesPayload(
+            <Map<String, Object?>>[
+              _mp4('https://fresh.example/${type.code}.mp4'),
+            ],
+          );
+
+          final SourcePool? pool = await resolver.resolveSource(
+            _record(),
+            lastFailure: DownloadFailure(type: type, message: type.message),
+          );
+
+          expect(pool, isNotNull, reason: '${type.code} must re-resolve');
+          expect(
+            pool!.ranked.single.source.url,
+            'https://fresh.example/${type.code}.mp4',
+            reason: '${type.code} must NOT be answered from the stale pool',
+          );
+        }
+      },
+    );
 
     test('the discarded pool stays discarded (no resurrection on the next '
         'resolve)', () async {
@@ -210,15 +229,22 @@ void main() {
         ),
       );
       expect(first, isNotNull);
-      expect(first!.ranked, isEmpty,
-          reason: 'the stale pool was dropped; the empty fresh pool is the '
-              'honest answer');
+      expect(
+        first!.ranked,
+        isEmpty,
+        reason:
+            'the stale pool was dropped; the empty fresh pool is the '
+            'honest answer',
+      );
 
       // A later resolve with NO failure must not resurrect the dropped pool.
       final SourcePool? second = await resolver.resolveSource(_record());
       expect(second, isNotNull);
-      expect(second!.ranked, isEmpty,
-          reason: 'a dropped captured pool never comes back');
+      expect(
+        second!.ranked,
+        isEmpty,
+        reason: 'a dropped captured pool never comes back',
+      );
     });
   });
 
@@ -231,34 +257,50 @@ void main() {
 
       final SourcePool? pool = await resolver.resolveSource(_record());
 
-      expect(pool, isNotNull, reason: 'provenance (extA, refA) → real '
-          'SourceManager resolution after restart');
+      expect(
+        pool,
+        isNotNull,
+        reason:
+            'provenance (extA, refA) → real '
+            'SourceManager resolution after restart',
+      );
       expect(pool!.ranked.single.extensionId, 'extA');
       expect(pool.ranked.single.reference, 'refA');
-      expect(pool.ranked.single.source.url, 'https://cdn.example/recovered.mp4');
+      expect(
+        pool.ranked.single.source.url,
+        'https://cdn.example/recovered.mp4',
+      );
     });
 
-    test('an empty re-resolution is an honest empty pool, not an error',
-        () async {
-      // No scripted candidates: the extension answers with nothing.
-      final SourcePool? pool = await resolver.resolveSource(_record());
+    test(
+      'an empty re-resolution is an honest empty pool, not an error',
+      () async {
+        // No scripted candidates: the extension answers with nothing.
+        final SourcePool? pool = await resolver.resolveSource(_record());
 
-      expect(pool, isNotNull);
-      expect(pool!.ranked, isEmpty);
-    });
+        expect(pool, isNotNull);
+        expect(pool!.ranked, isEmpty);
+      },
+    );
 
     test('answers null when the record has no provenance', () async {
-      final SourcePool? pool =
-          await resolver.resolveSource(_record(extensionId: null));
+      final SourcePool? pool = await resolver.resolveSource(
+        _record(extensionId: null),
+      );
 
-      expect(pool, isNull,
-          reason: 'no provenance → nothing to re-resolve from; the honest '
-              'answer is null, never a fabricated pool');
+      expect(
+        pool,
+        isNull,
+        reason:
+            'no provenance → nothing to re-resolve from; the honest '
+            'answer is null, never a fabricated pool',
+      );
     });
 
     test('answers null when the provenance is empty strings', () async {
-      final SourcePool? pool =
-          await resolver.resolveSource(_record(extensionId: '', reference: ''));
+      final SourcePool? pool = await resolver.resolveSource(
+        _record(extensionId: '', reference: ''),
+      );
 
       expect(pool, isNull);
     });
@@ -278,22 +320,33 @@ void main() {
       expect(pool!.ranked, isEmpty);
       expect(pool.outcomes, hasLength(1));
       expect(pool.outcomes.single.extensionId, 'ghost-extension');
-      expect(pool.outcomes.single.isSuccess, isFalse,
-          reason: 'the failed extension is visible in the outcomes for '
-              'diagnostics, not silently swallowed');
+      expect(
+        pool.outcomes.single.isSuccess,
+        isFalse,
+        reason:
+            'the failed extension is visible in the outcomes for '
+            'diagnostics, not silently swallowed',
+      );
     });
 
-    test('a throwing extension is isolated — the resolver still answers',
-        () async {
-      sandbox.sourcesScripts['refA'] = 'throw new Error("extension exploded")';
+    test(
+      'a throwing extension is isolated — the resolver still answers',
+      () async {
+        sandbox.sourcesScripts['refA'] =
+            'throw new Error("extension exploded")';
 
-      final SourcePool? pool = await resolver.resolveSource(_record());
+        final SourcePool? pool = await resolver.resolveSource(_record());
 
-      expect(pool, isNotNull);
-      expect(pool!.ranked, isEmpty,
-          reason: 'the pipeline isolates extension failures into outcomes; '
-              'the resolver never rethrows them');
-    });
+        expect(pool, isNotNull);
+        expect(
+          pool!.ranked,
+          isEmpty,
+          reason:
+              'the pipeline isolates extension failures into outcomes; '
+              'the resolver never rethrows them',
+        );
+      },
+    );
 
     test('only the record\'s own extension is consulted (provenance is '
         'exactly what the record persists)', () async {

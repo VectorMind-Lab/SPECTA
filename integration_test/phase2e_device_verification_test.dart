@@ -41,8 +41,7 @@ const String mp4Url =
 /// A second MP4 on a DIFFERENT host (W3C). Deliberately not [mp4Url]: the
 /// fallback path must be exercised with an independent origin, so a
 /// host-specific hiccup can never be mistaken for a fallback defect.
-const String fallbackMp4Url =
-    'https://media.w3.org/2010/05/sintel/trailer.mp4';
+const String fallbackMp4Url = 'https://media.w3.org/2010/05/sintel/trailer.mp4';
 const String hlsUrl = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 
 /// Waits until [test] returns true, polling; fails after [timeout].
@@ -71,8 +70,9 @@ void main() {
     marker('engine disposed cleanly');
   });
 
-  testWidgets('P2E-2: real MP4 playback reaches a playable state',
-      (tester) async {
+  testWidgets('P2E-2: real MP4 playback reaches a playable state', (
+    tester,
+  ) async {
     final MediaKitPlaybackEngine engine = MediaKitPlaybackEngine();
     addTearDown(() => engine.dispose());
 
@@ -90,19 +90,20 @@ void main() {
     addTearDown(sub.cancel);
 
     marker('opening real MP4: $mp4Url');
-    await engine.open(
-      const ExtensionSource(url: mp4Url, type: SourceType.mp4),
-    );
+    await engine.open(const ExtensionSource(url: mp4Url, type: SourceType.mp4));
 
     final Duration? ttff = await firstFrame.future.timeout(
       const Duration(seconds: 90),
     );
-    marker('MP4 playable — measured time-to-first-frame: ${ttff!.inMilliseconds}ms');
+    marker(
+      'MP4 playable — measured time-to-first-frame: ${ttff!.inMilliseconds}ms',
+    );
     expect(ttff, isNotNull);
   });
 
-  testWidgets('P2E-3: real HLS playback reaches a playable state',
-      (tester) async {
+  testWidgets('P2E-3: real HLS playback reaches a playable state', (
+    tester,
+  ) async {
     final MediaKitPlaybackEngine engine = MediaKitPlaybackEngine();
     addTearDown(() => engine.dispose());
 
@@ -120,7 +121,11 @@ void main() {
 
     marker('opening real HLS: $hlsUrl');
     await engine.open(
-      const ExtensionSource(url: hlsUrl, type: SourceType.hls, isAdaptive: true),
+      const ExtensionSource(
+        url: hlsUrl,
+        type: SourceType.hls,
+        isAdaptive: true,
+      ),
     );
 
     await firstFrame.future.timeout(const Duration(seconds: 90));
@@ -134,10 +139,8 @@ void main() {
   // Plain test() (like the Phase 1 device suite): the session drives real
   // Timers (open/stall/progress), which must run on the device's real event
   // loop — testWidgets' FakeAsync zone would freeze them.
-  test(
-    'P2E-4: ordered fallback through the real engine — dead source fails, '
-    'session lands on the working source',
-    () async {
+  test('P2E-4: ordered fallback through the real engine — dead source fails, '
+      'session lands on the working source', () async {
     // The REAL engine — no fakes on device. Held explicitly so the raw engine
     // event trail can be recorded: this trace is the authoritative evidence
     // of what the native player emitted for each candidate.
@@ -145,25 +148,31 @@ void main() {
     addTearDown(engine.dispose);
 
     int progressTicks = 0;
-    final StreamSubscription<PlaybackEngineEvent> engineTrace =
-        engine.events.listen((PlaybackEngineEvent e) {
-      if (e is EngineProgress) {
-        progressTicks++;
-        return; // high frequency: counted, never logged verbatim
-      }
-      marker('ENGINE: ${e.runtimeType}${switch (e) {
-        EngineFailed(:final String reason) => ' ($reason)',
-        EngineErrored(:final String message) => ' ($message)',
-        _ => '',
-      }}');
-    });
+    final StreamSubscription<PlaybackEngineEvent> engineTrace = engine.events
+        .listen((PlaybackEngineEvent e) {
+          if (e is EngineProgress) {
+            progressTicks++;
+            return; // high frequency: counted, never logged verbatim
+          }
+          marker(
+            'ENGINE: ${e.runtimeType}${switch (e) {
+              EngineFailed(:final String reason) => ' ($reason)',
+              EngineErrored(:final String message) => ' ($message)',
+              _ => '',
+            }}',
+          );
+        });
     addTearDown(engineTrace.cancel);
 
     final ProviderContainer container = ProviderContainer(
       overrides: <Override>[
-        playbackEngineFactoryProvider.overrideWith((Ref ref) => () => engine),
-        playbackOpenTimeoutProvider
-            .overrideWith((Ref ref) => const Duration(seconds: 45)),
+        playbackEngineFactoryProvider.overrideWith(
+          (Ref ref) =>
+              () => engine,
+        ),
+        playbackOpenTimeoutProvider.overrideWith(
+          (Ref ref) => const Duration(seconds: 45),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -171,8 +180,10 @@ void main() {
     // Periodic evidence while the fallback settles (the failure of the dead
     // candidate is instant; the live candidate should follow within ~1 s).
     final Timer heartbeat = Timer.periodic(const Duration(seconds: 5), (_) {
-      marker('heartbeat: status=${container.read(playbackSessionProvider).status.name} '
-          'progressTicks=$progressTicks');
+      marker(
+        'heartbeat: status=${container.read(playbackSessionProvider).status.name} '
+        'progressTicks=$progressTicks',
+      );
     });
     addTearDown(heartbeat.cancel);
 
@@ -224,57 +235,64 @@ void main() {
     // Trace state transitions (bounded; dropped after the wait completes).
     int lastGen = -1;
     bool alive = true;
-    final ProviderSubscription<PlaybackSnapshot> traceSub =
-        container.listen<PlaybackSnapshot>(
-      playbackSessionProvider,
-      (PlaybackSnapshot? prev, PlaybackSnapshot next) {
-        if (!alive) return;
-        if (next.generation != lastGen || next.status != prev?.status) {
-          lastGen = next.generation;
-          marker('STATE: ${next.status.name} gen:${next.generation} '
-              'attempt:${next.attemptedCount}/${next.candidates.length} '
-              'failures:${next.failures.map((PlaybackAttempt f) => f.failure?.type.code).toList()}');
-        }
-      },
-    );
+    final ProviderSubscription<PlaybackSnapshot>
+    traceSub = container.listen<PlaybackSnapshot>(playbackSessionProvider, (
+      PlaybackSnapshot? prev,
+      PlaybackSnapshot next,
+    ) {
+      if (!alive) return;
+      if (next.generation != lastGen || next.status != prev?.status) {
+        lastGen = next.generation;
+        marker(
+          'STATE: ${next.status.name} gen:${next.generation} '
+          'attempt:${next.attemptedCount}/${next.candidates.length} '
+          'failures:${next.failures.map((PlaybackAttempt f) => f.failure?.type.code).toList()}',
+        );
+      }
+    });
     addTearDown(traceSub.close);
 
-    await container.read(playbackSessionProvider.notifier).open(
-          PlaybackRequest.fromPool(pool),
-        );
+    await container
+        .read(playbackSessionProvider.notifier)
+        .open(PlaybackRequest.fromPool(pool));
 
     await waitFor(
-      () async => container.read(playbackSessionProvider).status ==
+      () async =>
+          container.read(playbackSessionProvider).status ==
           PlaybackStatus.playing,
       because: 'fallback to the live MP4 source',
       timeout: const Duration(seconds: 45),
     );
 
     final PlaybackSnapshot s = container.read(playbackSessionProvider);
-    marker('fallback OK — playing extLive after ${s.failures.length} failure(s); '
-        'attempted ${s.attemptedCount}/${s.candidates.length}; '
-        'progressTicks=$progressTicks');
+    marker(
+      'fallback OK — playing extLive after ${s.failures.length} failure(s); '
+      'attempted ${s.attemptedCount}/${s.candidates.length}; '
+      'progressTicks=$progressTicks',
+    );
     expect(s.current!.extensionId, 'extLive');
     expect(
-        s.failures.any((PlaybackAttempt f) =>
+      s.failures.any(
+        (PlaybackAttempt f) =>
             f.candidate.extensionId == 'extDead' &&
-            f.failure is PlaybackFailure),
-        isTrue);
+            f.failure is PlaybackFailure,
+      ),
+      isTrue,
+    );
 
     alive = false;
     traceSub.close();
     await container.read(playbackSessionProvider.notifier).leave();
     marker('session left cleanly');
-    },
-    timeout: const Timeout(Duration(minutes: 3)),
-  );
+  }, timeout: const Timeout(Duration(minutes: 3)));
 
   test('P2E-5: progress sink receives reports during playback', () async {
     final InMemoryPlaybackProgressSink sink = InMemoryPlaybackProgressSink();
     final ProviderContainer container = ProviderContainer(
       overrides: <Override>[
-        playbackEngineFactoryProvider
-            .overrideWith((Ref ref) => MediaKitPlaybackEngine.new),
+        playbackEngineFactoryProvider.overrideWith(
+          (Ref ref) => MediaKitPlaybackEngine.new,
+        ),
         playbackProgressSinkProvider.overrideWith((Ref ref) => sink),
       ],
     );
@@ -283,11 +301,16 @@ void main() {
     // The endless HLS test stream is used here on purpose: a 10s MP4
     // legitimately reaches end-of-stream, which the session honestly
     // surfaces as a mid-stream failure — a distraction for this test.
-    await container.read(playbackSessionProvider.notifier).open(
+    await container
+        .read(playbackSessionProvider.notifier)
+        .open(
           PlaybackRequest.direct(<RankedSource>[
             RankedSource(
               source: const ExtensionSource(
-                  url: hlsUrl, type: SourceType.hls, isAdaptive: true),
+                url: hlsUrl,
+                type: SourceType.hls,
+                isAdaptive: true,
+              ),
               extensionId: 'extLive',
               reference: 'ref-live',
               score: 50,
@@ -307,8 +330,10 @@ void main() {
       timeout: const Duration(seconds: 45),
     );
 
-    marker('progress sink reported elapsed: '
-        '${sink.elapsedFor("device-movie")}');
+    marker(
+      'progress sink reported elapsed: '
+      '${sink.elapsedFor("device-movie")}',
+    );
     expect(sink.elapsedFor('device-movie'), isNotNull);
 
     await container.read(playbackSessionProvider.notifier).leave();

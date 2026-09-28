@@ -8,7 +8,8 @@ library;
 /// Type of media content.
 enum MediaType {
   movie('movie'),
-  series('series');
+  series('series'),
+  anime('anime');
 
   const MediaType(this.code);
   final String code;
@@ -20,6 +21,31 @@ enum MediaType {
     }
     return null;
   }
+}
+
+/// External identifiers reported by an extension for a work.
+final class ExternalIds {
+  const ExternalIds({this.anilistId});
+
+  final int? anilistId;
+
+  /// Parses the defensive contract shape. Only a positive integer is valid.
+  static ExternalIds? fromJson(dynamic raw) {
+    if (raw is! Map) return null;
+    final Object? value = raw['anilist'];
+    if (value is! int || value <= 0) return null;
+    return ExternalIds(anilistId: value);
+  }
+}
+
+/// Canonical identity helpers for SPECTA-owned media keys.
+abstract final class MediaIdentity {
+  const MediaIdentity._();
+
+  static String? anilistKey(int id) => id > 0 ? 'anilist:$id' : null;
+
+  static String episodeKey(String mediaKey, int season, int episode) =>
+      '$mediaKey|s${season}e$episode';
 }
 
 /// Status of a series in production.
@@ -48,6 +74,7 @@ final class SearchResult {
     required this.type,
     this.cover,
     this.year,
+    this.externalIds,
   });
 
   /// Display title.
@@ -65,6 +92,9 @@ final class SearchResult {
 
   /// Content type.
   final MediaType type;
+
+  /// Optional external work identifiers, including AniList.
+  final ExternalIds? externalIds;
 
   @override
   String toString() => 'SearchResult(title: $title, type: ${type.code})';
@@ -115,6 +145,7 @@ final class MediaDetails {
     required this.title,
     required this.type,
     required this.url,
+    this.externalIds,
     this.originalTitle,
     this.cover,
     this.backdrop,
@@ -133,6 +164,7 @@ final class MediaDetails {
   final String? originalTitle;
   final MediaType type;
   final String url;
+  final ExternalIds? externalIds;
   final String? cover;
   final String? backdrop;
   final int? year;

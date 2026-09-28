@@ -10,6 +10,16 @@ build/
 .vscode/
 *.iml
 
+# Secrets — NEVER commit these.
+# `.env` holds the developer's TMDB API key. It is read at BUILD time only and
+# converted into a `--dart-define`, so the value reaches the compiler and never
+# becomes a bundled Flutter asset. This file must stay untracked.
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+
 # Android local state (contains build artifacts, generated Kotlin error logs)
 android/.gradle/
 android/local.properties

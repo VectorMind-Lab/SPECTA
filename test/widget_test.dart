@@ -43,7 +43,10 @@ Future<void> _pumpThroughSplash(
                 type: MediaType.movie,
                 year: 2026,
                 references: const <DiscoveryReference>[
-                  DiscoveryReference(extensionId: 'com.test.a', url: 'https://x/1'),
+                  DiscoveryReference(
+                    extensionId: 'com.test.a',
+                    url: 'https://x/1',
+                  ),
                 ],
               ),
             ],

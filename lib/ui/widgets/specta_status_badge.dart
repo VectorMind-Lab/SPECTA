@@ -24,9 +24,7 @@ class SpectaStatusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: statusColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.4),
-        ),
+        border: Border.all(color: statusColor.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

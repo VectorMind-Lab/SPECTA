@@ -1,8 +1,7 @@
-/// Extension content type — the category of content an extension provides.
+﻿/// Extension content type â€” the category of content an extension provides.
 ///
-/// SPECTA's Phase 1 architecture is scoped to movie and series discovery.
-/// The enum is a sealed vocabulary: do not add types for anime, comics, novels,
-/// or other content systems until those phases are agreed and scoped.
+/// Existing movie/series scopes remain stable. Anime is an additive scope;
+/// it is never inferred from a title or a provider URL.
 enum ExtensionContentType {
   /// Movies only.
   movie('movie'),
@@ -10,13 +9,32 @@ enum ExtensionContentType {
   /// TV series only.
   series('series'),
 
+  /// Anime only.
+  anime('anime'),
+
   /// Both movies and TV series.
-  moviesSeries('movies_series');
+  moviesSeries('movies_series'),
+
+  /// Movies, TV series, and anime.
+  moviesSeriesAnime('movies_series_anime');
 
   const ExtensionContentType(this.code);
 
   /// Stable string identifier used in manifests and persistence.
   final String code;
+
+  /// Whether this scope can provide [mediaType].
+  ///
+  /// The legacy `movies_series` scope deliberately does not imply anime.
+  bool supports(String mediaType) => switch (this) {
+    ExtensionContentType.movie => mediaType == 'movie',
+    ExtensionContentType.series => mediaType == 'series',
+    ExtensionContentType.anime => mediaType == 'anime',
+    ExtensionContentType.moviesSeries =>
+      mediaType == 'movie' || mediaType == 'series',
+    ExtensionContentType.moviesSeriesAnime =>
+      mediaType == 'movie' || mediaType == 'series' || mediaType == 'anime',
+  };
 
   /// Parse a [code] string into an [ExtensionContentType].
   ///
@@ -32,12 +50,9 @@ enum ExtensionContentType {
   /// Resolves a comma-separated manifest `@type` value into an
   /// [ExtensionContentType].
   ///
-  /// The manifest header may list individual types as comma-separated tokens
-  /// (e.g. `movies,series` or `movie,series`).  This helper accepts both the
-  /// long-form codes (`movies_series`) and comma-separated short-form tokens,
-  /// mapping `movie` + `series` to [moviesSeries].
-  ///
-  /// Returns null when one or more tokens are unrecognised.
+  /// `movies,series` remains the legacy combined scope. `anime` is only
+  /// accepted when explicitly declared; the legacy combined scope does not
+  /// silently gain anime support.
   static ExtensionContentType? fromManifestType(String rawType) {
     final List<String> tokens = rawType
         .split(',')
@@ -46,35 +61,31 @@ enum ExtensionContentType {
         .toList();
 
     if (tokens.isEmpty) return null;
+    if (tokens.length == 1) return fromCode(tokens.first);
 
-    // Long-form code (e.g. "movies_series") maps directly.
-    if (tokens.length == 1) {
-      final ExtensionContentType? direct = fromCode(tokens.first);
-      if (direct != null) return direct;
-    }
-
-    // Normalise plural aliases to singular MediaType codes understood by the
-    // extension contract.
     final Set<String> normalised = <String>{};
     for (final String token in tokens) {
       if (token == 'movies') {
         normalised.add('movie');
-      } else if (token == 'series') {
-        normalised.add('series');
+      } else if (token == 'series' || token == 'anime') {
+        normalised.add(token);
       } else {
         return null;
       }
     }
 
-    if (normalised.length == 1) {
-      return fromCode(normalised.first);
-    }
-
-    // Both movie and series present → the combined type.
-    if (normalised.length == 2) {
+    if (normalised.length == 1) return fromCode(normalised.first);
+    if (normalised.length == 2 &&
+        normalised.contains('movie') &&
+        normalised.contains('series')) {
       return ExtensionContentType.moviesSeries;
     }
-
+    if (normalised.length == 3 &&
+        normalised.contains('movie') &&
+        normalised.contains('series') &&
+        normalised.contains('anime')) {
+      return ExtensionContentType.moviesSeriesAnime;
+    }
     return null;
   }
 }

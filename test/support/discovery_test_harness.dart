@@ -118,11 +118,7 @@ class Extension extends SpectaExtension {}
 }
 
 /// A registry record for a test extension.
-ExtensionRecord testRecord(
-  String id, {
-  String? filePath,
-  bool enabled = true,
-}) {
+ExtensionRecord testRecord(String id, {String? filePath, bool enabled = true}) {
   final DateTime now = DateTime.now().toUtc();
   return ExtensionRecord(
     id: id,

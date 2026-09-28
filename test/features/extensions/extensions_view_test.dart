@@ -1,10 +1,12 @@
 import 'dart:io';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Riverpod 3.x no longer re-exports `Override` from flutter_riverpod.
 import 'package:riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:specta/app/platform/file_picker.dart';
 import 'package:specta/core/extensions/identity/trust_level.dart';
 import 'package:specta/core/extensions/manager/extension_manager.dart';
 import 'package:specta/core/extensions/manager/extension_providers.dart';
@@ -42,10 +44,15 @@ void main() {
     }
   });
 
-  Future<ProviderContainer> pumpView(WidgetTester tester) async {
+  Future<ProviderContainer> pumpView(
+    WidgetTester tester, {
+    FilePicker? picker,
+  }) async {
     final ProviderContainer container = ProviderContainer(
       overrides: <Override>[
         extensionManagerProvider.overrideWith((Ref ref) => manager),
+        if (picker != null)
+          filePickerProvider.overrideWith((Ref ref) => picker),
       ],
     );
     addTearDown(container.dispose);
@@ -102,21 +109,36 @@ void main() {
   ) async {
     final File file = File('${dir.path}/view.js');
     await tester.runAsync(
-      () => file.writeAsString(_source(id: 'com.test.view', name: 'View Fixture')),
+      () => file.writeAsString(
+        _source(id: 'com.test.view', name: 'View Fixture'),
+      ),
     );
 
-    final ProviderContainer container = await pumpView(tester);
+    final ProviderContainer container = await pumpView(
+      tester,
+      picker: _PathPicker(file),
+    );
     await settle(
       tester,
       container,
       () => container.read(extensionsProvider).status == ExtensionsStatus.ready,
     );
 
+    // The flow is picker-first (PRE-F §15): choose a file, then install. No
+    // filesystem path is ever typed or displayed.
     await tester.tap(find.text('Install extension'));
     await openDialog(tester);
-    expect(find.byType(TextField), findsOneWidget);
+    await tester.tap(find.text('Choose a .js file…'));
+    // The picker performs real file I/O; pump the real async zone until the
+    // dialog reflects the pick.
+    for (int i = 0; i < 20 && find.text('view.js').evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
 
-    await tester.enterText(find.byType(TextField), file.path);
+    expect(find.text('view.js'), findsOneWidget);
     await tester.tap(find.widgetWithText(TextButton, 'Install'));
     await tester.pump();
 
@@ -134,7 +156,16 @@ void main() {
   testWidgets('a rejected file surfaces an error and lists nothing', (
     WidgetTester tester,
   ) async {
-    final ProviderContainer container = await pumpView(tester);
+    // A file that exists but is not a valid extension: the picker succeeds, and
+    // the manager is what rejects it. This proves the error comes from the
+    // ExtensionManager pipeline rather than from the picker.
+    final File bad = File('${dir.path}/broken.js');
+    await tester.runAsync(() => bad.writeAsString('not an extension at all'));
+
+    final ProviderContainer container = await pumpView(
+      tester,
+      picker: _PathPicker(bad),
+    );
     await settle(
       tester,
       container,
@@ -143,10 +174,13 @@ void main() {
 
     await tester.tap(find.text('Install extension'));
     await openDialog(tester);
-    await tester.enterText(
-      find.byType(TextField),
-      '${dir.path}/does-not-exist.js',
-    );
+    await tester.tap(find.text('Choose a .js file…'));
+    for (int i = 0; i < 20 && find.text('broken.js').evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
     await tester.tap(find.widgetWithText(TextButton, 'Install'));
     await tester.pump();
 
@@ -156,8 +190,57 @@ void main() {
       () => container.read(extensionsProvider).errorMessage != null,
     );
 
-    expect(find.textContaining('Cannot read extension file'), findsOneWidget);
+    // PRE-F §16: the reason is now explained in plain language instead of a raw
+    // parser prefix, and it never blames a size limit that was never hit.
+    expect(find.textContaining('not a SPECTA extension'), findsOneWidget);
+    expect(find.textContaining('too large'), findsNothing);
+    // PRE-F §15: the surfaced error never carries a filesystem path.
+    expect(find.textContaining(dir.path), findsNothing);
+    expect(find.textContaining('/data/user/'), findsNothing);
     expect(find.textContaining('No extensions are installed'), findsOneWidget);
+  });
+
+  // PRE-F §15: no filesystem path may ever be rendered to the user.
+  testWidgets('the install dialog never shows a filesystem path', (
+    WidgetTester tester,
+  ) async {
+    final File file = File('${dir.path}/secret-name.js');
+    await tester.runAsync(
+      () => file.writeAsString(_source(id: 'com.test.path', name: 'P')),
+    );
+
+    final ProviderContainer container = await pumpView(
+      tester,
+      picker: _PathPicker(file),
+    );
+    await settle(
+      tester,
+      container,
+      () => container.read(extensionsProvider).status == ExtensionsStatus.ready,
+    );
+
+    await tester.tap(find.text('Install extension'));
+    await openDialog(tester);
+    await tester.tap(find.text('Choose a .js file…'));
+    for (
+      int i = 0;
+      i < 20 && find.text('secret-name.js').evaluate().isEmpty;
+      i++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
+
+    // The document's own name is shown...
+    expect(find.text('secret-name.js'), findsOneWidget);
+    // ...and neither the app-private path nor any sdcard path is rendered.
+    expect(find.textContaining(dir.path), findsNothing);
+    expect(find.textContaining('/data/user/'), findsNothing);
+    expect(find.textContaining('/sdcard'), findsNothing);
+    expect(find.textContaining('/storage/emulated'), findsNothing);
+    expect(find.textContaining('Extension file path'), findsNothing);
   });
 
   testWidgets('the switch disables an installed extension and it persists', (
@@ -202,57 +285,84 @@ void main() {
     expect((await registry.getById('com.test.toggle'))!.enabled, isFalse);
   });
 
-  testWidgets('removing an extension asks for confirmation and then removes it', (
-    WidgetTester tester,
-  ) async {
-    final DateTime now = DateTime.now().toUtc();
-    await registry.install(
-      ExtensionRecord(
-        id: 'com.test.remove',
-        name: 'Remove Me',
-        version: '1.0.0',
-        author: 'SPECTA Tests',
-        apiVersion: 2,
-        contentType: 'movie',
-        signature: null,
-        trustLevel: TrustLevel.unverified,
-        enabled: true,
-        filePath: '${dir.path}/remove.js',
-        installedAt: now,
-        updatedAt: now,
-      ),
-    );
+  testWidgets(
+    'removing an extension asks for confirmation and then removes it',
+    (WidgetTester tester) async {
+      final DateTime now = DateTime.now().toUtc();
+      await registry.install(
+        ExtensionRecord(
+          id: 'com.test.remove',
+          name: 'Remove Me',
+          version: '1.0.0',
+          author: 'SPECTA Tests',
+          apiVersion: 2,
+          contentType: 'movie',
+          signature: null,
+          trustLevel: TrustLevel.unverified,
+          enabled: true,
+          filePath: '${dir.path}/remove.js',
+          installedAt: now,
+          updatedAt: now,
+        ),
+      );
 
-    final ProviderContainer container = await pumpView(tester);
-    await settle(
-      tester,
-      container,
-      () => container.read(extensionsProvider).items.isNotEmpty,
-    );
+      final ProviderContainer container = await pumpView(tester);
+      await settle(
+        tester,
+        container,
+        () => container.read(extensionsProvider).items.isNotEmpty,
+      );
 
-    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
-    await openDialog(tester);
-    expect(find.text('Remove extension'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+      await openDialog(tester);
+      expect(find.text('Remove extension'), findsOneWidget);
 
-    // Cancelling leaves the extension installed.
-    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
-    await openDialog(tester);
-    expect(container.read(extensionsProvider).items, hasLength(1));
+      // Cancelling leaves the extension installed.
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await openDialog(tester);
+      expect(container.read(extensionsProvider).items, hasLength(1));
 
-    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
-    await openDialog(tester);
-    await tester.tap(find.widgetWithText(TextButton, 'Remove'));
-    await tester.pump();
+      await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+      await openDialog(tester);
+      await tester.tap(find.widgetWithText(TextButton, 'Remove'));
+      await tester.pump();
 
-    await settle(
-      tester,
-      container,
-      () => container.read(extensionsProvider).items.isEmpty,
-    );
+      await settle(
+        tester,
+        container,
+        () => container.read(extensionsProvider).items.isEmpty,
+      );
 
-    expect(find.textContaining('No extensions are installed'), findsOneWidget);
-    expect(await registry.getById('com.test.remove'), isNull);
-  });
+      expect(
+        find.textContaining('No extensions are installed'),
+        findsOneWidget,
+      );
+      expect(await registry.getById('com.test.remove'), isNull);
+    },
+  );
+
+  // Regression, found on a REAL device during Phase F: at phone width the
+  // header's action Row overflowed by 147 px, which Flutter renders as a
+  // black/yellow hatch and one-character-per-line text. Every action must stay
+  // reachable on a narrow screen.
+  testWidgets(
+    'the extensions header does not overflow on a narrow phone width',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final ProviderContainer container = await pumpView(tester);
+      await settle(tester, container, () => true);
+
+      expect(tester.takeException(), isNull);
+      // Every action is still present and reachable.
+      expect(find.text('From a link'), findsOneWidget);
+      expect(find.text('Install'), findsOneWidget);
+      expect(find.byIcon(Icons.travel_explore_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+    },
+  );
 }
 
 String _source({
@@ -279,4 +389,41 @@ class _NoopRuntimeApi implements ExtensionRuntimeApi {
 
   @override
   void log(ExtensionLogLevel level, String message) {}
+}
+
+/// Stands in for the Android SAF document picker. The real implementation
+/// copies the document into app-private storage; this fake reports the source
+/// file directly, which is the same contract the picker satisfies.
+class _PathPicker implements FilePicker {
+  _PathPicker(this.file);
+
+  final File file;
+
+  @override
+  Future<FilePickResult> pick({
+    List<String> mimeTypes = defaultMimeTypes,
+  }) async {
+    final String name = file.uri.pathSegments.last;
+    if (!await file.exists()) {
+      // Mirrors the platform contract: a document that cannot be read is a
+      // failed pick, never a usable path handed to the importer.
+      return const FilePickFailed(
+        'That file could not be read on this device.',
+      );
+    }
+    final List<int> bytes = await file.readAsBytes();
+    return FilePicked(
+      PickedFile(
+        path: file.path,
+        displayName: name,
+        sizeBytes: bytes.length,
+        sha256: await _sha256Hex(bytes),
+      ),
+    );
+  }
+}
+
+Future<String> _sha256Hex(List<int> bytes) async {
+  final hash = await Sha256().hash(bytes);
+  return hash.bytes.map((int b) => b.toRadixString(16).padLeft(2, '0')).join();
 }

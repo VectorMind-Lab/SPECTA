@@ -120,9 +120,6 @@ Future<void> startLocalPlayback(
 void _notice(BuildContext context, String message) {
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(message),
-    ),
+    SnackBar(behavior: SnackBarBehavior.floating, content: Text(message)),
   );
 }

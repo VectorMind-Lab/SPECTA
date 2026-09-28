@@ -111,16 +111,16 @@ const SubtitleTrack _english = SubtitleTrack(
 );
 
 RankedSource _hlsSource({List<SubtitleTrack>? subtitles}) => RankedSource(
-      source: ExtensionSource(
-        url: 'https://a/stream.m3u8',
-        type: SourceType.hls,
-        isAdaptive: true,
-        subtitles: subtitles,
-      ),
-      extensionId: 'extA',
-      reference: 'ref-hls',
-      score: 50,
-    );
+  source: ExtensionSource(
+    url: 'https://a/stream.m3u8',
+    type: SourceType.hls,
+    isAdaptive: true,
+    subtitles: subtitles,
+  ),
+  extensionId: 'extA',
+  reference: 'ref-hls',
+  score: 50,
+);
 
 /// Renders only the controls overlay, driven by the live session state the way
 /// [PlaybackView] drives it (the overlay takes its snapshot from its parent).
@@ -144,7 +144,10 @@ final class _Harness {
   final _FakeEngine engine = _FakeEngine();
   late final ProviderContainer container = ProviderContainer(
     overrides: <Override>[
-      playbackEngineFactoryProvider.overrideWith((Ref ref) => () => engine),
+      playbackEngineFactoryProvider.overrideWith(
+        (Ref ref) =>
+            () => engine,
+      ),
       // Phase 2F binds the progress sink to persistent storage by default;
       // the widget tests stay hermetic with the in-memory sink.
       playbackProgressSinkProvider.overrideWith(
@@ -165,9 +168,13 @@ final class _Harness {
 
   /// Starts a playing session with an episode identity and one subtitle track.
   Future<void> startPlaying(WidgetTester tester, {required bool isTv}) async {
-    await container.read(playbackSessionProvider.notifier).open(
+    await container
+        .read(playbackSessionProvider.notifier)
+        .open(
           PlaybackRequest.direct(
-            <RankedSource>[_hlsSource(subtitles: <SubtitleTrack>[_english])],
+            <RankedSource>[
+              _hlsSource(subtitles: <SubtitleTrack>[_english]),
+            ],
             playbackKey: 'movie|1',
             title: 'Some Movie',
             subtitle: 'Season 1 · Episode 2',
@@ -222,13 +229,13 @@ bool _overlayIgnoresPointers(WidgetTester tester) {
 
 /// Whether [label]'s button currently paints the focused 2px accent ring.
 bool _hasFocusRing(WidgetTester tester, String label) {
-  final Iterable<AnimatedContainer> containers =
-      tester.widgetList<AnimatedContainer>(
-    find.ancestor(
-      of: find.text(label),
-      matching: find.byType(AnimatedContainer),
-    ),
-  );
+  final Iterable<AnimatedContainer> containers = tester
+      .widgetList<AnimatedContainer>(
+        find.ancestor(
+          of: find.text(label),
+          matching: find.byType(AnimatedContainer),
+        ),
+      );
   return containers.any((AnimatedContainer c) {
     final Border? border = (c.decoration as BoxDecoration?)?.border as Border?;
     return border != null && border.top.width == 2;
@@ -240,8 +247,9 @@ PlaybackStatus _status(_Harness h) =>
 
 void main() {
   group('SpectaPlayerControls — touch overlay', () {
-    testWidgets('renders the playing candidate with honest controls',
-        (WidgetTester tester) async {
+    testWidgets('renders the playing candidate with honest controls', (
+      WidgetTester tester,
+    ) async {
       final _Harness h = _Harness();
       addTearDown(h.dispose);
 
@@ -263,8 +271,9 @@ void main() {
       await h.finish(tester);
     });
 
-    testWidgets('play/pause tap drives the session, and the label follows it',
-        (WidgetTester tester) async {
+    testWidgets('play/pause tap drives the session, and the label follows it', (
+      WidgetTester tester,
+    ) async {
       final _Harness h = _Harness();
       addTearDown(h.dispose);
 
@@ -285,8 +294,9 @@ void main() {
       await h.finish(tester);
     });
 
-    testWidgets('seeking through the slider reaches the engine',
-        (WidgetTester tester) async {
+    testWidgets('seeking through the slider reaches the engine', (
+      WidgetTester tester,
+    ) async {
       final _Harness h = _Harness();
       addTearDown(h.dispose);
 
@@ -302,8 +312,9 @@ void main() {
       await h.finish(tester);
     });
 
-    testWidgets('auto-hides after 4s of inactivity and a touch pokes it back',
-        (WidgetTester tester) async {
+    testWidgets('auto-hides after 4s of inactivity and a touch pokes it back', (
+      WidgetTester tester,
+    ) async {
       final _Harness h = _Harness();
       addTearDown(h.dispose);
 
@@ -324,7 +335,9 @@ void main() {
       await h.finish(tester);
     });
 
-    testWidgets('TV never auto-hides the controls', (WidgetTester tester) async {
+    testWidgets('TV never auto-hides the controls', (
+      WidgetTester tester,
+    ) async {
       final _Harness h = _Harness();
       addTearDown(h.dispose);
 
@@ -339,8 +352,9 @@ void main() {
   });
 
   group('SpectaPlayerControls — D-pad / focus', () {
-    testWidgets('the TV surface auto-focuses its primary action',
-        (WidgetTester tester) async {
+    testWidgets('the TV surface auto-focuses its primary action', (
+      WidgetTester tester,
+    ) async {
       final _Harness h = _Harness();
       addTearDown(h.dispose);
 
@@ -361,8 +375,9 @@ void main() {
       await h.finish(tester);
     });
 
-    testWidgets('focus moves with arrow keys and the ring follows',
-        (WidgetTester tester) async {
+    testWidgets('focus moves with arrow keys and the ring follows', (
+      WidgetTester tester,
+    ) async {
       final _Harness h = _Harness();
       addTearDown(h.dispose);
 
@@ -378,8 +393,9 @@ void main() {
       await h.finish(tester);
     });
 
-    testWidgets('a focused button is activatable from the D-pad',
-        (WidgetTester tester) async {
+    testWidgets('a focused button is activatable from the D-pad', (
+      WidgetTester tester,
+    ) async {
       final _Harness h = _Harness();
       addTearDown(h.dispose);
 
@@ -399,8 +415,9 @@ void main() {
   });
 
   group('SpectaPlayerButton — focus feedback', () {
-    testWidgets('paints the accent ring only while focused',
-        (WidgetTester tester) async {
+    testWidgets('paints the accent ring only while focused', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -435,8 +452,9 @@ void main() {
   });
 
   group('SpectaPlayerControls — subtitle menu', () {
-    testWidgets('lists the candidate tracks and applies the selection',
-        (WidgetTester tester) async {
+    testWidgets('lists the candidate tracks and applies the selection', (
+      WidgetTester tester,
+    ) async {
       final _Harness h = _Harness();
       addTearDown(h.dispose);
 
@@ -464,8 +482,9 @@ void main() {
       await h.finish(tester);
     });
 
-    testWidgets('turning subtitles off clears the selection',
-        (WidgetTester tester) async {
+    testWidgets('turning subtitles off clears the selection', (
+      WidgetTester tester,
+    ) async {
       final _Harness h = _Harness();
       addTearDown(h.dispose);
 
@@ -496,8 +515,9 @@ void main() {
   });
 
   group('SpectaPlayerControls — speed menu', () {
-    testWidgets('offers the supported rates and applies the choice',
-        (WidgetTester tester) async {
+    testWidgets('offers the supported rates and applies the choice', (
+      WidgetTester tester,
+    ) async {
       final _Harness h = _Harness();
       addTearDown(h.dispose);
 

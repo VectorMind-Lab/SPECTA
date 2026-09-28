@@ -5,6 +5,7 @@ import '../../app/theme/specta_colors.dart';
 import '../../core/discovery/discovery_models.dart';
 import '../../core/extensions/contract/result_models.dart';
 import '../../core/metadata/metadata_models.dart';
+import '../../ui/widgets/specta_artwork.dart';
 import '../../ui/widgets/specta_empty_state.dart';
 import '../../ui/widgets/specta_focus_wrapper.dart';
 import '../downloads/download_entry.dart';
@@ -42,56 +43,128 @@ class DetailsView extends ConsumerWidget {
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           overflow: TextOverflow.ellipsis,
         ),
+        actions: <Widget>[
+          if (state.item != null)
+            IconButton(
+              tooltip: 'Refresh details',
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: state.status == DetailsStatus.loading
+                  ? null
+                  : () => _retry(context, ref, state),
+            ),
+        ],
       ),
-      body: switch (state.status) {
-        DetailsStatus.idle => const SpectaEmptyState(
-            icon: Icons.info_outline_rounded,
-            message: 'Nothing selected',
+      // A thin bar rather than a full-screen spinner: a refresh must never make
+      // the screen emptier than it already was, so metadata that is already
+      // resolved stays visible underneath it.
+      body: Column(
+        children: <Widget>[
+          if (state.status == DetailsStatus.loading && state.metadata != null)
+            const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: switch (state.status) {
+              DetailsStatus.idle => const SpectaEmptyState(
+                icon: Icons.info_outline_rounded,
+                message: 'Nothing selected',
+              ),
+              // Loading WITH metadata is a refresh in flight over content that is
+              // already on screen. Rendering the spinner here would blank the
+              // screen every time the user pulled to refresh.
+              DetailsStatus.loading when state.metadata != null => _content(
+                context,
+                ref,
+                state,
+              ),
+              DetailsStatus.loading => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              DetailsStatus.failure => SpectaEmptyState(
+                icon: state.hasExtensionReference
+                    ? Icons.cloud_off_rounded
+                    : Icons.extension_off_rounded,
+                message: _failureMessage(state),
+                actionLabel: 'Retry',
+                action: () => _retry(context, ref, state),
+              ),
+              DetailsStatus.success => _content(context, ref, state),
+            },
           ),
-        DetailsStatus.loading => const Center(
-            child: CircularProgressIndicator(),
-          ),
-        DetailsStatus.failure => SpectaEmptyState(
-            icon: Icons.cloud_off_rounded,
-            message: _failureMessage(state),
-            actionLabel: 'Retry',
-            action: () => _retry(context, ref, state),
-          ),
-        DetailsStatus.success => _DetailsContent(
-            state: state,
-            onPlayEpisode: (SeriesEpisode episode) => startPlayback(
-              context,
-              ref: ref,
-              metadata: state.metadata!,
-              item: state.item!,
-              episode: episode,
-            ),
-            onDownloadEpisode: (SeriesEpisode episode) => startEpisodeDownload(
-              context,
-              ref: ref,
-              metadata: state.metadata!,
-              item: state.item!,
-              episode: episode,
-            ),
-          ),
-      },
+        ],
+      ),
     );
   }
 
+  /// The metadata body, shared by the success and refresh-in-flight states so
+  /// the two can never drift apart.
+  Widget _content(BuildContext context, WidgetRef ref, DetailsState state) {
+    final MetadataItem metadata = state.metadata!;
+    final DiscoveryItem item = state.item!;
+    return RefreshIndicator(
+      onRefresh: () => _retry(context, ref, state),
+      color: Theme.of(context).colorScheme.primary,
+      backgroundColor: SpectaColors.surfaceElevated,
+      child: _DetailsContent(
+        state: state,
+        onPlayEpisode: (SeriesEpisode episode) => startPlayback(
+          context,
+          ref: ref,
+          metadata: metadata,
+          item: item,
+          episode: episode,
+        ),
+        onDownloadEpisode: (SeriesEpisode episode) => startEpisodeDownload(
+          context,
+          ref: ref,
+          metadata: metadata,
+          item: item,
+          episode: episode,
+        ),
+      ),
+    );
+  }
+
+  /// Why details could not be shown, in words that are actually true.
+  ///
+  /// These are four different situations and they used to collapse into one
+  /// message that blamed the network for all of them:
+  /// 1. the extensions answered with something untrustworthy;
+  /// 2. extensions existed and every one of them failed (a real outage);
+  /// 3. NO extension backs this title at all — it came from the metadata
+  ///    catalogue, so there was nothing to reach and the connection was never
+  ///    the problem;
+  /// 4. the catalogue itself could not complete the record.
   static String _failureMessage(DetailsState state) {
     if (state.invalidReferences.isNotEmpty) {
       return 'The extensions responded, but the details could not be trusted. '
           'Try again later.';
     }
+    if (!state.hasExtensionReference) {
+      return 'This title came from the metadata catalogue, and no extension '
+          'provides details for it. Install an extension that covers it.';
+    }
+    if (state.hasProviderGap) {
+      return 'The metadata catalogue could not complete this title. Check your '
+          'connection and try again.';
+    }
     return 'Details could not be loaded — the extensions could not be '
         'reached. Check your connection and try again.';
   }
 
-  static void _retry(BuildContext context, WidgetRef ref, DetailsState state) {
+  /// Re-runs the details round for the current item.
+  ///
+  /// Returns the in-flight future so [RefreshIndicator] keeps spinning until the
+  /// round actually finishes — an unawaited void here would snap the indicator
+  /// shut the instant the user let go, before anything had been reloaded.
+  static Future<void> _retry(
+    BuildContext context,
+    WidgetRef ref,
+    DetailsState state,
+  ) {
     final DiscoveryItem? item = state.item;
-    if (item != null) {
-      ref.read(detailsSessionProvider.notifier).open(item);
-    }
+    if (item == null) return Future<void>.value();
+    return ref
+        .read(detailsSessionProvider.notifier)
+        .open(item, refresh: state.metadata != null);
   }
 }
 
@@ -131,10 +204,10 @@ class _DetailsContent extends StatelessWidget {
           const SizedBox(height: 8),
           _PartialNotice(state: state),
         ],
-        if ((metadata.details.first.description ?? '').isNotEmpty) ...<Widget>[
+        if ((metadata.description ?? '').isNotEmpty) ...<Widget>[
           const SizedBox(height: 16),
           Text(
-            metadata.details.first.description!,
+            metadata.description!,
             style: const TextStyle(
               fontSize: 13,
               height: 1.5,
@@ -142,25 +215,48 @@ class _DetailsContent extends StatelessWidget {
             ),
           ),
         ],
-        if (metadata.type == MediaType.movie && state.item != null) ...<Widget>[
+        // A CATALOGUE-ONLY title has no extension behind it, so Play and
+        // Download would both be buttons that cannot do anything. Offering them
+        // anyway is a promise the app cannot keep, so the affordance is
+        // replaced with the reason and the way out. Confirmed on a real device:
+        // the details screen opened correctly for a Home "Popular" movie, and
+        // then offered a Play button that had no source to play.
+        if (!metadata.isEpisodic && state.item != null) ...<Widget>[
           const SizedBox(height: 16),
-          Row(
-            children: <Widget>[
-              _PlayMovieButton(item: state.item!, metadata: metadata),
-              const SizedBox(width: 12),
-              _DownloadMovieButton(item: state.item!, metadata: metadata),
-            ],
-          ),
+          if (metadata.hasExtensionContribution)
+            Row(
+              children: <Widget>[
+                _PlayMovieButton(item: state.item!, metadata: metadata),
+                const SizedBox(width: 12),
+                _DownloadMovieButton(item: state.item!, metadata: metadata),
+              ],
+            )
+          else
+            const _NoSourceNotice(),
         ],
-        if (metadata.type == MediaType.series)
-          ..._seasonsSection(metadata, accent),
+        // Anime is episodic too, so it gets the same season/episode surface as
+        // series — but only when it really is episodic. An anime FILM (format
+        // MOVIE) is a single title, found on a device run that showed a
+        // "Seasons" panel for Spirited Away.
+        if (metadata.isEpisodic) ..._seasonsSection(metadata, accent),
       ],
     );
   }
 
   List<Widget> _seasonsSection(MetadataItem metadata, Color accent) {
-    final List<SeriesSeason> seasons = metadata.seasons;
+    // Seasons that carry NO episodes are not a season list, they are an empty
+    // shell: the catalogue knows a show has three seasons but not what is in
+    // them, and every episode row would be a play target with nothing behind it.
+    // Treating that as "no episodes known" is the honest rendering.
+    final List<SeriesSeason> seasons = <SeriesSeason>[
+      for (final SeriesSeason season in metadata.seasons)
+        if (season.episodes.isNotEmpty) season,
+    ];
     if (seasons.isEmpty) {
+      // Wording must match WHY there is nothing here. A catalogue-only item
+      // (anime found through metadata, with no extension behind it) can never
+      // report episodes, so blaming "this extension" would be a lie.
+      final bool isCatalogueOnly = !metadata.hasExtensionContribution;
       return <Widget>[
         const SizedBox(height: 24),
         const Text(
@@ -172,9 +268,12 @@ class _DetailsContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'This extension has not reported episode information yet.',
-          style: TextStyle(fontSize: 12, color: SpectaColors.textMuted),
+        Text(
+          isCatalogueOnly
+              ? 'No episode list yet — this title came from the metadata '
+                    'catalogue. Install an extension to discover streams.'
+              : 'This extension has not reported episode information yet.',
+          style: const TextStyle(fontSize: 12, color: SpectaColors.textMuted),
         ),
       ];
     }
@@ -201,6 +300,52 @@ class _DetailsContent extends StatelessWidget {
   }
 }
 
+/// Stands in for Play/Download when the title has no extension behind it.
+///
+/// SPECTA will not render an action it cannot honour. The catalogue can tell
+/// us a film exists, what it is about and who made it, and it will never tell
+/// us where to stream it — that is the extensions' job, exclusively. So when
+/// only the catalogue answered, this says so and says what would fix it,
+/// instead of presenting two buttons that lead nowhere.
+class _NoSourceNotice extends StatelessWidget {
+  const _NoSourceNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: SpectaColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: SpectaColors.outline),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(
+            Icons.extension_off_rounded,
+            size: 20,
+            color: SpectaColors.textSecondary,
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'No streaming source for this title yet. It came from the '
+              'metadata catalogue, which does not provide streams — install an '
+              'extension that covers it to play.',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: SpectaColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Poster/title/year/type/genres/rating/runtime header.
 class _Header extends StatelessWidget {
   const _Header({required this.metadata, required this.accent});
@@ -210,42 +355,20 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ReferenceMetadata first = metadata.details.first;
+    // Merged accessors: the extension's own data still wins, but catalogue
+    // enrichment (TMDB/TVMaze/AniList) now actually reaches the screen
+    // instead of being hidden behind `details.first`.
+    final List<String> genres = metadata.genres;
+    final double? rating = metadata.rating;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            width: 110,
-            height: 165,
-            color: SpectaColors.surfaceElevated,
-            child: metadata.cover != null
-                ? Image.network(
-                    metadata.cover!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (
-                      BuildContext context,
-                      Object error,
-                      StackTrace? stackTrace,
-                    ) =>
-                        Icon(
-                          metadata.type == MediaType.movie
-                              ? Icons.movie_rounded
-                              : Icons.tv_rounded,
-                          size: 40,
-                          color: accent.withValues(alpha: 0.35),
-                        ),
-                  )
-                : Icon(
-                    metadata.type == MediaType.movie
-                        ? Icons.movie_rounded
-                        : Icons.tv_rounded,
-                    size: 40,
-                    color: accent.withValues(alpha: 0.35),
-                  ),
-          ),
+        SpectaArtwork(
+          url: metadata.cover,
+          width: 110,
+          height: 165,
+          fallbackIcon: _iconFor(metadata.type),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -263,24 +386,34 @@ class _Header extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 <String>[
-                  metadata.type == MediaType.movie ? 'Movie' : 'Series',
+                  _typeLabel(metadata.type),
                   if (metadata.year != null) '${metadata.year}',
-                  if (first.rating != null) '★ ${first.rating!.toStringAsFixed(1)}',
-                  if (first.durationSeconds != null)
-                    _formatRuntime(first.durationSeconds!),
+                  if (rating != null) '★ ${rating.toStringAsFixed(1)}',
+                  if (metadata.format != null) metadata.format!,
                 ].join('  ·  '),
                 style: const TextStyle(
                   fontSize: 12,
                   color: SpectaColors.textSecondary,
                 ),
               ),
-              if (first.genres.isNotEmpty) ...<Widget>[
+              if (metadata.type == MediaType.anime &&
+                  metadata.episodeCount != null) ...<Widget>[
+                const SizedBox(height: 6),
+                Text(
+                  '${metadata.episodeCount} episodes',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: SpectaColors.textMuted,
+                  ),
+                ),
+              ],
+              if (genres.isNotEmpty) ...<Widget>[
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   children: <Widget>[
-                    for (final String genre in first.genres.take(6))
+                    for (final String genre in genres.take(6))
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
@@ -309,11 +442,18 @@ class _Header extends StatelessWidget {
     );
   }
 
-  static String _formatRuntime(int seconds) {
-    final int minutes = seconds ~/ 60;
-    if (minutes < 60) return '${minutes}m';
-    return '${minutes ~/ 60}h ${minutes % 60}m';
-  }
+  /// User-facing content-type label. Anime is its own label, not "Series".
+  static String _typeLabel(MediaType type) => switch (type) {
+    MediaType.movie => 'Movie',
+    MediaType.series => 'Series',
+    MediaType.anime => 'Anime',
+  };
+
+  static IconData _iconFor(MediaType type) => switch (type) {
+    MediaType.movie => Icons.movie_rounded,
+    MediaType.series => Icons.tv_rounded,
+    MediaType.anime => Icons.animation_rounded,
+  };
 }
 
 /// Play affordance for movies: resolves the 2D pool from the item's
@@ -333,12 +473,8 @@ class _PlayMovieButton extends ConsumerWidget {
 
     return SpectaFocusWrapper(
       borderRadius: SpectaMetrics.buttonRadius,
-      onTap: () => startPlayback(
-        context,
-        ref: ref,
-        metadata: metadata,
-        item: item,
-      ),
+      onTap: () =>
+          startPlayback(context, ref: ref, metadata: metadata, item: item),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
         decoration: BoxDecoration(
@@ -348,8 +484,11 @@ class _PlayMovieButton extends ConsumerWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.play_arrow_rounded,
-                size: 22, color: SpectaColors.background),
+            Icon(
+              Icons.play_arrow_rounded,
+              size: 22,
+              color: SpectaColors.background,
+            ),
             const SizedBox(width: 8),
             Text(
               'Play',
@@ -379,12 +518,8 @@ class _DownloadMovieButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return SpectaFocusWrapper(
       borderRadius: SpectaMetrics.buttonRadius,
-      onTap: () => startMovieDownload(
-        context,
-        ref: ref,
-        metadata: metadata,
-        item: item,
-      ),
+      onTap: () =>
+          startMovieDownload(context, ref: ref, metadata: metadata, item: item),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         decoration: BoxDecoration(
@@ -394,8 +529,11 @@ class _DownloadMovieButton extends ConsumerWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: const <Widget>[
-            Icon(Icons.download_outlined,
-                size: 20, color: SpectaColors.textPrimary),
+            Icon(
+              Icons.download_outlined,
+              size: 20,
+              color: SpectaColors.textPrimary,
+            ),
             SizedBox(width: 8),
             Text(
               'Download',
@@ -420,8 +558,11 @@ class _EpisodePlayIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color accent = Theme.of(context).colorScheme.primary;
-    return Icon(Icons.play_circle_outline_rounded,
-        size: 20, color: accent.withValues(alpha: 0.8));
+    return Icon(
+      Icons.play_circle_outline_rounded,
+      size: 20,
+      color: accent.withValues(alpha: 0.8),
+    );
   }
 }
 
@@ -468,17 +609,17 @@ class _PartialNotice extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Icon(Icons.warning_amber_rounded,
-              size: 16, color: SpectaColors.warning),
+          Icon(
+            Icons.warning_amber_rounded,
+            size: 16,
+            color: SpectaColors.warning,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Details come from $failed of ${state.item!.references.length} '
               'sources — some could not be reached.',
-              style: TextStyle(
-                fontSize: 11,
-                color: SpectaColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 11, color: SpectaColors.textSecondary),
             ),
           ),
         ],
@@ -610,8 +751,7 @@ class _SeasonCardState extends State<_SeasonCard> {
                             const _EpisodePlayIcon(),
                             const SizedBox(width: 10),
                             _EpisodeDownloadButton(
-                              onTap: () =>
-                                  widget.onDownloadEpisode(episode),
+                              onTap: () => widget.onDownloadEpisode(episode),
                             ),
                           ],
                         ),

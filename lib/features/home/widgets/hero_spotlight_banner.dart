@@ -78,8 +78,7 @@ class HeroSpotlightBanner extends StatelessWidget {
                   BuildContext context,
                   Object error,
                   StackTrace? stackTrace,
-                ) =>
-                    const _HeroGradient(),
+                ) => const _HeroGradient(),
               )
             else
               const _HeroGradient(),
@@ -102,10 +101,7 @@ class HeroSpotlightBanner extends StatelessWidget {
             ),
 
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 20,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Row(
                 children: <Widget>[
                   Expanded(
@@ -238,10 +234,7 @@ class _HeroGradient extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: <Color>[
-            Color(0xFF162544),
-            Color(0xFF0C1322),
-          ],
+          colors: <Color>[Color(0xFF162544), Color(0xFF0C1322)],
         ),
       ),
     );

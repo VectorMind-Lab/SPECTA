@@ -318,6 +318,18 @@ class $ExtensionsTable extends Extensions
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _contractVersionMeta = const VerificationMeta(
+    'contractVersion',
+  );
+  @override
+  late final GeneratedColumn<String> contractVersion = GeneratedColumn<String>(
+    'contract_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('2.0.0'),
+  );
   static const VerificationMeta _contentTypeMeta = const VerificationMeta(
     'contentType',
   );
@@ -427,6 +439,7 @@ class $ExtensionsTable extends Extensions
     version,
     author,
     apiVersion,
+    contractVersion,
     contentType,
     signature,
     trustLevel,
@@ -485,6 +498,15 @@ class $ExtensionsTable extends Extensions
       );
     } else if (isInserting) {
       context.missing(_apiVersionMeta);
+    }
+    if (data.containsKey('contract_version')) {
+      context.handle(
+        _contractVersionMeta,
+        contractVersion.isAcceptableOrUnknown(
+          data['contract_version']!,
+          _contractVersionMeta,
+        ),
+      );
     }
     if (data.containsKey('content_type')) {
       context.handle(
@@ -587,6 +609,10 @@ class $ExtensionsTable extends Extensions
         DriftSqlType.int,
         data['${effectivePrefix}api_version'],
       )!,
+      contractVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}contract_version'],
+      )!,
       contentType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}content_type'],
@@ -639,7 +665,10 @@ class Extension extends DataClass implements Insertable<Extension> {
   final String author;
   final int apiVersion;
 
-  /// ExtensionContentType.code, e.g. `movies_series`.
+  /// Contract revision declared by the manifest.
+  final String contractVersion;
+
+  /// ExtensionContentType.code, e.g. `movies_series` or `anime`.
   final String contentType;
 
   /// Raw signature string from the manifest, or null when unsigned.
@@ -667,6 +696,7 @@ class Extension extends DataClass implements Insertable<Extension> {
     required this.version,
     required this.author,
     required this.apiVersion,
+    required this.contractVersion,
     required this.contentType,
     this.signature,
     required this.trustLevel,
@@ -685,6 +715,7 @@ class Extension extends DataClass implements Insertable<Extension> {
     map['version'] = Variable<String>(version);
     map['author'] = Variable<String>(author);
     map['api_version'] = Variable<int>(apiVersion);
+    map['contract_version'] = Variable<String>(contractVersion);
     map['content_type'] = Variable<String>(contentType);
     if (!nullToAbsent || signature != null) {
       map['signature'] = Variable<String>(signature);
@@ -710,6 +741,7 @@ class Extension extends DataClass implements Insertable<Extension> {
       version: Value(version),
       author: Value(author),
       apiVersion: Value(apiVersion),
+      contractVersion: Value(contractVersion),
       contentType: Value(contentType),
       signature: signature == null && nullToAbsent
           ? const Value.absent()
@@ -739,6 +771,7 @@ class Extension extends DataClass implements Insertable<Extension> {
       version: serializer.fromJson<String>(json['version']),
       author: serializer.fromJson<String>(json['author']),
       apiVersion: serializer.fromJson<int>(json['apiVersion']),
+      contractVersion: serializer.fromJson<String>(json['contractVersion']),
       contentType: serializer.fromJson<String>(json['contentType']),
       signature: serializer.fromJson<String?>(json['signature']),
       trustLevel: serializer.fromJson<String>(json['trustLevel']),
@@ -761,6 +794,7 @@ class Extension extends DataClass implements Insertable<Extension> {
       'version': serializer.toJson<String>(version),
       'author': serializer.toJson<String>(author),
       'apiVersion': serializer.toJson<int>(apiVersion),
+      'contractVersion': serializer.toJson<String>(contractVersion),
       'contentType': serializer.toJson<String>(contentType),
       'signature': serializer.toJson<String?>(signature),
       'trustLevel': serializer.toJson<String>(trustLevel),
@@ -779,6 +813,7 @@ class Extension extends DataClass implements Insertable<Extension> {
     String? version,
     String? author,
     int? apiVersion,
+    String? contractVersion,
     String? contentType,
     Value<String?> signature = const Value.absent(),
     String? trustLevel,
@@ -794,6 +829,7 @@ class Extension extends DataClass implements Insertable<Extension> {
     version: version ?? this.version,
     author: author ?? this.author,
     apiVersion: apiVersion ?? this.apiVersion,
+    contractVersion: contractVersion ?? this.contractVersion,
     contentType: contentType ?? this.contentType,
     signature: signature.present ? signature.value : this.signature,
     trustLevel: trustLevel ?? this.trustLevel,
@@ -817,6 +853,9 @@ class Extension extends DataClass implements Insertable<Extension> {
       apiVersion: data.apiVersion.present
           ? data.apiVersion.value
           : this.apiVersion,
+      contractVersion: data.contractVersion.present
+          ? data.contractVersion.value
+          : this.contractVersion,
       contentType: data.contentType.present
           ? data.contentType.value
           : this.contentType,
@@ -847,6 +886,7 @@ class Extension extends DataClass implements Insertable<Extension> {
           ..write('version: $version, ')
           ..write('author: $author, ')
           ..write('apiVersion: $apiVersion, ')
+          ..write('contractVersion: $contractVersion, ')
           ..write('contentType: $contentType, ')
           ..write('signature: $signature, ')
           ..write('trustLevel: $trustLevel, ')
@@ -867,6 +907,7 @@ class Extension extends DataClass implements Insertable<Extension> {
     version,
     author,
     apiVersion,
+    contractVersion,
     contentType,
     signature,
     trustLevel,
@@ -886,6 +927,7 @@ class Extension extends DataClass implements Insertable<Extension> {
           other.version == this.version &&
           other.author == this.author &&
           other.apiVersion == this.apiVersion &&
+          other.contractVersion == this.contractVersion &&
           other.contentType == this.contentType &&
           other.signature == this.signature &&
           other.trustLevel == this.trustLevel &&
@@ -903,6 +945,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
   final Value<String> version;
   final Value<String> author;
   final Value<int> apiVersion;
+  final Value<String> contractVersion;
   final Value<String> contentType;
   final Value<String?> signature;
   final Value<String> trustLevel;
@@ -919,6 +962,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     this.version = const Value.absent(),
     this.author = const Value.absent(),
     this.apiVersion = const Value.absent(),
+    this.contractVersion = const Value.absent(),
     this.contentType = const Value.absent(),
     this.signature = const Value.absent(),
     this.trustLevel = const Value.absent(),
@@ -936,6 +980,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     required String version,
     required String author,
     required int apiVersion,
+    this.contractVersion = const Value.absent(),
     required String contentType,
     this.signature = const Value.absent(),
     required String trustLevel,
@@ -960,6 +1005,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     Expression<String>? version,
     Expression<String>? author,
     Expression<int>? apiVersion,
+    Expression<String>? contractVersion,
     Expression<String>? contentType,
     Expression<String>? signature,
     Expression<String>? trustLevel,
@@ -977,6 +1023,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
       if (version != null) 'version': version,
       if (author != null) 'author': author,
       if (apiVersion != null) 'api_version': apiVersion,
+      if (contractVersion != null) 'contract_version': contractVersion,
       if (contentType != null) 'content_type': contentType,
       if (signature != null) 'signature': signature,
       if (trustLevel != null) 'trust_level': trustLevel,
@@ -997,6 +1044,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     Value<String>? version,
     Value<String>? author,
     Value<int>? apiVersion,
+    Value<String>? contractVersion,
     Value<String>? contentType,
     Value<String?>? signature,
     Value<String>? trustLevel,
@@ -1014,6 +1062,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
       version: version ?? this.version,
       author: author ?? this.author,
       apiVersion: apiVersion ?? this.apiVersion,
+      contractVersion: contractVersion ?? this.contractVersion,
       contentType: contentType ?? this.contentType,
       signature: signature ?? this.signature,
       trustLevel: trustLevel ?? this.trustLevel,
@@ -1044,6 +1093,9 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     }
     if (apiVersion.present) {
       map['api_version'] = Variable<int>(apiVersion.value);
+    }
+    if (contractVersion.present) {
+      map['contract_version'] = Variable<String>(contractVersion.value);
     }
     if (contentType.present) {
       map['content_type'] = Variable<String>(contentType.value);
@@ -1088,6 +1140,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
           ..write('version: $version, ')
           ..write('author: $author, ')
           ..write('apiVersion: $apiVersion, ')
+          ..write('contractVersion: $contractVersion, ')
           ..write('contentType: $contentType, ')
           ..write('signature: $signature, ')
           ..write('trustLevel: $trustLevel, ')
@@ -1154,6 +1207,18 @@ class $ExtensionVersionsTable extends ExtensionVersions
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _contractVersionMeta = const VerificationMeta(
+    'contractVersion',
+  );
+  @override
+  late final GeneratedColumn<String> contractVersion = GeneratedColumn<String>(
+    'contract_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('2.0.0'),
+  );
   static const VerificationMeta _isCurrentMeta = const VerificationMeta(
     'isCurrent',
   );
@@ -1196,6 +1261,7 @@ class $ExtensionVersionsTable extends ExtensionVersions
     extensionId,
     version,
     filePath,
+    contractVersion,
     isCurrent,
     isRollbackPoint,
     createdAt,
@@ -1244,6 +1310,15 @@ class $ExtensionVersionsTable extends ExtensionVersions
     } else if (isInserting) {
       context.missing(_filePathMeta);
     }
+    if (data.containsKey('contract_version')) {
+      context.handle(
+        _contractVersionMeta,
+        contractVersion.isAcceptableOrUnknown(
+          data['contract_version']!,
+          _contractVersionMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_current')) {
       context.handle(
         _isCurrentMeta,
@@ -1290,6 +1365,10 @@ class $ExtensionVersionsTable extends ExtensionVersions
         DriftSqlType.string,
         data['${effectivePrefix}file_path'],
       )!,
+      contractVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}contract_version'],
+      )!,
       isCurrent: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}is_current'],
@@ -1322,6 +1401,9 @@ class ExtensionVersion extends DataClass
   /// File path of this version's extension `.js` file.
   final String filePath;
 
+  /// Contract revision active for this saved extension version.
+  final String contractVersion;
+
   /// Whether this is the currently active version.
   final int isCurrent;
 
@@ -1333,6 +1415,7 @@ class ExtensionVersion extends DataClass
     required this.extensionId,
     required this.version,
     required this.filePath,
+    required this.contractVersion,
     required this.isCurrent,
     required this.isRollbackPoint,
     required this.createdAt,
@@ -1344,6 +1427,7 @@ class ExtensionVersion extends DataClass
     map['extension_id'] = Variable<String>(extensionId);
     map['version'] = Variable<String>(version);
     map['file_path'] = Variable<String>(filePath);
+    map['contract_version'] = Variable<String>(contractVersion);
     map['is_current'] = Variable<int>(isCurrent);
     map['is_rollback_point'] = Variable<int>(isRollbackPoint);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -1356,6 +1440,7 @@ class ExtensionVersion extends DataClass
       extensionId: Value(extensionId),
       version: Value(version),
       filePath: Value(filePath),
+      contractVersion: Value(contractVersion),
       isCurrent: Value(isCurrent),
       isRollbackPoint: Value(isRollbackPoint),
       createdAt: Value(createdAt),
@@ -1372,6 +1457,7 @@ class ExtensionVersion extends DataClass
       extensionId: serializer.fromJson<String>(json['extensionId']),
       version: serializer.fromJson<String>(json['version']),
       filePath: serializer.fromJson<String>(json['filePath']),
+      contractVersion: serializer.fromJson<String>(json['contractVersion']),
       isCurrent: serializer.fromJson<int>(json['isCurrent']),
       isRollbackPoint: serializer.fromJson<int>(json['isRollbackPoint']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -1385,6 +1471,7 @@ class ExtensionVersion extends DataClass
       'extensionId': serializer.toJson<String>(extensionId),
       'version': serializer.toJson<String>(version),
       'filePath': serializer.toJson<String>(filePath),
+      'contractVersion': serializer.toJson<String>(contractVersion),
       'isCurrent': serializer.toJson<int>(isCurrent),
       'isRollbackPoint': serializer.toJson<int>(isRollbackPoint),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -1396,6 +1483,7 @@ class ExtensionVersion extends DataClass
     String? extensionId,
     String? version,
     String? filePath,
+    String? contractVersion,
     int? isCurrent,
     int? isRollbackPoint,
     DateTime? createdAt,
@@ -1404,6 +1492,7 @@ class ExtensionVersion extends DataClass
     extensionId: extensionId ?? this.extensionId,
     version: version ?? this.version,
     filePath: filePath ?? this.filePath,
+    contractVersion: contractVersion ?? this.contractVersion,
     isCurrent: isCurrent ?? this.isCurrent,
     isRollbackPoint: isRollbackPoint ?? this.isRollbackPoint,
     createdAt: createdAt ?? this.createdAt,
@@ -1416,6 +1505,9 @@ class ExtensionVersion extends DataClass
           : this.extensionId,
       version: data.version.present ? data.version.value : this.version,
       filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      contractVersion: data.contractVersion.present
+          ? data.contractVersion.value
+          : this.contractVersion,
       isCurrent: data.isCurrent.present ? data.isCurrent.value : this.isCurrent,
       isRollbackPoint: data.isRollbackPoint.present
           ? data.isRollbackPoint.value
@@ -1431,6 +1523,7 @@ class ExtensionVersion extends DataClass
           ..write('extensionId: $extensionId, ')
           ..write('version: $version, ')
           ..write('filePath: $filePath, ')
+          ..write('contractVersion: $contractVersion, ')
           ..write('isCurrent: $isCurrent, ')
           ..write('isRollbackPoint: $isRollbackPoint, ')
           ..write('createdAt: $createdAt')
@@ -1444,6 +1537,7 @@ class ExtensionVersion extends DataClass
     extensionId,
     version,
     filePath,
+    contractVersion,
     isCurrent,
     isRollbackPoint,
     createdAt,
@@ -1456,6 +1550,7 @@ class ExtensionVersion extends DataClass
           other.extensionId == this.extensionId &&
           other.version == this.version &&
           other.filePath == this.filePath &&
+          other.contractVersion == this.contractVersion &&
           other.isCurrent == this.isCurrent &&
           other.isRollbackPoint == this.isRollbackPoint &&
           other.createdAt == this.createdAt);
@@ -1466,6 +1561,7 @@ class ExtensionVersionsCompanion extends UpdateCompanion<ExtensionVersion> {
   final Value<String> extensionId;
   final Value<String> version;
   final Value<String> filePath;
+  final Value<String> contractVersion;
   final Value<int> isCurrent;
   final Value<int> isRollbackPoint;
   final Value<DateTime> createdAt;
@@ -1475,6 +1571,7 @@ class ExtensionVersionsCompanion extends UpdateCompanion<ExtensionVersion> {
     this.extensionId = const Value.absent(),
     this.version = const Value.absent(),
     this.filePath = const Value.absent(),
+    this.contractVersion = const Value.absent(),
     this.isCurrent = const Value.absent(),
     this.isRollbackPoint = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1485,6 +1582,7 @@ class ExtensionVersionsCompanion extends UpdateCompanion<ExtensionVersion> {
     required String extensionId,
     required String version,
     required String filePath,
+    this.contractVersion = const Value.absent(),
     this.isCurrent = const Value.absent(),
     this.isRollbackPoint = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1498,6 +1596,7 @@ class ExtensionVersionsCompanion extends UpdateCompanion<ExtensionVersion> {
     Expression<String>? extensionId,
     Expression<String>? version,
     Expression<String>? filePath,
+    Expression<String>? contractVersion,
     Expression<int>? isCurrent,
     Expression<int>? isRollbackPoint,
     Expression<DateTime>? createdAt,
@@ -1508,6 +1607,7 @@ class ExtensionVersionsCompanion extends UpdateCompanion<ExtensionVersion> {
       if (extensionId != null) 'extension_id': extensionId,
       if (version != null) 'version': version,
       if (filePath != null) 'file_path': filePath,
+      if (contractVersion != null) 'contract_version': contractVersion,
       if (isCurrent != null) 'is_current': isCurrent,
       if (isRollbackPoint != null) 'is_rollback_point': isRollbackPoint,
       if (createdAt != null) 'created_at': createdAt,
@@ -1520,6 +1620,7 @@ class ExtensionVersionsCompanion extends UpdateCompanion<ExtensionVersion> {
     Value<String>? extensionId,
     Value<String>? version,
     Value<String>? filePath,
+    Value<String>? contractVersion,
     Value<int>? isCurrent,
     Value<int>? isRollbackPoint,
     Value<DateTime>? createdAt,
@@ -1530,6 +1631,7 @@ class ExtensionVersionsCompanion extends UpdateCompanion<ExtensionVersion> {
       extensionId: extensionId ?? this.extensionId,
       version: version ?? this.version,
       filePath: filePath ?? this.filePath,
+      contractVersion: contractVersion ?? this.contractVersion,
       isCurrent: isCurrent ?? this.isCurrent,
       isRollbackPoint: isRollbackPoint ?? this.isRollbackPoint,
       createdAt: createdAt ?? this.createdAt,
@@ -1551,6 +1653,9 @@ class ExtensionVersionsCompanion extends UpdateCompanion<ExtensionVersion> {
     }
     if (filePath.present) {
       map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (contractVersion.present) {
+      map['contract_version'] = Variable<String>(contractVersion.value);
     }
     if (isCurrent.present) {
       map['is_current'] = Variable<int>(isCurrent.value);
@@ -1574,6 +1679,7 @@ class ExtensionVersionsCompanion extends UpdateCompanion<ExtensionVersion> {
           ..write('extensionId: $extensionId, ')
           ..write('version: $version, ')
           ..write('filePath: $filePath, ')
+          ..write('contractVersion: $contractVersion, ')
           ..write('isCurrent: $isCurrent, ')
           ..write('isRollbackPoint: $isRollbackPoint, ')
           ..write('createdAt: $createdAt, ')
@@ -2132,6 +2238,29 @@ class $WatchProgressEntriesTable extends WatchProgressEntries
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _canonicalIdMeta = const VerificationMeta(
+    'canonicalId',
+  );
+  @override
+  late final GeneratedColumn<String> canonicalId = GeneratedColumn<String>(
+    'canonical_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _identityVersionMeta = const VerificationMeta(
+    'identityVersion',
+  );
+  @override
+  late final GeneratedColumn<int> identityVersion = GeneratedColumn<int>(
+    'identity_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _mediaKeyMeta = const VerificationMeta(
     'mediaKey',
   );
@@ -2257,6 +2386,8 @@ class $WatchProgressEntriesTable extends WatchProgressEntries
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    canonicalId,
+    identityVersion,
     mediaKey,
     mediaType,
     title,
@@ -2285,6 +2416,24 @@ class $WatchProgressEntriesTable extends WatchProgressEntries
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('canonical_id')) {
+      context.handle(
+        _canonicalIdMeta,
+        canonicalId.isAcceptableOrUnknown(
+          data['canonical_id']!,
+          _canonicalIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('identity_version')) {
+      context.handle(
+        _identityVersionMeta,
+        identityVersion.isAcceptableOrUnknown(
+          data['identity_version']!,
+          _identityVersionMeta,
+        ),
+      );
     }
     if (data.containsKey('media_key')) {
       context.handle(
@@ -2382,6 +2531,14 @@ class $WatchProgressEntriesTable extends WatchProgressEntries
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
+      canonicalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}canonical_id'],
+      ),
+      identityVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}identity_version'],
+      )!,
       mediaKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}media_key'],
@@ -2440,6 +2597,12 @@ class WatchProgressRow extends DataClass
   /// Stable playback identity (see the class comment). Primary key.
   final String id;
 
+  /// Canonical work identity when identity_version = 2, otherwise null.
+  final String? canonicalId;
+
+  /// Identity scheme: 1 = legacy title key, 2 = provider canonical key.
+  final int identityVersion;
+
   /// The parent work's canonical 2C metadata key (normalized title|type|year).
   final String mediaKey;
 
@@ -2472,6 +2635,8 @@ class WatchProgressRow extends DataClass
   final DateTime updatedAt;
   const WatchProgressRow({
     required this.id,
+    this.canonicalId,
+    required this.identityVersion,
     required this.mediaKey,
     required this.mediaType,
     required this.title,
@@ -2488,6 +2653,10 @@ class WatchProgressRow extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    if (!nullToAbsent || canonicalId != null) {
+      map['canonical_id'] = Variable<String>(canonicalId);
+    }
+    map['identity_version'] = Variable<int>(identityVersion);
     map['media_key'] = Variable<String>(mediaKey);
     map['media_type'] = Variable<String>(mediaType);
     map['title'] = Variable<String>(title);
@@ -2513,6 +2682,10 @@ class WatchProgressRow extends DataClass
   WatchProgressEntriesCompanion toCompanion(bool nullToAbsent) {
     return WatchProgressEntriesCompanion(
       id: Value(id),
+      canonicalId: canonicalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(canonicalId),
+      identityVersion: Value(identityVersion),
       mediaKey: Value(mediaKey),
       mediaType: Value(mediaType),
       title: Value(title),
@@ -2542,6 +2715,8 @@ class WatchProgressRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return WatchProgressRow(
       id: serializer.fromJson<String>(json['id']),
+      canonicalId: serializer.fromJson<String?>(json['canonicalId']),
+      identityVersion: serializer.fromJson<int>(json['identityVersion']),
       mediaKey: serializer.fromJson<String>(json['mediaKey']),
       mediaType: serializer.fromJson<String>(json['mediaType']),
       title: serializer.fromJson<String>(json['title']),
@@ -2560,6 +2735,8 @@ class WatchProgressRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'canonicalId': serializer.toJson<String?>(canonicalId),
+      'identityVersion': serializer.toJson<int>(identityVersion),
       'mediaKey': serializer.toJson<String>(mediaKey),
       'mediaType': serializer.toJson<String>(mediaType),
       'title': serializer.toJson<String>(title),
@@ -2576,6 +2753,8 @@ class WatchProgressRow extends DataClass
 
   WatchProgressRow copyWith({
     String? id,
+    Value<String?> canonicalId = const Value.absent(),
+    int? identityVersion,
     String? mediaKey,
     String? mediaType,
     String? title,
@@ -2589,6 +2768,8 @@ class WatchProgressRow extends DataClass
     DateTime? updatedAt,
   }) => WatchProgressRow(
     id: id ?? this.id,
+    canonicalId: canonicalId.present ? canonicalId.value : this.canonicalId,
+    identityVersion: identityVersion ?? this.identityVersion,
     mediaKey: mediaKey ?? this.mediaKey,
     mediaType: mediaType ?? this.mediaType,
     title: title ?? this.title,
@@ -2606,6 +2787,12 @@ class WatchProgressRow extends DataClass
   WatchProgressRow copyWithCompanion(WatchProgressEntriesCompanion data) {
     return WatchProgressRow(
       id: data.id.present ? data.id.value : this.id,
+      canonicalId: data.canonicalId.present
+          ? data.canonicalId.value
+          : this.canonicalId,
+      identityVersion: data.identityVersion.present
+          ? data.identityVersion.value
+          : this.identityVersion,
       mediaKey: data.mediaKey.present ? data.mediaKey.value : this.mediaKey,
       mediaType: data.mediaType.present ? data.mediaType.value : this.mediaType,
       title: data.title.present ? data.title.value : this.title,
@@ -2634,6 +2821,8 @@ class WatchProgressRow extends DataClass
   String toString() {
     return (StringBuffer('WatchProgressRow(')
           ..write('id: $id, ')
+          ..write('canonicalId: $canonicalId, ')
+          ..write('identityVersion: $identityVersion, ')
           ..write('mediaKey: $mediaKey, ')
           ..write('mediaType: $mediaType, ')
           ..write('title: $title, ')
@@ -2652,6 +2841,8 @@ class WatchProgressRow extends DataClass
   @override
   int get hashCode => Object.hash(
     id,
+    canonicalId,
+    identityVersion,
     mediaKey,
     mediaType,
     title,
@@ -2669,6 +2860,8 @@ class WatchProgressRow extends DataClass
       identical(this, other) ||
       (other is WatchProgressRow &&
           other.id == this.id &&
+          other.canonicalId == this.canonicalId &&
+          other.identityVersion == this.identityVersion &&
           other.mediaKey == this.mediaKey &&
           other.mediaType == this.mediaType &&
           other.title == this.title &&
@@ -2684,6 +2877,8 @@ class WatchProgressRow extends DataClass
 
 class WatchProgressEntriesCompanion extends UpdateCompanion<WatchProgressRow> {
   final Value<String> id;
+  final Value<String?> canonicalId;
+  final Value<int> identityVersion;
   final Value<String> mediaKey;
   final Value<String> mediaType;
   final Value<String> title;
@@ -2698,6 +2893,8 @@ class WatchProgressEntriesCompanion extends UpdateCompanion<WatchProgressRow> {
   final Value<int> rowid;
   const WatchProgressEntriesCompanion({
     this.id = const Value.absent(),
+    this.canonicalId = const Value.absent(),
+    this.identityVersion = const Value.absent(),
     this.mediaKey = const Value.absent(),
     this.mediaType = const Value.absent(),
     this.title = const Value.absent(),
@@ -2713,6 +2910,8 @@ class WatchProgressEntriesCompanion extends UpdateCompanion<WatchProgressRow> {
   });
   WatchProgressEntriesCompanion.insert({
     required String id,
+    this.canonicalId = const Value.absent(),
+    this.identityVersion = const Value.absent(),
     required String mediaKey,
     required String mediaType,
     required String title,
@@ -2732,6 +2931,8 @@ class WatchProgressEntriesCompanion extends UpdateCompanion<WatchProgressRow> {
        updatedAt = Value(updatedAt);
   static Insertable<WatchProgressRow> custom({
     Expression<String>? id,
+    Expression<String>? canonicalId,
+    Expression<int>? identityVersion,
     Expression<String>? mediaKey,
     Expression<String>? mediaType,
     Expression<String>? title,
@@ -2747,6 +2948,8 @@ class WatchProgressEntriesCompanion extends UpdateCompanion<WatchProgressRow> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (canonicalId != null) 'canonical_id': canonicalId,
+      if (identityVersion != null) 'identity_version': identityVersion,
       if (mediaKey != null) 'media_key': mediaKey,
       if (mediaType != null) 'media_type': mediaType,
       if (title != null) 'title': title,
@@ -2764,6 +2967,8 @@ class WatchProgressEntriesCompanion extends UpdateCompanion<WatchProgressRow> {
 
   WatchProgressEntriesCompanion copyWith({
     Value<String>? id,
+    Value<String?>? canonicalId,
+    Value<int>? identityVersion,
     Value<String>? mediaKey,
     Value<String>? mediaType,
     Value<String>? title,
@@ -2779,6 +2984,8 @@ class WatchProgressEntriesCompanion extends UpdateCompanion<WatchProgressRow> {
   }) {
     return WatchProgressEntriesCompanion(
       id: id ?? this.id,
+      canonicalId: canonicalId ?? this.canonicalId,
+      identityVersion: identityVersion ?? this.identityVersion,
       mediaKey: mediaKey ?? this.mediaKey,
       mediaType: mediaType ?? this.mediaType,
       title: title ?? this.title,
@@ -2799,6 +3006,12 @@ class WatchProgressEntriesCompanion extends UpdateCompanion<WatchProgressRow> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (canonicalId.present) {
+      map['canonical_id'] = Variable<String>(canonicalId.value);
+    }
+    if (identityVersion.present) {
+      map['identity_version'] = Variable<int>(identityVersion.value);
     }
     if (mediaKey.present) {
       map['media_key'] = Variable<String>(mediaKey.value);
@@ -2843,6 +3056,8 @@ class WatchProgressEntriesCompanion extends UpdateCompanion<WatchProgressRow> {
   String toString() {
     return (StringBuffer('WatchProgressEntriesCompanion(')
           ..write('id: $id, ')
+          ..write('canonicalId: $canonicalId, ')
+          ..write('identityVersion: $identityVersion, ')
           ..write('mediaKey: $mediaKey, ')
           ..write('mediaType: $mediaType, ')
           ..write('title: $title, ')
@@ -2866,6 +3081,29 @@ class $MediaReferencesTable extends MediaReferences
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $MediaReferencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _canonicalIdMeta = const VerificationMeta(
+    'canonicalId',
+  );
+  @override
+  late final GeneratedColumn<String> canonicalId = GeneratedColumn<String>(
+    'canonical_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _identityVersionMeta = const VerificationMeta(
+    'identityVersion',
+  );
+  @override
+  late final GeneratedColumn<int> identityVersion = GeneratedColumn<int>(
+    'identity_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _mediaKeyMeta = const VerificationMeta(
     'mediaKey',
   );
@@ -2912,6 +3150,8 @@ class $MediaReferencesTable extends MediaReferences
   );
   @override
   List<GeneratedColumn> get $columns => [
+    canonicalId,
+    identityVersion,
     mediaKey,
     ordinal,
     extensionId,
@@ -2929,6 +3169,24 @@ class $MediaReferencesTable extends MediaReferences
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('canonical_id')) {
+      context.handle(
+        _canonicalIdMeta,
+        canonicalId.isAcceptableOrUnknown(
+          data['canonical_id']!,
+          _canonicalIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('identity_version')) {
+      context.handle(
+        _identityVersionMeta,
+        identityVersion.isAcceptableOrUnknown(
+          data['identity_version']!,
+          _identityVersionMeta,
+        ),
+      );
+    }
     if (data.containsKey('media_key')) {
       context.handle(
         _mediaKeyMeta,
@@ -2976,6 +3234,14 @@ class $MediaReferencesTable extends MediaReferences
   MediaReferenceRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return MediaReferenceRow(
+      canonicalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}canonical_id'],
+      ),
+      identityVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}identity_version'],
+      )!,
       mediaKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}media_key'],
@@ -3003,6 +3269,12 @@ class $MediaReferencesTable extends MediaReferences
 
 class MediaReferenceRow extends DataClass
     implements Insertable<MediaReferenceRow> {
+  /// Canonical work identity when identity_version = 2, otherwise null.
+  final String? canonicalId;
+
+  /// Identity scheme: 1 = legacy title key, 2 = provider canonical key.
+  final int identityVersion;
+
   /// The work's canonical metadata key (the same identity watch progress uses).
   final String mediaKey;
 
@@ -3017,6 +3289,8 @@ class MediaReferenceRow extends DataClass
   /// `details(url)`. Never a playback URL.
   final String referenceUrl;
   const MediaReferenceRow({
+    this.canonicalId,
+    required this.identityVersion,
     required this.mediaKey,
     required this.ordinal,
     required this.extensionId,
@@ -3025,6 +3299,10 @@ class MediaReferenceRow extends DataClass
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (!nullToAbsent || canonicalId != null) {
+      map['canonical_id'] = Variable<String>(canonicalId);
+    }
+    map['identity_version'] = Variable<int>(identityVersion);
     map['media_key'] = Variable<String>(mediaKey);
     map['ordinal'] = Variable<int>(ordinal);
     map['extension_id'] = Variable<String>(extensionId);
@@ -3034,6 +3312,10 @@ class MediaReferenceRow extends DataClass
 
   MediaReferencesCompanion toCompanion(bool nullToAbsent) {
     return MediaReferencesCompanion(
+      canonicalId: canonicalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(canonicalId),
+      identityVersion: Value(identityVersion),
       mediaKey: Value(mediaKey),
       ordinal: Value(ordinal),
       extensionId: Value(extensionId),
@@ -3047,6 +3329,8 @@ class MediaReferenceRow extends DataClass
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return MediaReferenceRow(
+      canonicalId: serializer.fromJson<String?>(json['canonicalId']),
+      identityVersion: serializer.fromJson<int>(json['identityVersion']),
       mediaKey: serializer.fromJson<String>(json['mediaKey']),
       ordinal: serializer.fromJson<int>(json['ordinal']),
       extensionId: serializer.fromJson<String>(json['extensionId']),
@@ -3057,6 +3341,8 @@ class MediaReferenceRow extends DataClass
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'canonicalId': serializer.toJson<String?>(canonicalId),
+      'identityVersion': serializer.toJson<int>(identityVersion),
       'mediaKey': serializer.toJson<String>(mediaKey),
       'ordinal': serializer.toJson<int>(ordinal),
       'extensionId': serializer.toJson<String>(extensionId),
@@ -3065,11 +3351,15 @@ class MediaReferenceRow extends DataClass
   }
 
   MediaReferenceRow copyWith({
+    Value<String?> canonicalId = const Value.absent(),
+    int? identityVersion,
     String? mediaKey,
     int? ordinal,
     String? extensionId,
     String? referenceUrl,
   }) => MediaReferenceRow(
+    canonicalId: canonicalId.present ? canonicalId.value : this.canonicalId,
+    identityVersion: identityVersion ?? this.identityVersion,
     mediaKey: mediaKey ?? this.mediaKey,
     ordinal: ordinal ?? this.ordinal,
     extensionId: extensionId ?? this.extensionId,
@@ -3077,6 +3367,12 @@ class MediaReferenceRow extends DataClass
   );
   MediaReferenceRow copyWithCompanion(MediaReferencesCompanion data) {
     return MediaReferenceRow(
+      canonicalId: data.canonicalId.present
+          ? data.canonicalId.value
+          : this.canonicalId,
+      identityVersion: data.identityVersion.present
+          ? data.identityVersion.value
+          : this.identityVersion,
       mediaKey: data.mediaKey.present ? data.mediaKey.value : this.mediaKey,
       ordinal: data.ordinal.present ? data.ordinal.value : this.ordinal,
       extensionId: data.extensionId.present
@@ -3091,6 +3387,8 @@ class MediaReferenceRow extends DataClass
   @override
   String toString() {
     return (StringBuffer('MediaReferenceRow(')
+          ..write('canonicalId: $canonicalId, ')
+          ..write('identityVersion: $identityVersion, ')
           ..write('mediaKey: $mediaKey, ')
           ..write('ordinal: $ordinal, ')
           ..write('extensionId: $extensionId, ')
@@ -3100,11 +3398,20 @@ class MediaReferenceRow extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(mediaKey, ordinal, extensionId, referenceUrl);
+  int get hashCode => Object.hash(
+    canonicalId,
+    identityVersion,
+    mediaKey,
+    ordinal,
+    extensionId,
+    referenceUrl,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is MediaReferenceRow &&
+          other.canonicalId == this.canonicalId &&
+          other.identityVersion == this.identityVersion &&
           other.mediaKey == this.mediaKey &&
           other.ordinal == this.ordinal &&
           other.extensionId == this.extensionId &&
@@ -3112,12 +3419,16 @@ class MediaReferenceRow extends DataClass
 }
 
 class MediaReferencesCompanion extends UpdateCompanion<MediaReferenceRow> {
+  final Value<String?> canonicalId;
+  final Value<int> identityVersion;
   final Value<String> mediaKey;
   final Value<int> ordinal;
   final Value<String> extensionId;
   final Value<String> referenceUrl;
   final Value<int> rowid;
   const MediaReferencesCompanion({
+    this.canonicalId = const Value.absent(),
+    this.identityVersion = const Value.absent(),
     this.mediaKey = const Value.absent(),
     this.ordinal = const Value.absent(),
     this.extensionId = const Value.absent(),
@@ -3125,6 +3436,8 @@ class MediaReferencesCompanion extends UpdateCompanion<MediaReferenceRow> {
     this.rowid = const Value.absent(),
   });
   MediaReferencesCompanion.insert({
+    this.canonicalId = const Value.absent(),
+    this.identityVersion = const Value.absent(),
     required String mediaKey,
     required int ordinal,
     required String extensionId,
@@ -3135,6 +3448,8 @@ class MediaReferencesCompanion extends UpdateCompanion<MediaReferenceRow> {
        extensionId = Value(extensionId),
        referenceUrl = Value(referenceUrl);
   static Insertable<MediaReferenceRow> custom({
+    Expression<String>? canonicalId,
+    Expression<int>? identityVersion,
     Expression<String>? mediaKey,
     Expression<int>? ordinal,
     Expression<String>? extensionId,
@@ -3142,6 +3457,8 @@ class MediaReferencesCompanion extends UpdateCompanion<MediaReferenceRow> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (canonicalId != null) 'canonical_id': canonicalId,
+      if (identityVersion != null) 'identity_version': identityVersion,
       if (mediaKey != null) 'media_key': mediaKey,
       if (ordinal != null) 'ordinal': ordinal,
       if (extensionId != null) 'extension_id': extensionId,
@@ -3151,6 +3468,8 @@ class MediaReferencesCompanion extends UpdateCompanion<MediaReferenceRow> {
   }
 
   MediaReferencesCompanion copyWith({
+    Value<String?>? canonicalId,
+    Value<int>? identityVersion,
     Value<String>? mediaKey,
     Value<int>? ordinal,
     Value<String>? extensionId,
@@ -3158,6 +3477,8 @@ class MediaReferencesCompanion extends UpdateCompanion<MediaReferenceRow> {
     Value<int>? rowid,
   }) {
     return MediaReferencesCompanion(
+      canonicalId: canonicalId ?? this.canonicalId,
+      identityVersion: identityVersion ?? this.identityVersion,
       mediaKey: mediaKey ?? this.mediaKey,
       ordinal: ordinal ?? this.ordinal,
       extensionId: extensionId ?? this.extensionId,
@@ -3169,6 +3490,12 @@ class MediaReferencesCompanion extends UpdateCompanion<MediaReferenceRow> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (canonicalId.present) {
+      map['canonical_id'] = Variable<String>(canonicalId.value);
+    }
+    if (identityVersion.present) {
+      map['identity_version'] = Variable<int>(identityVersion.value);
+    }
     if (mediaKey.present) {
       map['media_key'] = Variable<String>(mediaKey.value);
     }
@@ -3190,6 +3517,8 @@ class MediaReferencesCompanion extends UpdateCompanion<MediaReferenceRow> {
   @override
   String toString() {
     return (StringBuffer('MediaReferencesCompanion(')
+          ..write('canonicalId: $canonicalId, ')
+          ..write('identityVersion: $identityVersion, ')
           ..write('mediaKey: $mediaKey, ')
           ..write('ordinal: $ordinal, ')
           ..write('extensionId: $extensionId, ')
@@ -3214,6 +3543,29 @@ class $DownloadsTable extends Downloads
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _canonicalIdMeta = const VerificationMeta(
+    'canonicalId',
+  );
+  @override
+  late final GeneratedColumn<String> canonicalId = GeneratedColumn<String>(
+    'canonical_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _identityVersionMeta = const VerificationMeta(
+    'identityVersion',
+  );
+  @override
+  late final GeneratedColumn<int> identityVersion = GeneratedColumn<int>(
+    'identity_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
   );
   static const VerificationMeta _mediaKeyMeta = const VerificationMeta(
     'mediaKey',
@@ -3437,6 +3789,8 @@ class $DownloadsTable extends Downloads
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    canonicalId,
+    identityVersion,
     mediaKey,
     mediaType,
     title,
@@ -3474,6 +3828,24 @@ class $DownloadsTable extends Downloads
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('canonical_id')) {
+      context.handle(
+        _canonicalIdMeta,
+        canonicalId.isAcceptableOrUnknown(
+          data['canonical_id']!,
+          _canonicalIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('identity_version')) {
+      context.handle(
+        _identityVersionMeta,
+        identityVersion.isAcceptableOrUnknown(
+          data['identity_version']!,
+          _identityVersionMeta,
+        ),
+      );
     }
     if (data.containsKey('media_key')) {
       context.handle(
@@ -3649,6 +4021,14 @@ class $DownloadsTable extends Downloads
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
+      canonicalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}canonical_id'],
+      ),
+      identityVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}identity_version'],
+      )!,
       mediaKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}media_key'],
@@ -3742,6 +4122,12 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
   /// Stable download identity (the playback identity). Primary key.
   final String id;
 
+  /// Canonical work identity when identity_version = 2, otherwise null.
+  final String? canonicalId;
+
+  /// Identity scheme: 1 = legacy title key, 2 = provider canonical key.
+  final int identityVersion;
+
   /// The parent work's canonical 2C metadata key (normalized title|type|year).
   final String mediaKey;
 
@@ -3804,6 +4190,8 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
   final DateTime? completedAt;
   const DownloadRow({
     required this.id,
+    this.canonicalId,
+    required this.identityVersion,
     required this.mediaKey,
     required this.mediaType,
     required this.title,
@@ -3829,6 +4217,10 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    if (!nullToAbsent || canonicalId != null) {
+      map['canonical_id'] = Variable<String>(canonicalId);
+    }
+    map['identity_version'] = Variable<int>(identityVersion);
     map['media_key'] = Variable<String>(mediaKey);
     map['media_type'] = Variable<String>(mediaType);
     map['title'] = Variable<String>(title);
@@ -3877,6 +4269,10 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
   DownloadsCompanion toCompanion(bool nullToAbsent) {
     return DownloadsCompanion(
       id: Value(id),
+      canonicalId: canonicalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(canonicalId),
+      identityVersion: Value(identityVersion),
       mediaKey: Value(mediaKey),
       mediaType: Value(mediaType),
       title: Value(title),
@@ -3929,6 +4325,8 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return DownloadRow(
       id: serializer.fromJson<String>(json['id']),
+      canonicalId: serializer.fromJson<String?>(json['canonicalId']),
+      identityVersion: serializer.fromJson<int>(json['identityVersion']),
       mediaKey: serializer.fromJson<String>(json['mediaKey']),
       mediaType: serializer.fromJson<String>(json['mediaType']),
       title: serializer.fromJson<String>(json['title']),
@@ -3958,6 +4356,8 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'canonicalId': serializer.toJson<String?>(canonicalId),
+      'identityVersion': serializer.toJson<int>(identityVersion),
       'mediaKey': serializer.toJson<String>(mediaKey),
       'mediaType': serializer.toJson<String>(mediaType),
       'title': serializer.toJson<String>(title),
@@ -3983,6 +4383,8 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
 
   DownloadRow copyWith({
     String? id,
+    Value<String?> canonicalId = const Value.absent(),
+    int? identityVersion,
     String? mediaKey,
     String? mediaType,
     String? title,
@@ -4005,6 +4407,8 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
     Value<DateTime?> completedAt = const Value.absent(),
   }) => DownloadRow(
     id: id ?? this.id,
+    canonicalId: canonicalId.present ? canonicalId.value : this.canonicalId,
+    identityVersion: identityVersion ?? this.identityVersion,
     mediaKey: mediaKey ?? this.mediaKey,
     mediaType: mediaType ?? this.mediaType,
     title: title ?? this.title,
@@ -4035,6 +4439,12 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
   DownloadRow copyWithCompanion(DownloadsCompanion data) {
     return DownloadRow(
       id: data.id.present ? data.id.value : this.id,
+      canonicalId: data.canonicalId.present
+          ? data.canonicalId.value
+          : this.canonicalId,
+      identityVersion: data.identityVersion.present
+          ? data.identityVersion.value
+          : this.identityVersion,
       mediaKey: data.mediaKey.present ? data.mediaKey.value : this.mediaKey,
       mediaType: data.mediaType.present ? data.mediaType.value : this.mediaType,
       title: data.title.present ? data.title.value : this.title,
@@ -4084,6 +4494,8 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
   String toString() {
     return (StringBuffer('DownloadRow(')
           ..write('id: $id, ')
+          ..write('canonicalId: $canonicalId, ')
+          ..write('identityVersion: $identityVersion, ')
           ..write('mediaKey: $mediaKey, ')
           ..write('mediaType: $mediaType, ')
           ..write('title: $title, ')
@@ -4111,6 +4523,8 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
   @override
   int get hashCode => Object.hashAll([
     id,
+    canonicalId,
+    identityVersion,
     mediaKey,
     mediaType,
     title,
@@ -4137,6 +4551,8 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
       identical(this, other) ||
       (other is DownloadRow &&
           other.id == this.id &&
+          other.canonicalId == this.canonicalId &&
+          other.identityVersion == this.identityVersion &&
           other.mediaKey == this.mediaKey &&
           other.mediaType == this.mediaType &&
           other.title == this.title &&
@@ -4161,6 +4577,8 @@ class DownloadRow extends DataClass implements Insertable<DownloadRow> {
 
 class DownloadsCompanion extends UpdateCompanion<DownloadRow> {
   final Value<String> id;
+  final Value<String?> canonicalId;
+  final Value<int> identityVersion;
   final Value<String> mediaKey;
   final Value<String> mediaType;
   final Value<String> title;
@@ -4184,6 +4602,8 @@ class DownloadsCompanion extends UpdateCompanion<DownloadRow> {
   final Value<int> rowid;
   const DownloadsCompanion({
     this.id = const Value.absent(),
+    this.canonicalId = const Value.absent(),
+    this.identityVersion = const Value.absent(),
     this.mediaKey = const Value.absent(),
     this.mediaType = const Value.absent(),
     this.title = const Value.absent(),
@@ -4208,6 +4628,8 @@ class DownloadsCompanion extends UpdateCompanion<DownloadRow> {
   });
   DownloadsCompanion.insert({
     required String id,
+    this.canonicalId = const Value.absent(),
+    this.identityVersion = const Value.absent(),
     required String mediaKey,
     required String mediaType,
     required String title,
@@ -4239,6 +4661,8 @@ class DownloadsCompanion extends UpdateCompanion<DownloadRow> {
        updatedAt = Value(updatedAt);
   static Insertable<DownloadRow> custom({
     Expression<String>? id,
+    Expression<String>? canonicalId,
+    Expression<int>? identityVersion,
     Expression<String>? mediaKey,
     Expression<String>? mediaType,
     Expression<String>? title,
@@ -4263,6 +4687,8 @@ class DownloadsCompanion extends UpdateCompanion<DownloadRow> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (canonicalId != null) 'canonical_id': canonicalId,
+      if (identityVersion != null) 'identity_version': identityVersion,
       if (mediaKey != null) 'media_key': mediaKey,
       if (mediaType != null) 'media_type': mediaType,
       if (title != null) 'title': title,
@@ -4289,6 +4715,8 @@ class DownloadsCompanion extends UpdateCompanion<DownloadRow> {
 
   DownloadsCompanion copyWith({
     Value<String>? id,
+    Value<String?>? canonicalId,
+    Value<int>? identityVersion,
     Value<String>? mediaKey,
     Value<String>? mediaType,
     Value<String>? title,
@@ -4313,6 +4741,8 @@ class DownloadsCompanion extends UpdateCompanion<DownloadRow> {
   }) {
     return DownloadsCompanion(
       id: id ?? this.id,
+      canonicalId: canonicalId ?? this.canonicalId,
+      identityVersion: identityVersion ?? this.identityVersion,
       mediaKey: mediaKey ?? this.mediaKey,
       mediaType: mediaType ?? this.mediaType,
       title: title ?? this.title,
@@ -4342,6 +4772,12 @@ class DownloadsCompanion extends UpdateCompanion<DownloadRow> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (canonicalId.present) {
+      map['canonical_id'] = Variable<String>(canonicalId.value);
+    }
+    if (identityVersion.present) {
+      map['identity_version'] = Variable<int>(identityVersion.value);
     }
     if (mediaKey.present) {
       map['media_key'] = Variable<String>(mediaKey.value);
@@ -4413,6 +4849,8 @@ class DownloadsCompanion extends UpdateCompanion<DownloadRow> {
   String toString() {
     return (StringBuffer('DownloadsCompanion(')
           ..write('id: $id, ')
+          ..write('canonicalId: $canonicalId, ')
+          ..write('identityVersion: $identityVersion, ')
           ..write('mediaKey: $mediaKey, ')
           ..write('mediaType: $mediaType, ')
           ..write('title: $title, ')
@@ -4439,6 +4877,383 @@ class DownloadsCompanion extends UpdateCompanion<DownloadRow> {
   }
 }
 
+class $MetadataCacheTable extends MetadataCache
+    with TableInfo<$MetadataCacheTable, MetadataCacheRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MetadataCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mediaKeyMeta = const VerificationMeta(
+    'mediaKey',
+  );
+  @override
+  late final GeneratedColumn<String> mediaKey = GeneratedColumn<String>(
+    'media_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _expiresAtMeta = const VerificationMeta(
+    'expiresAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> expiresAt = GeneratedColumn<DateTime>(
+    'expires_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    source,
+    mediaKey,
+    payload,
+    expiresAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'metadata_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MetadataCacheRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('media_key')) {
+      context.handle(
+        _mediaKeyMeta,
+        mediaKey.isAcceptableOrUnknown(data['media_key']!, _mediaKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mediaKeyMeta);
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    if (data.containsKey('expires_at')) {
+      context.handle(
+        _expiresAtMeta,
+        expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_expiresAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {source, mediaKey};
+  @override
+  MetadataCacheRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MetadataCacheRow(
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+      mediaKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}media_key'],
+      )!,
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      )!,
+      expiresAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}expires_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MetadataCacheTable createAlias(String alias) {
+    return $MetadataCacheTable(attachedDatabase, alias);
+  }
+}
+
+class MetadataCacheRow extends DataClass
+    implements Insertable<MetadataCacheRow> {
+  /// 'tmdb' or 'tvmaze'. Part of the primary key.
+  final String source;
+
+  /// Canonical SPECTA identity key (e.g. normalized title|type|year or
+  /// `tmdb:movie:123` / `tvmaze:show:42`). Part of the primary key.
+  final String mediaKey;
+
+  /// Normalized metadata JSON including title, overview, cast, image URLs.
+  final String payload;
+
+  /// When this row goes stale. Hits before this time avoid all network I/O.
+  final DateTime expiresAt;
+
+  /// Last write time (insert or refresh).
+  final DateTime updatedAt;
+  const MetadataCacheRow({
+    required this.source,
+    required this.mediaKey,
+    required this.payload,
+    required this.expiresAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['source'] = Variable<String>(source);
+    map['media_key'] = Variable<String>(mediaKey);
+    map['payload'] = Variable<String>(payload);
+    map['expires_at'] = Variable<DateTime>(expiresAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  MetadataCacheCompanion toCompanion(bool nullToAbsent) {
+    return MetadataCacheCompanion(
+      source: Value(source),
+      mediaKey: Value(mediaKey),
+      payload: Value(payload),
+      expiresAt: Value(expiresAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MetadataCacheRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MetadataCacheRow(
+      source: serializer.fromJson<String>(json['source']),
+      mediaKey: serializer.fromJson<String>(json['mediaKey']),
+      payload: serializer.fromJson<String>(json['payload']),
+      expiresAt: serializer.fromJson<DateTime>(json['expiresAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'source': serializer.toJson<String>(source),
+      'mediaKey': serializer.toJson<String>(mediaKey),
+      'payload': serializer.toJson<String>(payload),
+      'expiresAt': serializer.toJson<DateTime>(expiresAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  MetadataCacheRow copyWith({
+    String? source,
+    String? mediaKey,
+    String? payload,
+    DateTime? expiresAt,
+    DateTime? updatedAt,
+  }) => MetadataCacheRow(
+    source: source ?? this.source,
+    mediaKey: mediaKey ?? this.mediaKey,
+    payload: payload ?? this.payload,
+    expiresAt: expiresAt ?? this.expiresAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  MetadataCacheRow copyWithCompanion(MetadataCacheCompanion data) {
+    return MetadataCacheRow(
+      source: data.source.present ? data.source.value : this.source,
+      mediaKey: data.mediaKey.present ? data.mediaKey.value : this.mediaKey,
+      payload: data.payload.present ? data.payload.value : this.payload,
+      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MetadataCacheRow(')
+          ..write('source: $source, ')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('payload: $payload, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(source, mediaKey, payload, expiresAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MetadataCacheRow &&
+          other.source == this.source &&
+          other.mediaKey == this.mediaKey &&
+          other.payload == this.payload &&
+          other.expiresAt == this.expiresAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MetadataCacheCompanion extends UpdateCompanion<MetadataCacheRow> {
+  final Value<String> source;
+  final Value<String> mediaKey;
+  final Value<String> payload;
+  final Value<DateTime> expiresAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const MetadataCacheCompanion({
+    this.source = const Value.absent(),
+    this.mediaKey = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MetadataCacheCompanion.insert({
+    required String source,
+    required String mediaKey,
+    required String payload,
+    required DateTime expiresAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : source = Value(source),
+       mediaKey = Value(mediaKey),
+       payload = Value(payload),
+       expiresAt = Value(expiresAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<MetadataCacheRow> custom({
+    Expression<String>? source,
+    Expression<String>? mediaKey,
+    Expression<String>? payload,
+    Expression<DateTime>? expiresAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (source != null) 'source': source,
+      if (mediaKey != null) 'media_key': mediaKey,
+      if (payload != null) 'payload': payload,
+      if (expiresAt != null) 'expires_at': expiresAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MetadataCacheCompanion copyWith({
+    Value<String>? source,
+    Value<String>? mediaKey,
+    Value<String>? payload,
+    Value<DateTime>? expiresAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return MetadataCacheCompanion(
+      source: source ?? this.source,
+      mediaKey: mediaKey ?? this.mediaKey,
+      payload: payload ?? this.payload,
+      expiresAt: expiresAt ?? this.expiresAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (mediaKey.present) {
+      map['media_key'] = Variable<String>(mediaKey.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (expiresAt.present) {
+      map['expires_at'] = Variable<DateTime>(expiresAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MetadataCacheCompanion(')
+          ..write('source: $source, ')
+          ..write('mediaKey: $mediaKey, ')
+          ..write('payload: $payload, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$SpectaDatabase extends GeneratedDatabase {
   _$SpectaDatabase(QueryExecutor e) : super(e);
   $SpectaDatabaseManager get managers => $SpectaDatabaseManager(this);
@@ -4456,6 +5271,7 @@ abstract class _$SpectaDatabase extends GeneratedDatabase {
     this,
   );
   late final $DownloadsTable downloads = $DownloadsTable(this);
+  late final $MetadataCacheTable metadataCache = $MetadataCacheTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4468,6 +5284,7 @@ abstract class _$SpectaDatabase extends GeneratedDatabase {
     watchProgressEntries,
     mediaReferences,
     downloads,
+    metadataCache,
   ];
 }
 
@@ -4654,6 +5471,7 @@ typedef $$ExtensionsTableCreateCompanionBuilder = ExtensionsCompanion Function({
   required String version,
   required String author,
   required int apiVersion,
+  Value<String> contractVersion,
   required String contentType,
   Value<String?> signature,
   required String trustLevel,
@@ -4671,6 +5489,7 @@ typedef $$ExtensionsTableUpdateCompanionBuilder = ExtensionsCompanion Function({
   Value<String> version,
   Value<String> author,
   Value<int> apiVersion,
+  Value<String> contractVersion,
   Value<String> contentType,
   Value<String?> signature,
   Value<String> trustLevel,
@@ -4765,6 +5584,11 @@ class $$ExtensionsTableFilterComposer
 
   ColumnFilters<int> get apiVersion => $composableBuilder(
     column: $table.apiVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contractVersion => $composableBuilder(
+    column: $table.contractVersion,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4898,6 +5722,11 @@ class $$ExtensionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get contractVersion => $composableBuilder(
+    column: $table.contractVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get contentType => $composableBuilder(
     column: $table.contentType,
     builder: (column) => ColumnOrderings(column),
@@ -4967,6 +5796,11 @@ class $$ExtensionsTableAnnotationComposer
 
   GeneratedColumn<int> get apiVersion => $composableBuilder(
     column: $table.apiVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get contractVersion => $composableBuilder(
+    column: $table.contractVersion,
     builder: (column) => column,
   );
 
@@ -5096,6 +5930,7 @@ class $$ExtensionsTableTableManager
                 Value<String> version = const Value.absent(),
                 Value<String> author = const Value.absent(),
                 Value<int> apiVersion = const Value.absent(),
+                Value<String> contractVersion = const Value.absent(),
                 Value<String> contentType = const Value.absent(),
                 Value<String?> signature = const Value.absent(),
                 Value<String> trustLevel = const Value.absent(),
@@ -5112,6 +5947,7 @@ class $$ExtensionsTableTableManager
                 version: version,
                 author: author,
                 apiVersion: apiVersion,
+                contractVersion: contractVersion,
                 contentType: contentType,
                 signature: signature,
                 trustLevel: trustLevel,
@@ -5130,6 +5966,7 @@ class $$ExtensionsTableTableManager
                 required String version,
                 required String author,
                 required int apiVersion,
+                Value<String> contractVersion = const Value.absent(),
                 required String contentType,
                 Value<String?> signature = const Value.absent(),
                 required String trustLevel,
@@ -5146,6 +5983,7 @@ class $$ExtensionsTableTableManager
                 version: version,
                 author: author,
                 apiVersion: apiVersion,
+                contractVersion: contractVersion,
                 contentType: contentType,
                 signature: signature,
                 trustLevel: trustLevel,
@@ -5252,6 +6090,7 @@ typedef $$ExtensionVersionsTableCreateCompanionBuilder =
       required String extensionId,
       required String version,
       required String filePath,
+      Value<String> contractVersion,
       Value<int> isCurrent,
       Value<int> isRollbackPoint,
       Value<DateTime> createdAt,
@@ -5263,6 +6102,7 @@ typedef $$ExtensionVersionsTableUpdateCompanionBuilder =
       Value<String> extensionId,
       Value<String> version,
       Value<String> filePath,
+      Value<String> contractVersion,
       Value<int> isCurrent,
       Value<int> isRollbackPoint,
       Value<DateTime> createdAt,
@@ -5322,6 +6162,11 @@ class $$ExtensionVersionsTableFilterComposer
 
   ColumnFilters<String> get filePath => $composableBuilder(
     column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contractVersion => $composableBuilder(
+    column: $table.contractVersion,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5388,6 +6233,11 @@ class $$ExtensionVersionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get contractVersion => $composableBuilder(
+    column: $table.contractVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get isCurrent => $composableBuilder(
     column: $table.isCurrent,
     builder: (column) => ColumnOrderings(column),
@@ -5444,6 +6294,11 @@ class $$ExtensionVersionsTableAnnotationComposer
 
   GeneratedColumn<String> get filePath =>
       $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<String> get contractVersion => $composableBuilder(
+    column: $table.contractVersion,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get isCurrent =>
       $composableBuilder(column: $table.isCurrent, builder: (column) => column);
@@ -5517,6 +6372,7 @@ class $$ExtensionVersionsTableTableManager
                 Value<String> extensionId = const Value.absent(),
                 Value<String> version = const Value.absent(),
                 Value<String> filePath = const Value.absent(),
+                Value<String> contractVersion = const Value.absent(),
                 Value<int> isCurrent = const Value.absent(),
                 Value<int> isRollbackPoint = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -5526,6 +6382,7 @@ class $$ExtensionVersionsTableTableManager
                 extensionId: extensionId,
                 version: version,
                 filePath: filePath,
+                contractVersion: contractVersion,
                 isCurrent: isCurrent,
                 isRollbackPoint: isRollbackPoint,
                 createdAt: createdAt,
@@ -5537,6 +6394,7 @@ class $$ExtensionVersionsTableTableManager
                 required String extensionId,
                 required String version,
                 required String filePath,
+                Value<String> contractVersion = const Value.absent(),
                 Value<int> isCurrent = const Value.absent(),
                 Value<int> isRollbackPoint = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -5546,6 +6404,7 @@ class $$ExtensionVersionsTableTableManager
                 extensionId: extensionId,
                 version: version,
                 filePath: filePath,
+                contractVersion: contractVersion,
                 isCurrent: isCurrent,
                 isRollbackPoint: isRollbackPoint,
                 createdAt: createdAt,
@@ -6013,6 +6872,8 @@ typedef $$ExtensionFailureLogsTableProcessedTableManager =
 typedef $$WatchProgressEntriesTableCreateCompanionBuilder =
     WatchProgressEntriesCompanion Function({
       required String id,
+      Value<String?> canonicalId,
+      Value<int> identityVersion,
       required String mediaKey,
       required String mediaType,
       required String title,
@@ -6029,6 +6890,8 @@ typedef $$WatchProgressEntriesTableCreateCompanionBuilder =
 typedef $$WatchProgressEntriesTableUpdateCompanionBuilder =
     WatchProgressEntriesCompanion Function({
       Value<String> id,
+      Value<String?> canonicalId,
+      Value<int> identityVersion,
       Value<String> mediaKey,
       Value<String> mediaType,
       Value<String> title,
@@ -6054,6 +6917,16 @@ class $$WatchProgressEntriesTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get canonicalId => $composableBuilder(
+    column: $table.canonicalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get identityVersion => $composableBuilder(
+    column: $table.identityVersion,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6127,6 +7000,16 @@ class $$WatchProgressEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get canonicalId => $composableBuilder(
+    column: $table.canonicalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get identityVersion => $composableBuilder(
+    column: $table.identityVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get mediaKey => $composableBuilder(
     column: $table.mediaKey,
     builder: (column) => ColumnOrderings(column),
@@ -6194,6 +7077,16 @@ class $$WatchProgressEntriesTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get canonicalId => $composableBuilder(
+    column: $table.canonicalId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get identityVersion => $composableBuilder(
+    column: $table.identityVersion,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get mediaKey =>
       $composableBuilder(column: $table.mediaKey, builder: (column) => column);
@@ -6283,6 +7176,8 @@ class $$WatchProgressEntriesTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<String?> canonicalId = const Value.absent(),
+                Value<int> identityVersion = const Value.absent(),
                 Value<String> mediaKey = const Value.absent(),
                 Value<String> mediaType = const Value.absent(),
                 Value<String> title = const Value.absent(),
@@ -6297,6 +7192,8 @@ class $$WatchProgressEntriesTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => WatchProgressEntriesCompanion(
                 id: id,
+                canonicalId: canonicalId,
+                identityVersion: identityVersion,
                 mediaKey: mediaKey,
                 mediaType: mediaType,
                 title: title,
@@ -6313,6 +7210,8 @@ class $$WatchProgressEntriesTableTableManager
           createCompanionCallback:
               ({
                 required String id,
+                Value<String?> canonicalId = const Value.absent(),
+                Value<int> identityVersion = const Value.absent(),
                 required String mediaKey,
                 required String mediaType,
                 required String title,
@@ -6327,6 +7226,8 @@ class $$WatchProgressEntriesTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => WatchProgressEntriesCompanion.insert(
                 id: id,
+                canonicalId: canonicalId,
+                identityVersion: identityVersion,
                 mediaKey: mediaKey,
                 mediaType: mediaType,
                 title: title,
@@ -6382,6 +7283,8 @@ typedef $$WatchProgressEntriesTableProcessedTableManager =
     >;
 typedef $$MediaReferencesTableCreateCompanionBuilder =
     MediaReferencesCompanion Function({
+      Value<String?> canonicalId,
+      Value<int> identityVersion,
       required String mediaKey,
       required int ordinal,
       required String extensionId,
@@ -6390,6 +7293,8 @@ typedef $$MediaReferencesTableCreateCompanionBuilder =
     });
 typedef $$MediaReferencesTableUpdateCompanionBuilder =
     MediaReferencesCompanion Function({
+      Value<String?> canonicalId,
+      Value<int> identityVersion,
       Value<String> mediaKey,
       Value<int> ordinal,
       Value<String> extensionId,
@@ -6406,6 +7311,16 @@ class $$MediaReferencesTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get canonicalId => $composableBuilder(
+    column: $table.canonicalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get identityVersion => $composableBuilder(
+    column: $table.identityVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get mediaKey => $composableBuilder(
     column: $table.mediaKey,
     builder: (column) => ColumnFilters(column),
@@ -6436,6 +7351,16 @@ class $$MediaReferencesTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get canonicalId => $composableBuilder(
+    column: $table.canonicalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get identityVersion => $composableBuilder(
+    column: $table.identityVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get mediaKey => $composableBuilder(
     column: $table.mediaKey,
     builder: (column) => ColumnOrderings(column),
@@ -6466,6 +7391,16 @@ class $$MediaReferencesTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get canonicalId => $composableBuilder(
+    column: $table.canonicalId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get identityVersion => $composableBuilder(
+    column: $table.identityVersion,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get mediaKey =>
       $composableBuilder(column: $table.mediaKey, builder: (column) => column);
 
@@ -6520,12 +7455,16 @@ class $$MediaReferencesTableTableManager
               $$MediaReferencesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String?> canonicalId = const Value.absent(),
+                Value<int> identityVersion = const Value.absent(),
                 Value<String> mediaKey = const Value.absent(),
                 Value<int> ordinal = const Value.absent(),
                 Value<String> extensionId = const Value.absent(),
                 Value<String> referenceUrl = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MediaReferencesCompanion(
+                canonicalId: canonicalId,
+                identityVersion: identityVersion,
                 mediaKey: mediaKey,
                 ordinal: ordinal,
                 extensionId: extensionId,
@@ -6534,12 +7473,16 @@ class $$MediaReferencesTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<String?> canonicalId = const Value.absent(),
+                Value<int> identityVersion = const Value.absent(),
                 required String mediaKey,
                 required int ordinal,
                 required String extensionId,
                 required String referenceUrl,
                 Value<int> rowid = const Value.absent(),
               }) => MediaReferencesCompanion.insert(
+                canonicalId: canonicalId,
+                identityVersion: identityVersion,
                 mediaKey: mediaKey,
                 ordinal: ordinal,
                 extensionId: extensionId,
@@ -6586,6 +7529,8 @@ typedef $$MediaReferencesTableProcessedTableManager =
     >;
 typedef $$DownloadsTableCreateCompanionBuilder = DownloadsCompanion Function({
   required String id,
+  Value<String?> canonicalId,
+  Value<int> identityVersion,
   required String mediaKey,
   required String mediaType,
   required String title,
@@ -6610,6 +7555,8 @@ typedef $$DownloadsTableCreateCompanionBuilder = DownloadsCompanion Function({
 });
 typedef $$DownloadsTableUpdateCompanionBuilder = DownloadsCompanion Function({
   Value<String> id,
+  Value<String?> canonicalId,
+  Value<int> identityVersion,
   Value<String> mediaKey,
   Value<String> mediaType,
   Value<String> title,
@@ -6644,6 +7591,16 @@ class $$DownloadsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get canonicalId => $composableBuilder(
+    column: $table.canonicalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get identityVersion => $composableBuilder(
+    column: $table.identityVersion,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6762,6 +7719,16 @@ class $$DownloadsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get canonicalId => $composableBuilder(
+    column: $table.canonicalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get identityVersion => $composableBuilder(
+    column: $table.identityVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get mediaKey => $composableBuilder(
     column: $table.mediaKey,
     builder: (column) => ColumnOrderings(column),
@@ -6874,6 +7841,16 @@ class $$DownloadsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get canonicalId => $composableBuilder(
+    column: $table.canonicalId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get identityVersion => $composableBuilder(
+    column: $table.identityVersion,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get mediaKey =>
       $composableBuilder(column: $table.mediaKey, builder: (column) => column);
@@ -6990,6 +7967,8 @@ class $$DownloadsTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<String?> canonicalId = const Value.absent(),
+                Value<int> identityVersion = const Value.absent(),
                 Value<String> mediaKey = const Value.absent(),
                 Value<String> mediaType = const Value.absent(),
                 Value<String> title = const Value.absent(),
@@ -7013,6 +7992,8 @@ class $$DownloadsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => DownloadsCompanion(
                 id: id,
+                canonicalId: canonicalId,
+                identityVersion: identityVersion,
                 mediaKey: mediaKey,
                 mediaType: mediaType,
                 title: title,
@@ -7038,6 +8019,8 @@ class $$DownloadsTableTableManager
           createCompanionCallback:
               ({
                 required String id,
+                Value<String?> canonicalId = const Value.absent(),
+                Value<int> identityVersion = const Value.absent(),
                 required String mediaKey,
                 required String mediaType,
                 required String title,
@@ -7061,6 +8044,8 @@ class $$DownloadsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => DownloadsCompanion.insert(
                 id: id,
+                canonicalId: canonicalId,
+                identityVersion: identityVersion,
                 mediaKey: mediaKey,
                 mediaType: mediaType,
                 title: title,
@@ -7117,6 +8102,221 @@ typedef $$DownloadsTableProcessedTableManager =
       DownloadRow,
       PrefetchHooks Function()
     >;
+typedef $$MetadataCacheTableCreateCompanionBuilder =
+    MetadataCacheCompanion Function({
+      required String source,
+      required String mediaKey,
+      required String payload,
+      required DateTime expiresAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$MetadataCacheTableUpdateCompanionBuilder =
+    MetadataCacheCompanion Function({
+      Value<String> source,
+      Value<String> mediaKey,
+      Value<String> payload,
+      Value<DateTime> expiresAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$MetadataCacheTableFilterComposer
+    extends Composer<_$SpectaDatabase, $MetadataCacheTable> {
+  $$MetadataCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MetadataCacheTableOrderingComposer
+    extends Composer<_$SpectaDatabase, $MetadataCacheTable> {
+  $$MetadataCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mediaKey => $composableBuilder(
+    column: $table.mediaKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MetadataCacheTableAnnotationComposer
+    extends Composer<_$SpectaDatabase, $MetadataCacheTable> {
+  $$MetadataCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaKey =>
+      $composableBuilder(column: $table.mediaKey, builder: (column) => column);
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get expiresAt =>
+      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MetadataCacheTableTableManager
+    extends
+        RootTableManager<
+          _$SpectaDatabase,
+          $MetadataCacheTable,
+          MetadataCacheRow,
+          $$MetadataCacheTableFilterComposer,
+          $$MetadataCacheTableOrderingComposer,
+          $$MetadataCacheTableAnnotationComposer,
+          $$MetadataCacheTableCreateCompanionBuilder,
+          $$MetadataCacheTableUpdateCompanionBuilder,
+          (
+            MetadataCacheRow,
+            BaseReferences<
+              _$SpectaDatabase,
+              $MetadataCacheTable,
+              MetadataCacheRow
+            >,
+          ),
+          MetadataCacheRow,
+          PrefetchHooks Function()
+        > {
+  $$MetadataCacheTableTableManager(
+    _$SpectaDatabase db,
+    $MetadataCacheTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MetadataCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MetadataCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MetadataCacheTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> source = const Value.absent(),
+                Value<String> mediaKey = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<DateTime> expiresAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MetadataCacheCompanion(
+                source: source,
+                mediaKey: mediaKey,
+                payload: payload,
+                expiresAt: expiresAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String source,
+                required String mediaKey,
+                required String payload,
+                required DateTime expiresAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => MetadataCacheCompanion.insert(
+                source: source,
+                mediaKey: mediaKey,
+                payload: payload,
+                expiresAt: expiresAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$MetadataCacheTable, MetadataCacheRow>(table),
+                  BaseReferences<
+                    _$SpectaDatabase,
+                    $MetadataCacheTable,
+                    MetadataCacheRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MetadataCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$SpectaDatabase,
+      $MetadataCacheTable,
+      MetadataCacheRow,
+      $$MetadataCacheTableFilterComposer,
+      $$MetadataCacheTableOrderingComposer,
+      $$MetadataCacheTableAnnotationComposer,
+      $$MetadataCacheTableCreateCompanionBuilder,
+      $$MetadataCacheTableUpdateCompanionBuilder,
+      (
+        MetadataCacheRow,
+        BaseReferences<_$SpectaDatabase, $MetadataCacheTable, MetadataCacheRow>,
+      ),
+      MetadataCacheRow,
+      PrefetchHooks Function()
+    >;
 
 class $SpectaDatabaseManager {
   final _$SpectaDatabase _db;
@@ -7135,4 +8335,6 @@ class $SpectaDatabaseManager {
       $$MediaReferencesTableTableManager(_db, _db.mediaReferences);
   $$DownloadsTableTableManager get downloads =>
       $$DownloadsTableTableManager(_db, _db.downloads);
+  $$MetadataCacheTableTableManager get metadataCache =>
+      $$MetadataCacheTableTableManager(_db, _db.metadataCache);
 }

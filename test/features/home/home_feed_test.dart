@@ -12,20 +12,16 @@ import 'package:specta/features/home/home_feed.dart';
 
 import '../../support/discovery_test_harness.dart';
 
-SearchResult _movie(String title, String url, {int? year}) => SearchResult(
-      title: title,
-      url: url,
-      type: MediaType.movie,
-      year: year,
-    );
+SearchResult _movie(String title, String url, {int? year}) =>
+    SearchResult(title: title, url: url, type: MediaType.movie, year: year);
 
 ExtensionFailure _failure() => ExtensionFailure(
-      extensionId: 'com.test.a',
-      operation: 'latest',
-      type: ExtensionFailureType.runtimeError,
-      message: 'boom',
-      timestamp: DateTime.utc(2026),
-    );
+  extensionId: 'com.test.a',
+  operation: 'latest',
+  type: ExtensionFailureType.runtimeError,
+  message: 'boom',
+  timestamp: DateTime.utc(2026),
+);
 
 DiscoveryResult _result(List<ExtensionDiscoveryOutcome> outcomes) =>
     DiscoveryResult(
@@ -127,21 +123,23 @@ void main() {
       expect(feed.message, contains('Nothing new'));
     });
 
-    test('mixed empty success and failure stays empty but counts the failure',
-        () {
-      final HomeFeed feed = HomeFeed.from(
-        _result(<ExtensionDiscoveryOutcome>[
-          ExtensionDiscoveryOutcome.success(
-            'com.test.a',
-            const <SearchResult>[],
-          ),
-          ExtensionDiscoveryOutcome.failed('com.test.b', _failure()),
-        ]),
-      );
+    test(
+      'mixed empty success and failure stays empty but counts the failure',
+      () {
+        final HomeFeed feed = HomeFeed.from(
+          _result(<ExtensionDiscoveryOutcome>[
+            ExtensionDiscoveryOutcome.success(
+              'com.test.a',
+              const <SearchResult>[],
+            ),
+            ExtensionDiscoveryOutcome.failed('com.test.b', _failure()),
+          ]),
+        );
 
-      expect(feed.status, HomeFeedStatus.empty);
-      expect(feed.failedCount, 1);
-    });
+        expect(feed.status, HomeFeedStatus.empty);
+        expect(feed.failedCount, 1);
+      },
+    );
 
     test('every non-ready status carries a real explanation', () {
       for (final HomeFeedStatus status in HomeFeedStatus.values) {
@@ -168,8 +166,9 @@ void main() {
     });
 
     test('runs a real latest round over the enabled extensions', () async {
-      final DiscoveryTestHarness h =
-          DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
+      final DiscoveryTestHarness h = DiscoveryTestHarness(
+        sandbox: ScriptedJsSandbox(),
+      );
       await h.installExtension(tempDir, 'com.test.home');
       (h.sandbox as ScriptedJsSandbox).latestScripts = <Object>[
         searchPayload(<Map<String, Object?>>[

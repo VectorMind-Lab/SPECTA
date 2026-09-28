@@ -39,8 +39,10 @@ abstract interface class LibraryStore {
   /// through the references its most recent playback actually used.
   Future<void> saveReferences(
     String mediaKey,
-    List<DiscoveryReference> references,
-  );
+    List<DiscoveryReference> references, {
+    String? canonicalId,
+    int identityVersion = 1,
+  });
 
   /// The stored provenance for [mediaKey], in first-seen order. Empty when
   /// none was recorded (e.g. progress written before this feature).

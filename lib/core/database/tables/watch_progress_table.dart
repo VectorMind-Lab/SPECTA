@@ -22,6 +22,12 @@ class WatchProgressEntries extends Table {
   /// Stable playback identity (see the class comment). Primary key.
   TextColumn get id => text()();
 
+  /// Canonical work identity when identity_version = 2, otherwise null.
+  TextColumn get canonicalId => text().nullable()();
+
+  /// Identity scheme: 1 = legacy title key, 2 = provider canonical key.
+  IntColumn get identityVersion => integer().withDefault(const Constant(1))();
+
   /// The parent work's canonical 2C metadata key (normalized title|type|year).
   TextColumn get mediaKey => text()();
 

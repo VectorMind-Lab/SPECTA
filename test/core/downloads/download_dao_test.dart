@@ -36,23 +36,22 @@ void main() {
       DateTime? createdAt,
       int? seasonNumber,
       int? episodeNumber,
-    }) =>
-        DownloadRecord(
-          id: id,
-          mediaKey: mediaKey,
-          mediaType: mediaType,
-          title: 'Movie',
-          seasonNumber: seasonNumber,
-          episodeNumber: episodeNumber,
-          status: status,
-          bytesDownloaded: bytesDownloaded,
-          totalBytes: totalBytes,
-          filePath: '/data/media/Movie (x).mp4',
-          attempt: attempt,
-          failure: failure,
-          createdAt: createdAt ?? DateTime(2026, 1, 1),
-          updatedAt: DateTime(2026, 1, 2),
-        );
+    }) => DownloadRecord(
+      id: id,
+      mediaKey: mediaKey,
+      mediaType: mediaType,
+      title: 'Movie',
+      seasonNumber: seasonNumber,
+      episodeNumber: episodeNumber,
+      status: status,
+      bytesDownloaded: bytesDownloaded,
+      totalBytes: totalBytes,
+      filePath: '/data/media/Movie (x).mp4',
+      attempt: attempt,
+      failure: failure,
+      createdAt: createdAt ?? DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 2),
+    );
 
     test('upsert then read back round-trips every persisted field', () async {
       final DownloadFailure failure = DownloadFailure(
@@ -91,6 +90,20 @@ void main() {
       expect(read.completedAt, isNull);
     });
 
+    test('anime download round-trips canonical identity', () async {
+      final DownloadRecord anime = record(
+        'anilist:16498',
+        mediaKey: 'anilist:16498',
+        mediaType: MediaType.anime,
+      ).copyWith(canonicalId: 'anilist:16498', identityVersion: 2);
+
+      await dao.upsert(anime);
+      final DownloadRecord? read = await dao.recordFor(anime.id);
+      expect(read!.mediaType, MediaType.anime);
+      expect(read.canonicalId, 'anilist:16498');
+      expect(read.identityVersion, 2);
+    });
+
     test('episode records round-trip season and episode identity', () async {
       final DownloadRecord episode = record(
         'Show|series|2024|s1e2',
@@ -110,38 +123,51 @@ void main() {
       expect(read.isEpisode, isTrue);
     });
 
-    test('a second upsert of one identity replaces the row, never duplicates',
-        () async {
-      final DownloadRecord original =
-          record('Movie|movie|2024', status: DownloadStatus.downloading);
-      await dao.upsert(original);
+    test(
+      'a second upsert of one identity replaces the row, never duplicates',
+      () async {
+        final DownloadRecord original = record(
+          'Movie|movie|2024',
+          status: DownloadStatus.downloading,
+        );
+        await dao.upsert(original);
 
-      await dao.upsert(
-        original.copyWith(
-          status: DownloadStatus.completed,
-          bytesDownloaded: 8192,
-          completedAt: DateTime(2026, 1, 3),
-        ),
-      );
+        await dao.upsert(
+          original.copyWith(
+            status: DownloadStatus.completed,
+            bytesDownloaded: 8192,
+            completedAt: DateTime(2026, 1, 3),
+          ),
+        );
 
-      final List<DownloadRecord> all = await dao.all();
-      expect(all.length, 1, reason: 'the identity is the primary key');
-      expect(all.single.status, DownloadStatus.completed);
-      expect(all.single.bytesDownloaded, 8192);
-      expect(all.single.completedAt, DateTime(2026, 1, 3));
-    });
+        final List<DownloadRecord> all = await dao.all();
+        expect(all.length, 1, reason: 'the identity is the primary key');
+        expect(all.single.status, DownloadStatus.completed);
+        expect(all.single.bytesDownloaded, 8192);
+        expect(all.single.completedAt, DateTime(2026, 1, 3));
+      },
+    );
 
-    test('all() orders by creation time so a restart replays the queue FIFO',
-        () async {
-      await dao.upsert(record('b|movie|2024', createdAt: DateTime(2026, 1, 2)));
-      await dao.upsert(record('a|movie|2024', createdAt: DateTime(2026, 1, 1)));
-      await dao.upsert(record('c|movie|2024', createdAt: DateTime(2026, 1, 3)));
+    test(
+      'all() orders by creation time so a restart replays the queue FIFO',
+      () async {
+        await dao.upsert(
+          record('b|movie|2024', createdAt: DateTime(2026, 1, 2)),
+        );
+        await dao.upsert(
+          record('a|movie|2024', createdAt: DateTime(2026, 1, 1)),
+        );
+        await dao.upsert(
+          record('c|movie|2024', createdAt: DateTime(2026, 1, 3)),
+        );
 
-      final List<String> ids =
-          (await dao.all()).map((DownloadRecord r) => r.id).toList();
+        final List<String> ids = (await dao.all())
+            .map((DownloadRecord r) => r.id)
+            .toList();
 
-      expect(ids, <String>['a|movie|2024', 'b|movie|2024', 'c|movie|2024']);
-    });
+        expect(ids, <String>['a|movie|2024', 'b|movie|2024', 'c|movie|2024']);
+      },
+    );
 
     test('recordFor returns null for a never-enqueued identity', () async {
       expect(await dao.recordFor('absent|movie|2024'), isNull);
@@ -166,33 +192,38 @@ void main() {
       expect(await dao.all(), isEmpty);
     });
 
-    test('a corrupted state code degrades to failed instead of crashing',
-        () async {
-      // Simulate a row whose state column holds an unknown code (e.g. written
-      // by a newer build): the DAO must degrade honestly, not throw.
-      await db.customStatement(
-        'INSERT INTO downloads (id, media_key, media_type, title, state, '
-        'bytes_downloaded, file_path, attempt, created_at, updated_at) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        <Object?>[
-          'future|movie|2024',
-          'future|movie|2024',
-          'movie',
-          'Future',
-          'a-future-state',
-          10,
-          '/data/media/Future (x).mp4',
-          0,
-          1700000000,
-          1700000001,
-        ],
-      );
+    test(
+      'a corrupted state code degrades to failed instead of crashing',
+      () async {
+        // Simulate a row whose state column holds an unknown code (e.g. written
+        // by a newer build): the DAO must degrade honestly, not throw.
+        await db.customStatement(
+          'INSERT INTO downloads (id, media_key, media_type, title, state, '
+          'bytes_downloaded, file_path, attempt, created_at, updated_at) '
+          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          <Object?>[
+            'future|movie|2024',
+            'future|movie|2024',
+            'movie',
+            'Future',
+            'a-future-state',
+            10,
+            '/data/media/Future (x).mp4',
+            0,
+            1700000000,
+            1700000001,
+          ],
+        );
 
-      final DownloadRecord? read = await dao.recordFor('future|movie|2024');
-      expect(read, isNotNull);
-      expect(read!.status, DownloadStatus.failed);
-      expect(read.failure, isNull,
-          reason: 'no error code was stored, so no failure is invented');
-    });
+        final DownloadRecord? read = await dao.recordFor('future|movie|2024');
+        expect(read, isNotNull);
+        expect(read!.status, DownloadStatus.failed);
+        expect(
+          read.failure,
+          isNull,
+          reason: 'no error code was stored, so no failure is invented',
+        );
+      },
+    );
   });
 }

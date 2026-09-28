@@ -6,6 +6,76 @@ source failures.
 
 ## Status
 
+**Extension Sources / Providers: VERIFIED (2026-09-26).**
+Four installation routes now converge on a single `ExtensionManager` boundary:
+a `.js` file picked from the phone with the Android system picker, a direct
+`https://` link, a GitHub raw link (which is simply the same https path — no
+GitHub-specific code is required), and a **user-supplied repository index link**
+such as an `index.json`. The new `ExtensionRepositoryIndexParser` reads a
+repository the *user* chose and tolerates the shapes those repositories are
+actually published in — a `sources`/`addons`/`plugins`/bare array, absolute URLs
+or relative `file` paths (resolved against the index's own directory), `logo`
+instead of `iconUrl`, and no `schemaVersion` — normalising everything into the
+same entry type the official catalogue uses. Entries that are not JavaScript
+cannot run in SPECTA, so they are skipped and *counted* rather than offered as
+guaranteed-to-fail install buttons. Trust is unchanged: being listed grants
+nothing, and Official still requires a valid manifest signature verified against
+SPECTA's published key. The Sources area presents
+**Sources → Repository → Provider cards** using only real data. No filesystem
+path is ever shown; the user is never asked to type one. Full findings in
+`docs/phase_reports/SOURCES_REPORT.md`.
+
+**Phase C4 — User-Facing Metadata Integration: COMPLETE AND VERIFIED (2026-09-25).**
+The C1–C3 metadata core is now visible in the app. A shared `SpectaArtwork`
+widget is the single place artwork loads (no widget builds provider URLs; missing
+and failed artwork share one neutral placeholder). Details reads the merged
+metadata, so catalogue data actually reaches the screen, labels Movie / Series /
+**Anime** distinctly, and shows format and episode counts. Search reaches anime
+through AniList while extension discovery remains the authority on what is
+playable. Home gains a metadata-backed "Popular" rail shown only on real provider
+data. Verification: `flutter analyze` clean; full suite 1051 passed / 39
+skipped / 0 failed; a debug APK was built and **verified on a real device** —
+search returns real AniList anime with real cover artwork, and Details shows
+real Spirited Away metadata (poster, year, score, format, genres, description)
+with the existing Play / Download actions.
+That device run found two defects that the test suite could not see — search
+discarded catalogue results when no extension was installed, and the AniList
+GraphQL field set was rejected live (HTTP 400) because `coverImage` needs a
+sub-selection and `startDate` is an object. Both are fixed and regression-tested.
+See [`docs/phase_reports/C4_report.md`](docs/phase_reports/C4_report.md).
+
+**Phase C3 — TMDB and TVMaze Integration: COMPLETE AND VERIFIED (2026-09-25).**
+TMDB and TVMaze are connected to the metadata layer as **metadata providers
+only** — they never provide playable sources, which remain the extensions'
+responsibility. Connection is made through a provider-neutral enrichment seam
+that reuses the existing clients, DTOs, transports and shared `metadata_cache`;
+no client code was duplicated. Fallback: movie → TMDB only, series → TMDB then
+TVMaze, anime → never enriched (AniList owns anime identity). Enrichment is
+additive and never changes a work's identity, so no duplicate identity is
+created. The TMDB credential stays build-time only, is never persisted and
+never displayed in full. Verification: `flutter analyze` clean; C3 + regression
+subset 285 passed; full suite 1027 passed / 39 skipped / 0 failed. See
+[`docs/phase_reports/C3_report.md`](docs/phase_reports/C3_report.md).
+
+**Phase C2 — Anime Infrastructure: COMPLETE AND VERIFIED (2026-09-25).**
+C2 adds a credential-free AniList GraphQL client (`lib/core/anilist/`),
+defensive AniList models, normalization into the C1 `anilist:<id>` anime
+identity, and read-through caching through the existing shared
+`metadata_cache` table under the `anilist` source. It introduces no new
+networking dependency and no schema change, and it does not yet wire anime
+into Home, Search, or Details. Verification: `flutter analyze` clean; C2 suite
+34 passed; full suite 1009 passed / 39 skipped / 0 failed. See
+[`docs/phase_reports/C2_report.md`](docs/phase_reports/C2_report.md).
+
+**Phase C1 — Anime Identity and Contract Architecture: COMPLETE AND VERIFIED (2026-09-25).**
+C1 adds the distinct `anime` media type, AniList-backed canonical identity
+(`anilist:<id>`, identity version 2), additive extension contract revisions,
+runtime `externalIds` parsing, and schema migrations 7–8. It does not add
+AniList networking or change Home, Search, or Details. Verification: Drift
+regenerated with build_runner; `flutter analyze` clean; full suite 975 passed /
+39 skipped / 0 failed. See
+[`docs/phase_reports/C1_report.md`](docs/phase_reports/C1_report.md).
+
 **Phase 1 — Extension Foundation: COMPLETE — REAL DEVICE VERIFIED (2026-09-16).**
 **Phase 2 — application build-out: sub-stages 2A–2F (incl. the 2F resume follow-up), 2G-A/2G-B/2G-C (download foundation, orchestration, AND real engine integration), 2H (extension integration & lifecycle foundation) and 2I (first real reference extension) COMPLETE; 2J open.**
 

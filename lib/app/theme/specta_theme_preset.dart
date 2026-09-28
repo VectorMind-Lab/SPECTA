@@ -41,10 +41,10 @@ enum SpectaThemePreset {
   final Color secondaryAccent;
 
   String get label => switch (this) {
-        SpectaThemePreset.cyanTeal => 'Cyan / Teal',
-        SpectaThemePreset.emeraldGreen => 'Emerald Green',
-        SpectaThemePreset.oceanBlue => 'Ocean / Sapphire Blue',
-        SpectaThemePreset.deepViolet => 'Midnight / Deep Violet',
-        SpectaThemePreset.warmAmber => 'Warm Amber / Gold',
-      };
+    SpectaThemePreset.cyanTeal => 'Cyan / Teal',
+    SpectaThemePreset.emeraldGreen => 'Emerald Green',
+    SpectaThemePreset.oceanBlue => 'Ocean / Sapphire Blue',
+    SpectaThemePreset.deepViolet => 'Midnight / Deep Violet',
+    SpectaThemePreset.warmAmber => 'Warm Amber / Gold',
+  };
 }

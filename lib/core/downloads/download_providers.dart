@@ -36,25 +36,24 @@ final Provider<DownloadStore> downloadStoreProvider = Provider<DownloadStore>((
 /// queueing, concurrency, retry, persistence and recovery; the plugin only
 /// executes transfers. Tests override this provider with a deterministic
 /// fake, exactly as in 2G-B.
-final Provider<DownloadEngine> downloadEngineProvider = Provider<DownloadEngine>(
-  (Ref ref) => BackgroundDownloaderEngine(),
-);
+final Provider<DownloadEngine> downloadEngineProvider =
+    Provider<DownloadEngine>((Ref ref) => BackgroundDownloaderEngine());
 
 /// Phase 2G-C production source resolver: real re-resolution through the
 /// SourceManager using the persisted provenance (replaces the 2G-B
 /// session-only resolver in production; tests inject their own).
-final Provider<SourceManagerDownloadResolver>
-    downloadSourceResolverProvider = Provider<SourceManagerDownloadResolver>(
-  (Ref ref) => SourceManagerDownloadResolver(
-    extensionManager: () => ref.watch(extensionManagerProvider),
-  ),
-);
+final Provider<SourceManagerDownloadResolver> downloadSourceResolverProvider =
+    Provider<SourceManagerDownloadResolver>(
+      (Ref ref) => SourceManagerDownloadResolver(
+        extensionManager: () => ref.watch(extensionManagerProvider),
+      ),
+    );
 
 /// Phase 2G-C completion gate: verifies engine-reported completions on the
 /// real filesystem and owns the final rename. Tests override this with a
 /// pass-through stub when the fake engine is used without real files.
 final Provider<DownloadCompletionFinalizer>
-    downloadCompletionFinalizerProvider = Provider<DownloadCompletionFinalizer>(
+downloadCompletionFinalizerProvider = Provider<DownloadCompletionFinalizer>(
   (Ref ref) => const FileDownloadCompletionFinalizer(),
 );
 
@@ -76,9 +75,9 @@ final NotifierProvider<DownloadRevision, int> downloadRevisionProvider =
 /// directory through SPECTA storage exactly as before.
 final Provider<Future<String> Function()> downloadMediaDirectoryProvider =
     Provider<Future<String> Function()>((Ref ref) {
-      return () => SpectaStorage()
-          .mediaDirectory()
-          .then((Directory directory) => directory.path);
+      return () => SpectaStorage().mediaDirectory().then(
+        (Directory directory) => directory.path,
+      );
     });
 
 /// The download manager (2G-C wiring: real engine + real source resolver;
@@ -87,8 +86,8 @@ final Provider<Future<String> Function()> downloadMediaDirectoryProvider =
 /// persist user changes through this provider, and tests may override it.
 final Provider<DownloadNetworkPolicy> deviceNetworkPolicyProvider =
     Provider<DownloadNetworkPolicy>(
-  (Ref ref) => DownloadNetworkPolicy.wifiOnly,
-);
+      (Ref ref) => DownloadNetworkPolicy.wifiOnly,
+    );
 
 /// tests override the engine and resolver providers with deterministic
 /// fakes).
@@ -213,10 +212,7 @@ final FutureProvider<List<DownloadRecord>> cancelledDownloadsProvider =
 
 /// One download by identity (Riverpod 3 family provider).
 final FutureProviderFamily<DownloadRecord?, String> downloadByIdProvider =
-    FutureProvider.family<DownloadRecord?, String>((
-      Ref ref,
-      String id,
-    ) async {
+    FutureProvider.family<DownloadRecord?, String>((Ref ref, String id) async {
       ref.watch(downloadRevisionProvider);
       return ref.watch(downloadStoreProvider).recordFor(id);
     });
@@ -252,8 +248,9 @@ final Provider<DownloadQueueStatus> downloadQueueStatusProvider =
       return DownloadQueueStatus(
         totalCount: all.length,
         activeCount: manager.activeCount,
-        queuedCount:
-            all.where((DownloadRecord r) => r.status == DownloadStatus.queued).length,
+        queuedCount: all
+            .where((DownloadRecord r) => r.status == DownloadStatus.queued)
+            .length,
         concurrency: manager.concurrency,
       );
     });

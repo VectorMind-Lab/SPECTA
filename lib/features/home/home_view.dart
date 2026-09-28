@@ -36,8 +36,18 @@ class HomeView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final SpectaFormFactor formFactor = ref.watch(formFactorProvider);
     final AsyncValue<HomeFeed> feed = ref.watch(homeFeedProvider);
-    final AsyncValue<List<WatchProgress>> continueWatching =
-        ref.watch(continueWatchingProvider);
+    final AsyncValue<TrendingFeed> trendingAsync = ref.watch(
+      trendingFeedProvider,
+    );
+    final AsyncValue<List<WatchProgress>> continueWatching = ref.watch(
+      continueWatchingProvider,
+    );
+
+    // A catalogue outage must never blank or block the real extension feed, so
+    // an unresolved or failed trending round simply contributes no rail.
+    final TrendingFeed trending =
+        trendingAsync.value ??
+        const TrendingFeed(status: TrendingStatus.failure);
 
     if (feed.isLoading && !feed.hasValue) {
       return const Center(child: CircularProgressIndicator());
@@ -47,16 +57,26 @@ class HomeView extends ConsumerWidget {
     final List<WatchProgress> inProgress =
         continueWatching.value ?? const <WatchProgress>[];
 
-    if (data == null || !data.hasItems) {
+    // The empty-extension-feed case is NOT an empty screen. A configured
+    // catalogue (TMDB) can still supply real content, so the layout below is
+    // rendered whenever ANY section has something to show. Previously the
+    // `!data.hasItems` branch returned early, which hid the "Popular" rail even
+    // though its request had succeeded — the rail was simply never built.
+    final bool extensionFeedIsEmpty = data == null || !data.hasItems;
+    final bool nothingToShow =
+        extensionFeedIsEmpty && !trending.isVisible && inProgress.isEmpty;
+
+    if (nothingToShow) {
       final bool unreachable =
           feed.hasError || data?.status == HomeFeedStatus.failure;
       // Retry only where retrying could actually change the answer.
-      final bool retryable = unreachable || data?.status == HomeFeedStatus.empty;
+      final bool retryable =
+          unreachable || data?.status == HomeFeedStatus.empty;
       return SpectaEmptyState(
         icon: unreachable ? Icons.cloud_off_rounded : Icons.explore_outlined,
         message: unreachable
             ? 'Your extensions could not be reached. Check your connection and '
-                'try again.'
+                  'try again.'
             : data?.message ?? 'Nothing to show yet.',
         actionLabel: retryable ? 'Retry' : null,
         action: retryable ? () => ref.invalidate(homeFeedProvider) : null,
@@ -68,50 +88,114 @@ class HomeView extends ConsumerWidget {
         final int crossAxisCount = formFactor.isLargeScreen ? 6 : 3;
         final double railPosterWidth =
             (constraints.maxWidth - (crossAxisCount - 1) * 12) / crossAxisCount;
+        // With no extensions the feed cannot be re-read into anything, but the
+        // surface must still say WHY the discovery rails are missing, so the
+        // explanation becomes an inline notice instead of a whole-screen state.
+        final bool unreachable =
+            feed.hasError || data?.status == HomeFeedStatus.failure;
+        final bool extensionNoticeRetryable =
+            unreachable || data?.status == HomeFeedStatus.empty;
 
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const SizedBox(height: 16),
-              _Hero(
-                items: data.items,
-                onPlay: (DiscoveryItem item) => _play(context, ref, item),
-                onMoreInfo: (DiscoveryItem item) =>
-                    _openDetails(context, ref, item),
-              ),
-              if (data.isPartial) ...<Widget>[
-                const SizedBox(height: 12),
-                _PartialNotice(failedCount: data.failedCount),
-              ],
-              if (inProgress.isNotEmpty)
-                _Rail(
-                  title: 'Continue Watching',
-                  height: 150,
-                  itemWidth: railPosterWidth,
-                  itemCount: inProgress.length,
-                  itemBuilder: (int index) => _ContinueCard(
-                    progress: inProgress[index],
-                    onTap: () => _resume(context, ref, inProgress[index]),
+        return RefreshIndicator(
+          onRefresh: () => _refresh(context, ref),
+          color: Theme.of(context).colorScheme.primary,
+          backgroundColor: SpectaColors.surfaceElevated,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const SizedBox(height: 16),
+                // The hero and the discovery rail both come from the extension
+                // round, so they only exist when that round produced something.
+                if (data != null && data.hasItems) ...<Widget>[
+                  _Hero(
+                    items: data.items,
+                    onPlay: (DiscoveryItem item) => _play(context, ref, item),
+                    onMoreInfo: (DiscoveryItem item) =>
+                        _openDetails(context, ref, item),
                   ),
-                ),
-              _Rail(
-                title: 'New on SPECTA',
-                height: 210,
-                itemWidth: railPosterWidth,
-                itemCount: data.items.length,
-                itemBuilder: (int index) => _DiscoveryCard(
-                  item: data.items[index],
-                  width: railPosterWidth,
-                  onTap: () => _openDetails(context, ref, data.items[index]),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
+                  if (data.isPartial) ...<Widget>[
+                    const SizedBox(height: 12),
+                    _PartialNotice(failedCount: data.failedCount),
+                  ],
+                ],
+                if (extensionFeedIsEmpty) ...<Widget>[
+                  const SizedBox(height: 8),
+                  _ExtensionNotice(
+                    unreachable: unreachable,
+                    message: data?.message ?? 'Nothing to show yet.',
+                    retryable: extensionNoticeRetryable,
+                    onRetry: () => ref.invalidate(homeFeedProvider),
+                  ),
+                ],
+                if (inProgress.isNotEmpty)
+                  _Rail(
+                    title: 'Continue Watching',
+                    height: 150,
+                    itemWidth: railPosterWidth,
+                    itemCount: inProgress.length,
+                    itemBuilder: (int index) => _ContinueCard(
+                      progress: inProgress[index],
+                      onTap: () => _resume(context, ref, inProgress[index]),
+                    ),
+                  ),
+                if (data != null && data.hasItems)
+                  _Rail(
+                    title: 'New on SPECTA',
+                    height: 210,
+                    itemWidth: railPosterWidth,
+                    itemCount: data.items.length,
+                    itemBuilder: (int index) => _DiscoveryCard(
+                      item: data.items[index],
+                      width: railPosterWidth,
+                      onTap: () =>
+                          _openDetails(context, ref, data.items[index]),
+                    ),
+                  ),
+                // Catalogue rail (C4.1). Rendered only when a provider actually
+                // returned real items, so an unconfigured or unreachable
+                // provider simply omits it instead of showing an error block.
+                if (trending.isVisible)
+                  _Rail(
+                    title: 'Popular',
+                    height: 210,
+                    itemWidth: railPosterWidth,
+                    itemCount: trending.items.length,
+                    itemBuilder: (int index) => _DiscoveryCard(
+                      item: trending.items[index],
+                      width: railPosterWidth,
+                      onTap: () =>
+                          _openDetails(context, ref, trending.items[index]),
+                    ),
+                  ),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         );
       },
     );
+  }
+
+  /// Pull-to-refresh: re-runs BOTH Home rounds.
+  ///
+  /// The extension round and the catalogue round are separate requests with
+  /// separate lifetimes, so invalidating only one leaves the screen showing a
+  /// mixture of old and new content. The invalidations are fired together and
+  /// then awaited, so the indicator stays up until the slower of the two has
+  /// actually answered rather than snapping shut early.
+  ///
+  /// The catalogue round reads through the shared TTL cache, so a refresh
+  /// inside the TTL re-serves warm data — cheap, and still correct: a pull is a
+  /// request, not a cache purge.
+  Future<void> _refresh(BuildContext context, WidgetRef ref) async {
+    ref.invalidate(homeFeedProvider);
+    ref.invalidate(trendingFeedProvider);
+    await Future.wait(<Future<void>>[
+      ref.read(homeFeedProvider.future),
+      ref.read(trendingFeedProvider.future),
+    ]);
   }
 
   /// Opens the canonical details surface for [item] (which owns metadata and
@@ -151,12 +235,7 @@ class HomeView extends ConsumerWidget {
       );
       return;
     }
-    await startPlayback(
-      context,
-      ref: ref,
-      metadata: metadata,
-      item: item,
-    );
+    await startPlayback(context, ref: ref, metadata: metadata, item: item);
   }
 
   /// Re-opens a persisted item through the existing resume pipeline.
@@ -169,20 +248,20 @@ class HomeView extends ConsumerWidget {
     final ResumeResult result = await resumeWatchProgress(
       ref: ref,
       progress: progress,
-      starter: ({
-        required MetadataItem metadata,
-        required DiscoveryItem item,
-        SeriesEpisode? episode,
-        Duration? startPosition,
-      }) =>
-          startPlayback(
-        context,
-        ref: ref,
-        metadata: metadata,
-        item: item,
-        episode: episode,
-        startPosition: startPosition,
-      ),
+      starter:
+          ({
+            required MetadataItem metadata,
+            required DiscoveryItem item,
+            SeriesEpisode? episode,
+            Duration? startPosition,
+          }) => startPlayback(
+            context,
+            ref: ref,
+            metadata: metadata,
+            item: item,
+            episode: episode,
+            startPosition: startPosition,
+          ),
     );
     if (!context.mounted || result.started) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -231,8 +310,8 @@ class _HeroState extends State<_Hero> {
         onMoreInfo: () => widget.onMoreInfo(item),
         onPrevious: multiple
             ? () => setState(
-                  () => _index = (index - 1 + items.length) % items.length,
-                )
+                () => _index = (index - 1 + items.length) % items.length,
+              )
             : null,
         onNext: multiple
             ? () => setState(() => _index = (index + 1) % items.length)
@@ -279,6 +358,78 @@ class _PartialNotice extends StatelessWidget {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Explains, inline, why the extension-driven rails are missing.
+///
+/// This is the same information the full-screen `SpectaEmptyState` used to
+/// carry, but scoped to the section it applies to. It appears beside — not
+/// instead of — catalogue content, so a configured TMDB rail stays visible
+/// while the user is still told their extensions are the reason nothing is
+/// playable. Styled like [_PartialNotice] so Home keeps one notice language.
+class _ExtensionNotice extends StatelessWidget {
+  const _ExtensionNotice({
+    required this.unreachable,
+    required this.message,
+    required this.retryable,
+    required this.onRetry,
+  });
+
+  /// Whether extensions failed to be reached, as opposed to simply having
+  /// nothing to show.
+  final bool unreachable;
+
+  /// The feed's own honest explanation.
+  final String message;
+
+  /// Whether retrying could actually change the answer.
+  final bool retryable;
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color accent = unreachable
+        ? SpectaColors.warning
+        : SpectaColors.textSecondary;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: unreachable
+              ? SpectaColors.warning.withValues(alpha: 0.12)
+              : SpectaColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: SpectaColors.outline),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(
+              unreachable
+                  ? Icons.cloud_off_rounded
+                  : Icons.extension_off_rounded,
+              size: 16,
+              color: accent,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: SpectaColors.textSecondary,
+                ),
+              ),
+            ),
+            if (retryable)
+              TextButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),
@@ -376,8 +527,7 @@ class _DiscoveryCard extends StatelessWidget {
                             BuildContext context,
                             Object error,
                             StackTrace? stackTrace,
-                          ) =>
-                              _PosterFallback(accent: accent),
+                          ) => _PosterFallback(accent: accent),
                         )
                       : _PosterFallback(accent: accent),
                 ),

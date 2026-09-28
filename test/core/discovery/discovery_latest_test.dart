@@ -56,8 +56,9 @@ void main() {
   });
 
   test('latest-capable extensions contribute deduplicated items', () async {
-    final DiscoveryTestHarness h =
-        DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
+    final DiscoveryTestHarness h = DiscoveryTestHarness(
+      sandbox: ScriptedJsSandbox(),
+    );
     await h.installExtension(tempDir, 'com.test.a');
     (h.sandbox as ScriptedJsSandbox).latestScripts = <Object>[
       searchPayload(<Map<String, Object?>>[
@@ -81,10 +82,10 @@ void main() {
     );
 
     expect(result.outcomes.single.isSuccess, isTrue);
-    expect(
-      result.items.map((DiscoveryItem i) => i.title).toList(),
-      <String>['Shared Title', 'Only Here'],
-    );
+    expect(result.items.map((DiscoveryItem i) => i.title).toList(), <String>[
+      'Shared Title',
+      'Only Here',
+    ]);
     expect(
       (h.sandbox as ScriptedJsSandbox).latestCallCount,
       1,
@@ -92,46 +93,50 @@ void main() {
     );
   });
 
-  test('the same work from two extensions deduplicates into ONE item',
-      () async {
-    final DiscoveryTestHarness h =
-        DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
-    await h.installExtension(tempDir, 'com.test.a');
-    await h.installExtension(tempDir, 'com.test.b');
-    final ScriptedJsSandbox sandbox = h.sandbox as ScriptedJsSandbox;
-    // Both extensions answer with the same work (different provider URLs).
-    sandbox.latestScripts = <Object>[
-      searchPayload(<Map<String, Object?>>[
-        <String, Object?>{
-          'title': 'Same Work',
-          'url': 'https://a.test/x',
-          'type': 'movie',
-          'year': 2001,
-        },
-      ]),
-      searchPayload(<Map<String, Object?>>[
-        <String, Object?>{
-          'title': 'Same Work',
-          'url': 'https://b.test/y',
-          'type': 'movie',
-          'year': 2001,
-        },
-      ]),
-    ];
+  test(
+    'the same work from two extensions deduplicates into ONE item',
+    () async {
+      final DiscoveryTestHarness h = DiscoveryTestHarness(
+        sandbox: ScriptedJsSandbox(),
+      );
+      await h.installExtension(tempDir, 'com.test.a');
+      await h.installExtension(tempDir, 'com.test.b');
+      final ScriptedJsSandbox sandbox = h.sandbox as ScriptedJsSandbox;
+      // Both extensions answer with the same work (different provider URLs).
+      sandbox.latestScripts = <Object>[
+        searchPayload(<Map<String, Object?>>[
+          <String, Object?>{
+            'title': 'Same Work',
+            'url': 'https://a.test/x',
+            'type': 'movie',
+            'year': 2001,
+          },
+        ]),
+        searchPayload(<Map<String, Object?>>[
+          <String, Object?>{
+            'title': 'Same Work',
+            'url': 'https://b.test/y',
+            'type': 'movie',
+            'year': 2001,
+          },
+        ]),
+      ];
 
-    final DiscoveryResult result = await DiscoveryCoordinator.latest(
-      page: 1,
-      manager: h.manager,
-    );
+      final DiscoveryResult result = await DiscoveryCoordinator.latest(
+        page: 1,
+        manager: h.manager,
+      );
 
-    expect(result.items.length, 1);
-    // Both extensions are recorded as having found it (provenance is kept).
-    expect(result.items.single.references.length, 2);
-  });
+      expect(result.items.length, 1);
+      // Both extensions are recorded as having found it (provenance is kept).
+      expect(result.items.single.references.length, 2);
+    },
+  );
 
   test('one failing extension does not fail the round', () async {
-    final DiscoveryTestHarness h =
-        DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
+    final DiscoveryTestHarness h = DiscoveryTestHarness(
+      sandbox: ScriptedJsSandbox(),
+    );
     await h.installExtension(tempDir, 'com.test.good');
     await h.installExtension(tempDir, 'com.test.bad');
     final ScriptedJsSandbox sandbox = h.sandbox as ScriptedJsSandbox;
@@ -151,17 +156,17 @@ void main() {
       manager: h.manager,
     );
 
-    expect(
-      result.items.map((DiscoveryItem i) => i.title).toList(),
-      <String>['Survivor'],
-    );
+    expect(result.items.map((DiscoveryItem i) => i.title).toList(), <String>[
+      'Survivor',
+    ]);
     expect(
       result.outcomes.where((ExtensionDiscoveryOutcome o) => o.isFailed).length,
       1,
     );
     // The failure is a controlled SPECTA failure, never a raw JS exception.
-    final ExtensionDiscoveryOutcome failed =
-        result.outcomes.firstWhere((ExtensionDiscoveryOutcome o) => o.isFailed);
+    final ExtensionDiscoveryOutcome failed = result.outcomes.firstWhere(
+      (ExtensionDiscoveryOutcome o) => o.isFailed,
+    );
     expect(failed.failure, isA<ExtensionFailure>());
     expect(
       (failed.failure! as ExtensionFailure).message.contains('secret'),
@@ -170,8 +175,9 @@ void main() {
   });
 
   test('a hung extension is isolated by the coordinator timeout', () async {
-    final DiscoveryTestHarness h =
-        DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
+    final DiscoveryTestHarness h = DiscoveryTestHarness(
+      sandbox: ScriptedJsSandbox(),
+    );
     await h.installExtension(tempDir, 'com.test.slow');
     final ScriptedJsSandbox sandbox = h.sandbox as ScriptedJsSandbox;
     sandbox.latestScripts = <Object>[searchPayload(const <Object?>[])];
@@ -194,8 +200,9 @@ void main() {
   });
 
   test('the operation recorded on the failure is latest, not search', () async {
-    final DiscoveryTestHarness h =
-        DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
+    final DiscoveryTestHarness h = DiscoveryTestHarness(
+      sandbox: ScriptedJsSandbox(),
+    );
     await h.installExtension(tempDir, 'com.test.broken');
     (h.sandbox as ScriptedJsSandbox).latestScripts = <Object>[
       JsEvalException('boom'),
@@ -212,37 +219,39 @@ void main() {
     expect(failure.operation, 'latest');
   });
 
-  test('malformed rows never reach the aggregate; valid rows survive',
-      () async {
-    final DiscoveryTestHarness h =
-        DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
-    await h.installExtension(tempDir, 'com.test.mixed');
-    (h.sandbox as ScriptedJsSandbox).latestScripts = <Object>[
-      searchPayload(<Object?>[
-        'not an object',
-        <String, Object?>{'title': 'No URL'},
-        <String, Object?>{
-          'title': 'Valid',
-          'url': 'https://mixed.test/1',
-          'type': 'movie',
-        },
-      ]),
-    ];
+  test(
+    'malformed rows never reach the aggregate; valid rows survive',
+    () async {
+      final DiscoveryTestHarness h = DiscoveryTestHarness(
+        sandbox: ScriptedJsSandbox(),
+      );
+      await h.installExtension(tempDir, 'com.test.mixed');
+      (h.sandbox as ScriptedJsSandbox).latestScripts = <Object>[
+        searchPayload(<Object?>[
+          'not an object',
+          <String, Object?>{'title': 'No URL'},
+          <String, Object?>{
+            'title': 'Valid',
+            'url': 'https://mixed.test/1',
+            'type': 'movie',
+          },
+        ]),
+      ];
 
-    final DiscoveryResult result = await DiscoveryCoordinator.latest(
-      page: 1,
-      manager: h.manager,
-    );
+      final DiscoveryResult result = await DiscoveryCoordinator.latest(
+        page: 1,
+        manager: h.manager,
+      );
 
-    expect(
-      result.items.map((DiscoveryItem i) => i.title).toList(),
-      <String>['Valid'],
-    );
-    // The RUNTIME's result parser is the layer that refuses entries without a
-    // title/url (Phase 2B contract), so they never reach the normalizer — the
-    // coordinator's own drop counter therefore stays zero. Asserting the item
-    // list above is the meaningful guarantee; a non-zero droppedCount here
-    // would mean a row survived the parser and was then rejected later.
-    expect(result.droppedCount, 0);
-  });
+      expect(result.items.map((DiscoveryItem i) => i.title).toList(), <String>[
+        'Valid',
+      ]);
+      // The RUNTIME's result parser is the layer that refuses entries without a
+      // title/url (Phase 2B contract), so they never reach the normalizer — the
+      // coordinator's own drop counter therefore stays zero. Asserting the item
+      // list above is the meaningful guarantee; a non-zero droppedCount here
+      // would mean a row survived the parser and was then rejected later.
+      expect(result.droppedCount, 0);
+    },
+  );
 }

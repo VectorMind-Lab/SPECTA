@@ -51,9 +51,11 @@ final class SourceManagerDownloadResolver implements DownloadSourceResolver {
     DownloadFailure? lastFailure,
   }) async {
     final SourcePool? captured = _pools[record.id];
-    final bool sourceInvalidated = lastFailure != null &&
-        DownloadSourceResolver.sourceInvalidatingFailures
-            .contains(lastFailure.type);
+    final bool sourceInvalidated =
+        lastFailure != null &&
+        DownloadSourceResolver.sourceInvalidatingFailures.contains(
+          lastFailure.type,
+        );
     if (captured != null && !sourceInvalidated) {
       return captured;
     }

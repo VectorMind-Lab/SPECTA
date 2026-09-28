@@ -23,7 +23,8 @@ class FakePlaybackEngine implements PlaybackEngine {
   /// consumed in order; each entry is emitted (with delays) when that open
   /// starts. An empty list means every open stays silent (the session's
   /// open-timeout then fails the candidate).
-  final List<List<PlaybackEngineEvent>> openScripts = <List<PlaybackEngineEvent>>[];
+  final List<List<PlaybackEngineEvent>> openScripts =
+      <List<PlaybackEngineEvent>>[];
 
   /// Delay before each scripted event, per open script.
   Duration eventDelay = Duration.zero;
@@ -117,25 +118,27 @@ RankedSource _source(
   SourceType type = SourceType.mp4,
   String? quality = '720p',
   List<SubtitleTrack>? subtitles,
-}) =>
-    RankedSource(
-      source: ExtensionSource(
-        url: url,
-        type: type,
-        quality: quality,
-        subtitles: subtitles,
-      ),
-      extensionId: extensionId,
-      reference: 'ref-$url',
-      score: 50,
-    );
+}) => RankedSource(
+  source: ExtensionSource(
+    url: url,
+    type: type,
+    quality: quality,
+    subtitles: subtitles,
+  ),
+  extensionId: extensionId,
+  reference: 'ref-$url',
+  score: 50,
+);
 
 /// A container whose engine factory exposes the single fake engine.
 class Harness {
   Harness() {
     container = ProviderContainer(
       overrides: <Override>[
-        playbackEngineFactoryProvider.overrideWith((Ref ref) => () => engine),
+        playbackEngineFactoryProvider.overrideWith(
+          (Ref ref) =>
+              () => engine,
+        ),
         // Phase 2F binds the progress sink to persistent storage by default;
         // the session tests stay hermetic with the in-memory sink.
         playbackProgressSinkProvider.overrideWith(
@@ -188,19 +191,23 @@ void main() {
       expect(h.state.current!.source.url, 'https://a/720');
     });
 
-    test('does not report playing before the engine reports a playable state',
-        () async {
-      final Harness h = Harness();
-      // Script: buffering only, no terminal event yet.
-      h.engine.openScripts.add(<PlaybackEngineEvent>[const EngineBuffering()]);
+    test(
+      'does not report playing before the engine reports a playable state',
+      () async {
+        final Harness h = Harness();
+        // Script: buffering only, no terminal event yet.
+        h.engine.openScripts.add(<PlaybackEngineEvent>[
+          const EngineBuffering(),
+        ]);
 
-      await h.open(
-        PlaybackRequest.direct(<RankedSource>[_source('https://a/720')]),
-      );
+        await h.open(
+          PlaybackRequest.direct(<RankedSource>[_source('https://a/720')]),
+        );
 
-      expect(h.state.status, isNot(PlaybackStatus.playing));
-      expect(h.state.status, PlaybackStatus.loading);
-    });
+        expect(h.state.status, isNot(PlaybackStatus.playing));
+        expect(h.state.status, PlaybackStatus.loading);
+      },
+    );
 
     test('pause/play transitions are honest', () async {
       final Harness h = Harness();
@@ -291,9 +298,7 @@ void main() {
       h.engine.openScripts.add(<PlaybackEngineEvent>[
         const EngineFailed('boom'),
       ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
 
       await h.open(
         PlaybackRequest.direct(<RankedSource>[
@@ -302,8 +307,10 @@ void main() {
         ]),
       );
 
-      expect(h.engine.opened.map((ExtensionSource s) => s.url),
-          <String>['https://a/bad', 'https://b/good']);
+      expect(h.engine.opened.map((ExtensionSource s) => s.url), <String>[
+        'https://a/bad',
+        'https://b/good',
+      ]);
       expect(h.state.status, PlaybackStatus.playing);
       expect(h.state.attemptedCount, 2);
       expect(h.state.failures.single.candidate.extensionId, 'extA');
@@ -318,9 +325,7 @@ void main() {
       h.engine.openScripts.add(<PlaybackEngineEvent>[
         const EngineFailed('dead'),
       ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
 
       await h.open(
         PlaybackRequest.direct(<RankedSource>[
@@ -335,12 +340,8 @@ void main() {
 
     test('fallback exhaustion ends in a structured failure', () async {
       final Harness h = Harness();
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EngineFailed('x1'),
-      ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EngineFailed('x2'),
-      ]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EngineFailed('x1')]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EngineFailed('x2')]);
 
       await h.open(
         PlaybackRequest.direct(<RankedSource>[
@@ -369,15 +370,9 @@ void main() {
         ],
         outcomes: const <ExtensionSourceOutcome>[],
       );
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EngineFailed('f1'),
-      ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EngineFailed('f2'),
-      ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EngineFailed('f1')]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EngineFailed('f2')]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
 
       await h.open(PlaybackRequest.fromPool(pool));
 
@@ -390,12 +385,8 @@ void main() {
 
     test('fallback exhaustion preserves the session identity line', () async {
       final Harness h = Harness();
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EngineFailed('x1'),
-      ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EngineFailed('x2'),
-      ]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EngineFailed('x1')]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EngineFailed('x2')]);
 
       await h.open(
         PlaybackRequest.direct(
@@ -412,43 +403,43 @@ void main() {
       expect(h.state.subtitle, 'Season 1 · Episode 2');
     });
 
-    test('retry() replays SPECTA\'s original order with the same identity',
-        () async {
-      final Harness h = Harness();
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EngineFailed('x1'),
-      ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EngineFailed('x2'),
-      ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EngineFailed('x1'),
-      ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
+    test(
+      'retry() replays SPECTA\'s original order with the same identity',
+      () async {
+        final Harness h = Harness();
+        h.engine.openScripts.add(<PlaybackEngineEvent>[
+          const EngineFailed('x1'),
+        ]);
+        h.engine.openScripts.add(<PlaybackEngineEvent>[
+          const EngineFailed('x2'),
+        ]);
+        h.engine.openScripts.add(<PlaybackEngineEvent>[
+          const EngineFailed('x1'),
+        ]);
+        h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
 
-      await h.open(
-        PlaybackRequest.direct(
-          <RankedSource>[_source('https://a/1'), _source('https://b/2')],
-          title: 'Some Movie',
-          subtitle: 'Season 1 · Episode 2',
-        ),
-      );
-      expect(h.state.status, PlaybackStatus.failed);
+        await h.open(
+          PlaybackRequest.direct(
+            <RankedSource>[_source('https://a/1'), _source('https://b/2')],
+            title: 'Some Movie',
+            subtitle: 'Season 1 · Episode 2',
+          ),
+        );
+        expect(h.state.status, PlaybackStatus.failed);
 
-      await h.notifier.retry();
-      await Future<void>.delayed(Duration.zero);
+        await h.notifier.retry();
+        await Future<void>.delayed(Duration.zero);
 
-      // Same candidates, from the beginning — never a new resolution.
-      expect(
-        h.engine.opened.map((ExtensionSource s) => s.url).toList(),
-        <String>['https://a/1', 'https://b/2', 'https://a/1', 'https://b/2'],
-      );
-      expect(h.state.status, PlaybackStatus.playing);
-      expect(h.state.title, 'Some Movie');
-      expect(h.state.subtitle, 'Season 1 · Episode 2');
-    });
+        // Same candidates, from the beginning — never a new resolution.
+        expect(
+          h.engine.opened.map((ExtensionSource s) => s.url).toList(),
+          <String>['https://a/1', 'https://b/2', 'https://a/1', 'https://b/2'],
+        );
+        expect(h.state.status, PlaybackStatus.playing);
+        expect(h.state.title, 'Some Movie');
+        expect(h.state.subtitle, 'Season 1 · Episode 2');
+      },
+    );
   });
 
   group('PlaybackSessionNotifier — races and disposal', () {
@@ -458,9 +449,7 @@ void main() {
       // Session A: silent open → open-timeout would eventually fail it, but
       // a new open arrives first; A must never advance afterwards.
       h.engine.openScripts.add(<PlaybackEngineEvent>[]); // silent
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
 
       await h.open(
         PlaybackRequest.direct(<RankedSource>[
@@ -485,39 +474,35 @@ void main() {
       expect(h.state.current!.source.url, 'https://b/new');
     });
 
-    test('engine failure after a newer open is ignored (error isolation)',
-        () async {
-      final Harness h = Harness();
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
+    test(
+      'engine failure after a newer open is ignored (error isolation)',
+      () async {
+        final Harness h = Harness();
+        h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
+        h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
 
-      await h.open(
-        PlaybackRequest.direct(<RankedSource>[_source('https://a/one')]),
-      );
-      expect(h.state.status, PlaybackStatus.playing);
+        await h.open(
+          PlaybackRequest.direct(<RankedSource>[_source('https://a/one')]),
+        );
+        expect(h.state.status, PlaybackStatus.playing);
 
-      // A second open of the same engine — events from the first still flow
-      // through the same stream, but a failure must not kill session two
-      // unless it arrives while session two is loading its own candidate.
-      await h.open(
-        PlaybackRequest.direct(<RankedSource>[_source('https://b/two')]),
-      );
-      expect(h.state.status, PlaybackStatus.playing);
-      expect(h.state.current!.source.url, 'https://b/two');
-    });
+        // A second open of the same engine — events from the first still flow
+        // through the same stream, but a failure must not kill session two
+        // unless it arrives while session two is loading its own candidate.
+        await h.open(
+          PlaybackRequest.direct(<RankedSource>[_source('https://b/two')]),
+        );
+        expect(h.state.status, PlaybackStatus.playing);
+        expect(h.state.current!.source.url, 'https://b/two');
+      },
+    );
 
     test('leave() rejects in-flight fallbacks', () async {
       final Harness h = Harness();
       h.engine.openScripts.add(<PlaybackEngineEvent>[
         const EngineFailed('gone'),
       ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
 
       await h.open(
         PlaybackRequest.direct(<RankedSource>[
@@ -530,39 +515,44 @@ void main() {
       expect(h.state.status, PlaybackStatus.idle);
     });
 
-    test('provider disposal stops the engine and swallows late events',
-        () async {
-      final FakePlaybackEngine engine = FakePlaybackEngine();
-      engine.openScripts.add(<PlaybackEngineEvent>[const EngineBuffering()]);
-      final ProviderContainer container = ProviderContainer(
-        overrides: <Override>[
-          playbackEngineFactoryProvider.overrideWith((Ref ref) => () => engine),
-        ],
-      );
+    test(
+      'provider disposal stops the engine and swallows late events',
+      () async {
+        final FakePlaybackEngine engine = FakePlaybackEngine();
+        engine.openScripts.add(<PlaybackEngineEvent>[const EngineBuffering()]);
+        final ProviderContainer container = ProviderContainer(
+          overrides: <Override>[
+            playbackEngineFactoryProvider.overrideWith(
+              (Ref ref) =>
+                  () => engine,
+            ),
+          ],
+        );
 
-      await container.read(playbackSessionProvider.notifier).open(
-            PlaybackRequest.direct(<RankedSource>[_source('https://a/x')]),
-          );
-      await Future<void>.delayed(Duration.zero);
-      expect(
-        container.read(playbackSessionProvider).status,
-        PlaybackStatus.loading,
-      );
+        await container
+            .read(playbackSessionProvider.notifier)
+            .open(
+              PlaybackRequest.direct(<RankedSource>[_source('https://a/x')]),
+            );
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          container.read(playbackSessionProvider).status,
+          PlaybackStatus.loading,
+        );
 
-      container.dispose();
-      expect(engine.stopCount, greaterThanOrEqualTo(1));
+        container.dispose();
+        expect(engine.stopCount, greaterThanOrEqualTo(1));
 
-      // Late engine events after disposal must not throw or mutate anything.
-      engine.emit(const EnginePlaying());
-      await Future<void>.delayed(Duration.zero);
-      expect(engine.disposeCount, 1);
-    });
+        // Late engine events after disposal must not throw or mutate anything.
+        engine.emit(const EnginePlaying());
+        await Future<void>.delayed(Duration.zero);
+        expect(engine.disposeCount, 1);
+      },
+    );
 
     test('observation log records only measured outcomes', () async {
       final Harness h = Harness();
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
       h.engine.openScripts.add(<PlaybackEngineEvent>[
         const EngineFailed('nope'),
       ]);
@@ -571,9 +561,7 @@ void main() {
       ]);
 
       await h.open(
-        PlaybackRequest.direct(<RankedSource>[
-          _source('https://a/ok'),
-        ]),
+        PlaybackRequest.direct(<RankedSource>[_source('https://a/ok')]),
       );
       await h.open(
         PlaybackRequest.direct(<RankedSource>[
@@ -627,26 +615,25 @@ void main() {
         'interruption (stall timeout) falls back', () async {
       // Short stall timeout so the fallback path runs quickly in-test.
       final FakePlaybackEngine engine = FakePlaybackEngine();
-      engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
-      engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
+      engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
+      engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
       final ProviderContainer container = ProviderContainer(
         overrides: <Override>[
-          playbackEngineFactoryProvider
-              .overrideWith((Ref ref) => () => engine),
-          playbackStallTimeoutProvider
-              .overrideWith((Ref ref) => const Duration(milliseconds: 60)),
+          playbackEngineFactoryProvider.overrideWith(
+            (Ref ref) =>
+                () => engine,
+          ),
+          playbackStallTimeoutProvider.overrideWith(
+            (Ref ref) => const Duration(milliseconds: 60),
+          ),
         ],
       );
       addTearDown(container.dispose);
 
       Future<void> openReq(List<RankedSource> sources) async {
-        await container.read(playbackSessionProvider.notifier).open(
-              PlaybackRequest.direct(sources),
-            );
+        await container
+            .read(playbackSessionProvider.notifier)
+            .open(PlaybackRequest.direct(sources));
         await Future<void>.delayed(Duration.zero);
       }
 
@@ -675,8 +662,10 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(s().status, PlaybackStatus.playing);
       expect(s().current!.source.url, 'https://b/rescue');
-      expect(s().failures.single.failure!.type,
-          PlaybackFailureType.bufferingFailure);
+      expect(
+        s().failures.single.failure!.type,
+        PlaybackFailureType.bufferingFailure,
+      );
     });
 
     test('empty candidate list is an honest structured failure', () async {
@@ -721,44 +710,43 @@ void main() {
       expect(h.state.selectedSubtitle, isNull);
     });
 
-    test('a stray engine failure after completion cannot restart playback',
-        () async {
-      final Harness h = Harness();
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-        const EngineCompleted(),
-      ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
+    test(
+      'a stray engine failure after completion cannot restart playback',
+      () async {
+        final Harness h = Harness();
+        h.engine.openScripts.add(<PlaybackEngineEvent>[
+          const EnginePlaying(),
+          const EngineCompleted(),
+        ]);
+        h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
 
-      await h.open(
-        PlaybackRequest.direct(<RankedSource>[
-          _source('https://a/one'),
-          _source('https://b/two'),
-        ]),
-      );
-      expect(h.state.status, PlaybackStatus.completed);
+        await h.open(
+          PlaybackRequest.direct(<RankedSource>[
+            _source('https://a/one'),
+            _source('https://b/two'),
+          ]),
+        );
+        expect(h.state.status, PlaybackStatus.completed);
 
-      // Late engine noise must never open a fallback behind the user.
-      h.engine.emit(const EngineFailed('late noise'));
-      h.engine.emit(const EngineErrored('late noise'));
-      expect(h.state.status, PlaybackStatus.completed);
-      expect(h.state.current!.source.url, 'https://a/one');
-      expect(h.engine.opened.length, 1);
-    });
+        // Late engine noise must never open a fallback behind the user.
+        h.engine.emit(const EngineFailed('late noise'));
+        h.engine.emit(const EngineErrored('late noise'));
+        expect(h.state.status, PlaybackStatus.completed);
+        expect(h.state.current!.source.url, 'https://a/one');
+        expect(h.engine.opened.length, 1);
+      },
+    );
   });
 
   group('resume position (startPosition)', () {
     test('seeks to the request start position exactly once', () async {
       final Harness h = Harness();
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EnginePlaying(),
-      ]);
+      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
 
       await h.open(
-        PlaybackRequest.direct(
-          <RankedSource>[_source('https://a/720')],
-          startPosition: const Duration(minutes: 5),
-        ),
+        PlaybackRequest.direct(<RankedSource>[
+          _source('https://a/720'),
+        ], startPosition: const Duration(minutes: 5)),
       );
 
       expect(h.state.status, PlaybackStatus.playing);
@@ -787,37 +775,35 @@ void main() {
       h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
 
       await h.open(
-        PlaybackRequest.direct(
-          <RankedSource>[_source('https://a/720')],
-          startPosition: Duration.zero,
-        ),
+        PlaybackRequest.direct(<RankedSource>[
+          _source('https://a/720'),
+        ], startPosition: Duration.zero),
       );
 
       expect(h.engine.seeks, isEmpty);
     });
 
-    test('the seek is applied when a FALLBACK candidate becomes playable',
-        () async {
-      final Harness h = Harness();
-      h.engine.openScripts.add(<PlaybackEngineEvent>[
-        const EngineFailed('dead'),
-      ]);
-      h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
+    test(
+      'the seek is applied when a FALLBACK candidate becomes playable',
+      () async {
+        final Harness h = Harness();
+        h.engine.openScripts.add(<PlaybackEngineEvent>[
+          const EngineFailed('dead'),
+        ]);
+        h.engine.openScripts.add(<PlaybackEngineEvent>[const EnginePlaying()]);
 
-      await h.open(
-        PlaybackRequest.direct(
-          <RankedSource>[
+        await h.open(
+          PlaybackRequest.direct(<RankedSource>[
             _source('https://a/dead', extensionId: 'extDead'),
             _source('https://b/live', extensionId: 'extLive'),
-          ],
-          startPosition: const Duration(minutes: 7),
-        ),
-      );
+          ], startPosition: const Duration(minutes: 7)),
+        );
 
-      expect(h.state.status, PlaybackStatus.playing);
-      expect(h.state.current!.extensionId, 'extLive');
-      expect(h.engine.seeks, <Duration>[const Duration(minutes: 7)]);
-    });
+        expect(h.state.status, PlaybackStatus.playing);
+        expect(h.state.current!.extensionId, 'extLive');
+        expect(h.engine.seeks, <Duration>[const Duration(minutes: 7)]);
+      },
+    );
   });
 
   group('InMemoryPlaybackProgressSink', () {
@@ -856,7 +842,11 @@ void main() {
 
     test('empty target keys are never recorded', () {
       final InMemoryPlaybackProgressSink sink = InMemoryPlaybackProgressSink();
-      sink.report(targetKey: '', elapsed: const Duration(seconds: 1), completed: false);
+      sink.report(
+        targetKey: '',
+        elapsed: const Duration(seconds: 1),
+        completed: false,
+      );
       expect(sink.elapsedFor(''), isNull);
     });
   });

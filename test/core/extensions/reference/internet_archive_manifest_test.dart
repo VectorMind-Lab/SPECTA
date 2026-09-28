@@ -19,7 +19,8 @@ import 'package:specta/core/extensions/manifest.dart';
 /// It also carries the ARCHITECTURAL GUARD for rule 0.7: SPECTA Core must stay
 /// provider-agnostic, so no provider-specific knowledge may appear anywhere in
 /// `lib/`.
-const String _referenceExtensionPath = 'extensions/internet_archive_reference.js';
+const String _referenceExtensionPath =
+    'extensions/internet_archive_reference.js';
 const String _expectedId = 'org.specta.reference.internetarchive';
 
 /// Markers that would mean provider-specific knowledge leaked into Core.
@@ -52,25 +53,24 @@ void main() {
       expect(manifest.isApiCompatible, isTrue);
     });
 
-    test('declares movie content only, matching what it can actually answer',
-        () {
-      expect(manifest.type, ExtensionContentType.movie);
-    });
+    test(
+      'declares movie content only, matching what it can actually answer',
+      () {
+        expect(manifest.type, ExtensionContentType.movie);
+      },
+    );
 
     test('declares exactly the capabilities it needs — no more', () {
       // Least privilege, asserted rather than assumed. `sources` covers both
       // getSources() and refreshSource(); `logging` is used by load().
-      expect(
-        manifest.capabilities,
-        <ExtensionCapability>{
-          ExtensionCapability.network,
-          ExtensionCapability.logging,
-          ExtensionCapability.search,
-          ExtensionCapability.latest,
-          ExtensionCapability.details,
-          ExtensionCapability.sources,
-        },
-      );
+      expect(manifest.capabilities, <ExtensionCapability>{
+        ExtensionCapability.network,
+        ExtensionCapability.logging,
+        ExtensionCapability.search,
+        ExtensionCapability.latest,
+        ExtensionCapability.details,
+        ExtensionCapability.sources,
+      });
     });
 
     test('is unsigned, so it can never be classified Official', () {
@@ -100,7 +100,10 @@ void main() {
         );
       }
       // The runtime instantiates a class named exactly `Extension`.
-      expect(source.contains('class Extension extends SpectaExtension'), isTrue);
+      expect(
+        source.contains('class Extension extends SpectaExtension'),
+        isTrue,
+      );
     });
 
     test('carries no credential and no authentication path', () {
@@ -138,7 +141,8 @@ void main() {
         expect(
           source.contains(forbidden),
           isFalse,
-          reason: 'the sandbox exposes no "$forbidden" and the extension must '
+          reason:
+              'the sandbox exposes no "$forbidden" and the extension must '
               'not attempt to use one',
         );
       }

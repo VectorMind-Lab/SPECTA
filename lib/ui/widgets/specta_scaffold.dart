@@ -27,10 +27,7 @@ class SpectaScaffold extends StatelessWidget {
 
 /// SPECTA top bar with search and system status.
 class SpectaTopBar extends StatelessWidget {
-  const SpectaTopBar({
-    super.key,
-    this.showSearchBar = true,
-  });
+  const SpectaTopBar({super.key, this.showSearchBar = true});
 
   final bool showSearchBar;
 
@@ -49,7 +46,6 @@ class SpectaTopBar extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          // SPECTA Logo/Brand
           Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -66,53 +62,60 @@ class SpectaTopBar extends StatelessWidget {
               ),
             ],
           ),
-
-          const Spacer(),
-
-          // Search Bar (if shown)
           if (showSearchBar)
-            Container(
-              width: 320,
-              height: 38,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: SpectaColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: SpectaColors.outline),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Icon(
-                    Icons.search_rounded,
-                    size: 18,
-                    color: SpectaColors.textMuted,
-                  ),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search movies, series, genres...',
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
-                        isDense: true,
-                      ),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: SpectaColors.textPrimary,
-                      ),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: SpectaColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: SpectaColors.outline),
+                    ),
+                    child: const Row(
+                      children: <Widget>[
+                        Icon(
+                          Icons.search_rounded,
+                          size: 18,
+                          color: SpectaColors.textMuted,
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Search movies, series, genres...',
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                              isDense: true,
+                            ),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: SpectaColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
-
           const SizedBox(width: 16),
-
-          // System Icons
-          Icon(Icons.wifi_rounded, size: 20, color: SpectaColors.textMuted),
+          const Icon(
+            Icons.wifi_rounded,
+            size: 20,
+            color: SpectaColors.textMuted,
+          ),
           const SizedBox(width: 12),
-          Icon(Icons.notifications_none_rounded,
-              size: 20, color: SpectaColors.textMuted),
+          const Icon(
+            Icons.notifications_none_rounded,
+            size: 20,
+            color: SpectaColors.textMuted,
+          ),
         ],
       ),
     );

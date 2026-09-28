@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SPECTA's canvas colour, matching SpectaColors.background in
+         lib/app/theme/specta_colors.dart. Duplicated here because the native
+         launch window is drawn by Android before any Dart code runs, so it
+         cannot read the Dart constant; if one changes, change both.
+
+         This exists because the stock Flutter launch theme used
+         `@android:color/white`, so a light-mode device showed a WHITE
+         rectangle for the whole engine start-up before the dark UI appeared. -->
+    <color name="specta_launch_background">#FF080B11</color>
+</resources>

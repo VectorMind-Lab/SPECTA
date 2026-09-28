@@ -33,29 +33,30 @@ WatchProgress _movie({
   Duration? duration = const Duration(minutes: 2),
   bool completed = false,
   DateTime? at,
-}) =>
-    WatchProgress(
-      id: id,
-      mediaKey: 'A|movie|2024',
-      mediaType: MediaType.movie,
-      title: title,
-      position: position,
-      duration: duration,
-      completed: completed,
-      updatedAt: at ?? DateTime(2026, 1, 1),
-    );
+}) => WatchProgress(
+  id: id,
+  mediaKey: 'A|movie|2024',
+  mediaType: MediaType.movie,
+  title: title,
+  position: position,
+  duration: duration,
+  completed: completed,
+  updatedAt: at ?? DateTime(2026, 1, 1),
+);
 
 void main() {
-  testWidgets('an empty library states its real status, not fake content',
-      (WidgetTester tester) async {
+  testWidgets('an empty library states its real status, not fake content', (
+    WidgetTester tester,
+  ) async {
     await _pumpLibrary(tester, InMemoryLibraryStore());
 
     expect(find.textContaining('Nothing here yet'), findsOneWidget);
     expect(find.text('Continue Watching'), findsNothing);
   });
 
-  testWidgets('renders Continue Watching and History from the store',
-      (WidgetTester tester) async {
+  testWidgets('renders Continue Watching and History from the store', (
+    WidgetTester tester,
+  ) async {
     final InMemoryLibraryStore store = InMemoryLibraryStore();
     await store.upsert(
       _movie(
@@ -86,7 +87,9 @@ void main() {
     expect(find.text('Watched'), findsOneWidget);
   });
 
-  testWidgets('an episode shows its season/episode line', (WidgetTester tester) async {
+  testWidgets('an episode shows its season/episode line', (
+    WidgetTester tester,
+  ) async {
     final InMemoryLibraryStore store = InMemoryLibraryStore();
     await store.upsert(
       WatchProgress(
@@ -108,12 +111,11 @@ void main() {
     expect(find.textContaining('Season 2 · Episode 5'), findsWidgets);
   });
 
-  testWidgets('tapping an item with no stored provenance fails honestly',
-      (WidgetTester tester) async {
+  testWidgets('tapping an item with no stored provenance fails honestly', (
+    WidgetTester tester,
+  ) async {
     final InMemoryLibraryStore store = InMemoryLibraryStore();
-    await store.upsert(
-      _movie(id: 'A|movie|2024', title: 'A Movie'),
-    );
+    await store.upsert(_movie(id: 'A|movie|2024', title: 'A Movie'));
 
     await _pumpLibrary(tester, store);
     await tester.tap(find.text('A Movie').first);

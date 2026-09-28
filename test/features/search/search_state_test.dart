@@ -68,16 +68,15 @@ void main() {
       final DiscoveryTestHarness h = DiscoveryTestHarness();
       final ProviderContainer container = _container(h);
 
-      await container
-          .read(searchSessionProvider.notifier)
-          .submit('   \t  ');
+      await container.read(searchSessionProvider.notifier).submit('   \t  ');
 
       expect(container.read(searchSessionProvider).status, SearchStatus.idle);
     });
 
     test('successful round with results → results status', () async {
-      final DiscoveryTestHarness h =
-          DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
+      final DiscoveryTestHarness h = DiscoveryTestHarness(
+        sandbox: ScriptedJsSandbox(),
+      );
       await h.installExtension(tempDir, 'com.test.found');
 
       (h.sandbox as ScriptedJsSandbox).searchScripts = <Object>[
@@ -93,26 +92,30 @@ void main() {
       expect(state.page, 1);
     });
 
-    test('queried extensions answering honestly empty → empty status',
-        () async {
-      final DiscoveryTestHarness h =
-          DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
-      await h.installExtension(tempDir, 'com.test.nothing');
+    test(
+      'queried extensions answering honestly empty → empty status',
+      () async {
+        final DiscoveryTestHarness h = DiscoveryTestHarness(
+          sandbox: ScriptedJsSandbox(),
+        );
+        await h.installExtension(tempDir, 'com.test.nothing');
 
-      (h.sandbox as ScriptedJsSandbox).searchScripts = <Object>['[]'];
+        (h.sandbox as ScriptedJsSandbox).searchScripts = <Object>['[]'];
 
-      final ProviderContainer container = _container(h);
-      await container.read(searchSessionProvider.notifier).submit('nothing');
+        final ProviderContainer container = _container(h);
+        await container.read(searchSessionProvider.notifier).submit('nothing');
 
-      final SearchState state = container.read(searchSessionProvider);
-      expect(state.status, SearchStatus.empty);
-      expect(state.items, isEmpty);
-      expect(state.failedExtensions, isEmpty);
-    });
+        final SearchState state = container.read(searchSessionProvider);
+        expect(state.status, SearchStatus.empty);
+        expect(state.items, isEmpty);
+        expect(state.failedExtensions, isEmpty);
+      },
+    );
 
     test('every queried extension failing → allFailed status', () async {
-      final DiscoveryTestHarness h =
-          DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
+      final DiscoveryTestHarness h = DiscoveryTestHarness(
+        sandbox: ScriptedJsSandbox(),
+      );
       await h.installExtension(tempDir, 'com.test.bad1');
       await h.installExtension(tempDir, 'com.test.bad2');
 
@@ -131,18 +134,19 @@ void main() {
     });
 
     test('results plus a failing extension → partialFailure status', () async {
-      final DiscoveryTestHarness h =
-          DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
+      final DiscoveryTestHarness h = DiscoveryTestHarness(
+        sandbox: ScriptedJsSandbox(),
+      );
       await h.installExtension(tempDir, 'com.test.ok');
       await h.installExtension(tempDir, 'com.test.err');
 
       (h.sandbox as ScriptedJsSandbox).searchScripts = <Object>[
         _payload('Partial Winner', 'https://ok.test/1'),
-          JsEvalException('exploded'),
-        ];
+        JsEvalException('exploded'),
+      ];
 
-        final ProviderContainer container = _container(h);
-        await container.read(searchSessionProvider.notifier).submit('partial');
+      final ProviderContainer container = _container(h);
+      await container.read(searchSessionProvider.notifier).submit('partial');
 
       final SearchState state = container.read(searchSessionProvider);
       expect(state.status, SearchStatus.partialFailure);
@@ -150,55 +154,52 @@ void main() {
       expect(state.failedExtensions.length, 1);
     });
 
+    test('a success with zero items plus a failing extension is partialFailure too', () async {
+      final DiscoveryTestHarness h = DiscoveryTestHarness(
+        sandbox: ScriptedJsSandbox(),
+      );
+      await h.installExtension(tempDir, 'com.test.emptyok');
+      await h.installExtension(tempDir, 'com.test.err2');
+
+      (h.sandbox as ScriptedJsSandbox).searchScripts = <Object>[
+        '[]',
+        JsEvalException('exploded'),
+      ];
+
+      final ProviderContainer container = _container(h);
+      await container.read(searchSessionProvider.notifier).submit('emptyfail');
+
+      expect(
+        container.read(searchSessionProvider).status,
+        SearchStatus.partialFailure,
+      );
+    });
+
     test(
-      'a success with zero items plus a failing extension is partialFailure too',
+      'no search-capable extension installed → noExtensions status',
       () async {
-        final DiscoveryTestHarness h =
-            DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
-        await h.installExtension(tempDir, 'com.test.emptyok');
-        await h.installExtension(tempDir, 'com.test.err2');
-
-        (h.sandbox as ScriptedJsSandbox).searchScripts = <Object>[
-          '[]',
-          JsEvalException('exploded'),
-        ];
-
+        final DiscoveryTestHarness h = DiscoveryTestHarness();
         final ProviderContainer container = _container(h);
-        await container
-            .read(searchSessionProvider.notifier)
-            .submit('emptyfail');
+
+        await container.read(searchSessionProvider.notifier).submit('anything');
 
         expect(
           container.read(searchSessionProvider).status,
-          SearchStatus.partialFailure,
+          SearchStatus.noExtensions,
         );
       },
     );
 
-    test('no search-capable extension installed → noExtensions status',
-        () async {
-      final DiscoveryTestHarness h = DiscoveryTestHarness();
-      final ProviderContainer container = _container(h);
-
-      await container.read(searchSessionProvider.notifier).submit('anything');
-
-      expect(
-        container.read(searchSessionProvider).status,
-        SearchStatus.noExtensions,
-      );
-    });
-
     test('loading is visible while a round is in flight', () async {
-      final DiscoveryTestHarness h =
-          DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
+      final DiscoveryTestHarness h = DiscoveryTestHarness(
+        sandbox: ScriptedJsSandbox(),
+      );
       await h.installExtension(tempDir, 'com.test.slowish');
 
       final ScriptedJsSandbox sb = h.sandbox as ScriptedJsSandbox;
       sb.hangDuration = const Duration(milliseconds: 400);
       sb.hangOnCallIndices = <int>{0};
-      sb.searchScripts = <Object>[
-        _payload('Slow Winner', 'https://s.test/1'),
-      ];
+      sb.searchScripts = <Object>[_payload('Slow Winner', 'https://s.test/1')];
 
       final ProviderContainer container = _container(h);
       final Future<void> round = container
@@ -206,64 +207,71 @@ void main() {
           .submit('slowish');
 
       await _waitFor(
-        () => container.read(searchSessionProvider).status ==
+        () =>
+            container.read(searchSessionProvider).status ==
             SearchStatus.loading,
         reason: 'round never entered loading',
       );
 
       await round;
-      expect(container.read(searchSessionProvider).status,
-          SearchStatus.results);
+      expect(
+        container.read(searchSessionProvider).status,
+        SearchStatus.results,
+      );
     });
   });
 
   group('SearchSessionNotifier — race protection', () {
-    test(
-      'an older round completing after a newer one is rejected ("bat"→"batman")',
-      () async {
-        final DiscoveryTestHarness h =
-            DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
-        await h.installExtension(tempDir, 'com.test.racy');
+    test('an older round completing after a newer one is rejected ("bat"→"batman")', () async {
+      final DiscoveryTestHarness h = DiscoveryTestHarness(
+        sandbox: ScriptedJsSandbox(),
+      );
+      await h.installExtension(tempDir, 'com.test.racy');
 
-        final ScriptedJsSandbox sb = h.sandbox as ScriptedJsSandbox;
-        // Call #0 (the first query) hangs, call #1 (the newer query) answers
-        // immediately. The older round must NEVER overwrite the newer result.
-        sb.hangDuration = const Duration(seconds: 2);
-        sb.hangOnCallIndices = <int>{0};
-        sb.searchScripts = <Object>[
-          _payload('Stale Result', 'https://r.test/stale'),
-          _payload('Fresh Result', 'https://r.test/fresh'),
-        ];
+      final ScriptedJsSandbox sb = h.sandbox as ScriptedJsSandbox;
+      // Call #0 (the first query) hangs, call #1 (the newer query) answers
+      // immediately. The older round must NEVER overwrite the newer result.
+      sb.hangDuration = const Duration(seconds: 2);
+      sb.hangOnCallIndices = <int>{0};
+      sb.searchScripts = <Object>[
+        _payload('Stale Result', 'https://r.test/stale'),
+        _payload('Fresh Result', 'https://r.test/fresh'),
+      ];
 
-        final ProviderContainer container = _container(h);
-        final SearchSessionNotifier notifier = container
-            .read(searchSessionProvider.notifier);
+      final ProviderContainer container = _container(h);
+      final SearchSessionNotifier notifier = container.read(
+        searchSessionProvider.notifier,
+      );
 
-        final Future<void> older = notifier.submit('bat');
-        await _waitFor(
-          () => sb.searchCallCount >= 1,
-          reason: 'first round never reached the sandbox',
-        );
+      final Future<void> older = notifier.submit('bat');
+      await _waitFor(
+        () => sb.searchCallCount >= 1,
+        reason: 'first round never reached the sandbox',
+      );
 
-        final Future<void> newer = notifier.submit('batman');
-        await newer;
-        expect(container.read(searchSessionProvider).items.single.title,
-            'Fresh Result');
+      final Future<void> newer = notifier.submit('batman');
+      await newer;
+      expect(
+        container.read(searchSessionProvider).items.single.title,
+        'Fresh Result',
+      );
 
-        await older; // the stale round lands LAST
-        expect(
-          container.read(searchSessionProvider).items.single.title,
-          'Fresh Result',
-          reason: 'a stale round must not overwrite a newer one',
-        );
-        expect(container.read(searchSessionProvider).status,
-            SearchStatus.results);
-      },
-    );
+      await older; // the stale round lands LAST
+      expect(
+        container.read(searchSessionProvider).items.single.title,
+        'Fresh Result',
+        reason: 'a stale round must not overwrite a newer one',
+      );
+      expect(
+        container.read(searchSessionProvider).status,
+        SearchStatus.results,
+      );
+    });
 
     test('reset rejects an in-flight round', () async {
-      final DiscoveryTestHarness h =
-          DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
+      final DiscoveryTestHarness h = DiscoveryTestHarness(
+        sandbox: ScriptedJsSandbox(),
+      );
       await h.installExtension(tempDir, 'com.test.reset');
 
       final ScriptedJsSandbox sb = h.sandbox as ScriptedJsSandbox;
@@ -296,8 +304,9 @@ void main() {
 
   group('SearchSessionNotifier — pagination boundary', () {
     test('a later page round reports its page', () async {
-      final DiscoveryTestHarness h =
-          DiscoveryTestHarness(sandbox: ScriptedJsSandbox());
+      final DiscoveryTestHarness h = DiscoveryTestHarness(
+        sandbox: ScriptedJsSandbox(),
+      );
       await h.installExtension(tempDir, 'com.test.page2');
 
       (h.sandbox as ScriptedJsSandbox).searchScripts = <Object>[

@@ -8,28 +8,109 @@ import 'package:flutter_test/flutter_test.dart' as t;
 
 import 'package:specta/core/discovery/discovery_models.dart';
 import 'package:specta/core/extensions/contract/result_models.dart';
+import 'package:specta/core/identity/title_key.dart';
 import 'package:specta/core/metadata/metadata_manager.dart';
+import 'package:specta/core/tmdb/tmdb_client.dart';
+import 'package:specta/core/tmdb/tmdb_config.dart';
+import 'package:specta/core/tmdb/tmdb_transport.dart';
 import 'package:specta/features/details/details_state.dart';
 
 import '../../support/discovery_test_harness.dart';
 
+/// A syntactically valid, entirely fictional v3-shaped key. Not a credential.
+const String _testTmdbKey = '0123456789abcdef0123456789abcdef';
+
+/// A `DiscoveryItem` shaped exactly like the ones TMDB's "Popular" rail builds:
+/// a real identity key, a title, a year, artwork — and NO extension reference.
+DiscoveryItem _catalogueOnlyItem(String title, int year) => DiscoveryItem(
+  key: TitleKey.identityKey(
+    title: title,
+    typeCode: MediaType.movie.code,
+    year: year,
+  ),
+  title: title,
+  type: MediaType.movie,
+  year: year,
+  cover: 'https://image.tmdb.org/t/p/w500/rail.jpg',
+  references: const <DiscoveryReference>[],
+);
+
+/// Answers per endpoint, so a test can distinguish "found the entry" from
+/// "fetched the full record behind it".
+class _RoutingTmdbTransport implements TmdbTransport {
+  _RoutingTmdbTransport({this.searchStatus = 200});
+
+  final int searchStatus;
+
+  @override
+  Future<TmdbHttpResponse> get({
+    required Uri uri,
+    required String endpoint,
+    required Map<String, String> headers,
+    required Duration timeout,
+  }) async {
+    if (endpoint == '/search/multi') {
+      if (searchStatus != 200) {
+        return TmdbHttpResponse(statusCode: searchStatus, body: 'boom');
+      }
+      return TmdbHttpResponse(
+        statusCode: 200,
+        body: jsonEncode(<String, Object?>{
+          'page': 1,
+          'total_pages': 1,
+          'total_results': 1,
+          'results': <Object?>[
+            <String, Object?>{
+              'id': 603,
+              'media_type': 'movie',
+              'title': 'The Matrix',
+              'release_date': '1999-03-30',
+              'overview': 'Search-summary overview.',
+              'poster_path': '/p.jpg',
+              'vote_average': 8.2,
+            },
+          ],
+        }),
+      );
+    }
+    if (endpoint == '/movie/603') {
+      return TmdbHttpResponse(
+        statusCode: 200,
+        body: jsonEncode(<String, Object?>{
+          'id': 603,
+          'title': 'The Matrix',
+          'release_date': '1999-03-30',
+          'overview': 'A hacker learns the truth.',
+          'poster_path': '/p.jpg',
+          'vote_average': 8.2,
+          'runtime': 136,
+          'genres': <Object?>[
+            <String, Object?>{'id': 878, 'name': 'Science Fiction'},
+          ],
+        }),
+      );
+    }
+    return const TmdbHttpResponse(statusCode: 404, body: '{}');
+  }
+}
+
 String _moviePayload(String url) => jsonEncode(<String, Object?>{
-      'id': 'm1',
-      'title': 'Test Movie',
-      'type': 'movie',
-      'url': url,
-      'year': 2020,
-    });
+  'id': 'm1',
+  'title': 'Test Movie',
+  'type': 'movie',
+  'url': url,
+  'year': 2020,
+});
 
 DiscoveryItem _movieItem(String extensionId, String url) => DiscoveryItem(
-      key: 'test|movie|2020',
-      title: 'Test Movie',
-      type: MediaType.movie,
-      year: 2020,
-      references: <DiscoveryReference>[
-        DiscoveryReference(extensionId: extensionId, url: url),
-      ],
-    );
+  key: 'test|movie|2020',
+  title: 'Test Movie',
+  type: MediaType.movie,
+  year: 2020,
+  references: <DiscoveryReference>[
+    DiscoveryReference(extensionId: extensionId, url: url),
+  ],
+);
 
 Future<void> _waitFor(
   bool Function() test, {
@@ -44,11 +125,11 @@ Future<void> _waitFor(
   }
 }
 
-ProviderContainer _container(DiscoveryTestHarness h) {
+ProviderContainer _container(DiscoveryTestHarness h, {TmdbClient? tmdb}) {
   final ProviderContainer container = ProviderContainer(
     overrides: <Override>[
       metadataServiceProvider.overrideWith(
-        (Ref ref) => MetadataService(manager: h.manager),
+        (Ref ref) => MetadataService(manager: h.manager, tmdb: tmdb),
       ),
     ],
   );
@@ -73,8 +154,7 @@ void main() {
       );
     });
 
-    t.test('successful open ends in success with canonical metadata',
-        () async {
+    t.test('successful open ends in success with canonical metadata', () async {
       final DiscoveryTestHarness h = DiscoveryTestHarness();
       await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
       const String url = 'https://example.com/movie/1';
@@ -112,7 +192,8 @@ void main() {
           .open(_movieItem('extA', url));
 
       await _waitFor(
-        () => container.read(detailsSessionProvider).status ==
+        () =>
+            container.read(detailsSessionProvider).status ==
             DetailsStatus.loading,
         reason: 'loading state never appeared',
       );
@@ -122,68 +203,86 @@ void main() {
       t.expect(loading.metadata, t.isNull);
 
       await opening;
-      t.expect(container.read(detailsSessionProvider).status,
-          DetailsStatus.success);
+      t.expect(
+        container.read(detailsSessionProvider).status,
+        DetailsStatus.success,
+      );
     });
 
-    t.test('all references failing ends in failure with reference ids',
-        () async {
-      final DiscoveryTestHarness h = DiscoveryTestHarness();
-      await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
-      const String url = 'https://example.com/movie/1';
-      h.sandbox.setAsyncError(
-        'JSON.stringify(await _spectaInstance.details("$url"))',
-        'down',
-      );
+    t.test(
+      'all references failing ends in failure with reference ids',
+      () async {
+        final DiscoveryTestHarness h = DiscoveryTestHarness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,details',
+        );
+        const String url = 'https://example.com/movie/1';
+        h.sandbox.setAsyncError(
+          'JSON.stringify(await _spectaInstance.details("$url"))',
+          'down',
+        );
 
-      final ProviderContainer container = _container(h);
-      await container
-          .read(detailsSessionProvider.notifier)
-          .open(_movieItem('extA', url));
+        final ProviderContainer container = _container(h);
+        await container
+            .read(detailsSessionProvider.notifier)
+            .open(_movieItem('extA', url));
 
-      final DetailsState state = container.read(detailsSessionProvider);
-      t.expect(state.status, DetailsStatus.failure);
-      t.expect(state.metadata, t.isNull);
-      t.expect(state.failedReferences, <String>['extA']);
-    });
+        final DetailsState state = container.read(detailsSessionProvider);
+        t.expect(state.status, DetailsStatus.failure);
+        t.expect(state.metadata, t.isNull);
+        t.expect(state.failedReferences, <String>['extA']);
+      },
+    );
 
-    t.test('one reference failing among two is an honest partial success',
-        () async {
-      final DiscoveryTestHarness h = DiscoveryTestHarness();
-      await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
-      await h.installExtension(tempDir, 'extB', capabilities: 'search,details');
+    t.test(
+      'one reference failing among two is an honest partial success',
+      () async {
+        final DiscoveryTestHarness h = DiscoveryTestHarness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,details',
+        );
+        await h.installExtension(
+          tempDir,
+          'extB',
+          capabilities: 'search,details',
+        );
 
-      const String urlA = 'https://example.com/a/movie/1';
-      const String urlB = 'https://example.com/b/movie/1';
-      h.sandbox.setAsyncError(
-        'JSON.stringify(await _spectaInstance.details("$urlA"))',
-        'down',
-      );
-      h.sandbox.setAsyncResult(
-        'JSON.stringify(await _spectaInstance.details("$urlB"))',
-        _moviePayload(urlB),
-      );
+        const String urlA = 'https://example.com/a/movie/1';
+        const String urlB = 'https://example.com/b/movie/1';
+        h.sandbox.setAsyncError(
+          'JSON.stringify(await _spectaInstance.details("$urlA"))',
+          'down',
+        );
+        h.sandbox.setAsyncResult(
+          'JSON.stringify(await _spectaInstance.details("$urlB"))',
+          _moviePayload(urlB),
+        );
 
-      final DiscoveryItem item = DiscoveryItem(
-        key: 'test|movie|2020',
-        title: 'Test Movie',
-        type: MediaType.movie,
-        year: 2020,
-        references: <DiscoveryReference>[
-          const DiscoveryReference(extensionId: 'extA', url: urlA),
-          const DiscoveryReference(extensionId: 'extB', url: urlB),
-        ],
-      );
+        final DiscoveryItem item = DiscoveryItem(
+          key: 'test|movie|2020',
+          title: 'Test Movie',
+          type: MediaType.movie,
+          year: 2020,
+          references: <DiscoveryReference>[
+            const DiscoveryReference(extensionId: 'extA', url: urlA),
+            const DiscoveryReference(extensionId: 'extB', url: urlB),
+          ],
+        );
 
-      final ProviderContainer container = _container(h);
-      await container.read(detailsSessionProvider.notifier).open(item);
+        final ProviderContainer container = _container(h);
+        await container.read(detailsSessionProvider.notifier).open(item);
 
-      final DetailsState state = container.read(detailsSessionProvider);
-      t.expect(state.status, DetailsStatus.success);
-      t.expect(state.isPartial, t.isTrue);
-      t.expect(state.failedReferences, t.contains('extA'));
-      t.expect(state.metadata!.details.single.extensionId, 'extB');
-    });
+        final DetailsState state = container.read(detailsSessionProvider);
+        t.expect(state.status, DetailsStatus.success);
+        t.expect(state.isPartial, t.isTrue);
+        t.expect(state.failedReferences, t.contains('extA'));
+        t.expect(state.metadata!.details.single.extensionId, 'extB');
+      },
+    );
 
     t.test('reset returns to idle and rejects in-flight requests', () async {
       final DiscoveryTestHarness h = DiscoveryTestHarness();
@@ -200,7 +299,8 @@ void main() {
           .read(detailsSessionProvider.notifier)
           .open(_movieItem('extA', url));
       await _waitFor(
-        () => container.read(detailsSessionProvider).status ==
+        () =>
+            container.read(detailsSessionProvider).status ==
             DetailsStatus.loading,
         reason: 'loading state never appeared',
       );
@@ -219,57 +319,166 @@ void main() {
       );
     });
 
-    t.test('a stale slow open cannot overwrite a newer open (A then B)',
-        () async {
-      final DiscoveryTestHarness h = DiscoveryTestHarness();
-      await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
-      await h.installExtension(tempDir, 'extB', capabilities: 'search,details');
+    t.test(
+      'a stale slow open cannot overwrite a newer open (A then B)',
+      () async {
+        final DiscoveryTestHarness h = DiscoveryTestHarness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,details',
+        );
+        await h.installExtension(
+          tempDir,
+          'extB',
+          capabilities: 'search,details',
+        );
 
-      const String urlA = 'https://example.com/a/movie/1';
-      const String urlB = 'https://example.com/b/movie/1';
+        const String urlA = 'https://example.com/a/movie/1';
+        const String urlB = 'https://example.com/b/movie/1';
 
-      // A responds slowly with a DISTINCT title; B responds fast.
-      final String payloadA = jsonEncode(<String, Object?>{
-        'id': 'mA',
-        'title': 'Slow Movie A',
-        'type': 'movie',
-        'url': urlA,
-      });
-      final String payloadB = jsonEncode(<String, Object?>{
-        'id': 'mB',
-        'title': 'Fast Movie B',
-        'type': 'movie',
-        'url': urlB,
-      });
+        // A responds slowly with a DISTINCT title; B responds fast.
+        final String payloadA = jsonEncode(<String, Object?>{
+          'id': 'mA',
+          'title': 'Slow Movie A',
+          'type': 'movie',
+          'url': urlA,
+        });
+        final String payloadB = jsonEncode(<String, Object?>{
+          'id': 'mB',
+          'title': 'Fast Movie B',
+          'type': 'movie',
+          'url': urlB,
+        });
 
-      h.sandbox.setAsyncResult(
-        'JSON.stringify(await _spectaInstance.details("$urlA"))',
-        payloadA,
+        h.sandbox.setAsyncResult(
+          'JSON.stringify(await _spectaInstance.details("$urlA"))',
+          payloadA,
+        );
+        h.sandbox.setAsyncResult(
+          'JSON.stringify(await _spectaInstance.details("$urlB"))',
+          payloadB,
+        );
+        h.sandbox.delay = const Duration(milliseconds: 150);
+
+        final ProviderContainer container = _container(h);
+        final DetailsSessionNotifier notifier = container.read(
+          detailsSessionProvider.notifier,
+        );
+
+        final Future<void> openA = notifier.open(_movieItem('extA', urlA));
+        await _waitFor(
+          () =>
+              container.read(detailsSessionProvider).status ==
+              DetailsStatus.loading,
+          reason: 'A never reached loading',
+        );
+        h.sandbox.delay = Duration.zero; // B answers immediately
+
+        await notifier.open(_movieItem('extB', urlB));
+        await openA; // A lands late — must be rejected
+
+        final DetailsState state = container.read(detailsSessionProvider);
+        t.expect(state.status, DetailsStatus.success);
+        t.expect(state.metadata!.title, 'Fast Movie B');
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Real-device regression: a CATALOGUE-ONLY item (Home "Popular", discovered by
+  // TMDB, with no extension behind it) used to land on `failure` forever.
+  // ---------------------------------------------------------------------------
+  t.group('DetailsSessionNotifier — catalogue-only items', () {
+    t.test(
+      'an item with no extension reference still reaches success',
+      () async {
+        final ProviderContainer container = _container(
+          DiscoveryTestHarness(),
+          tmdb: TmdbClient(
+            config: const TmdbConfig(apiKey: _testTmdbKey),
+            transport: _RoutingTmdbTransport(),
+          ),
+        );
+
+        await container
+            .read(detailsSessionProvider.notifier)
+            .open(_catalogueOnlyItem('The Matrix', 1999));
+
+        final DetailsState state = container.read(detailsSessionProvider);
+        t.expect(
+          state.status,
+          DetailsStatus.success,
+          reason: 'a catalogue-only title must be completed, not refused',
+        );
+        t.expect(state.metadata, t.isNotNull);
+        // The identity stays the one the tapped card already carried.
+        t.expect(state.metadata!.key, 'the matrix|movie|1999');
+        t.expect(state.metadata!.description, 'A hacker learns the truth.');
+        // No extension was ever consulted, so nothing claims to be playable.
+        t.expect(state.metadata!.hasExtensionContribution, t.isFalse);
+        t.expect(state.hasExtensionReference, t.isFalse);
+      },
+    );
+
+    t.test('a refresh keeps the resolved metadata on screen', () async {
+      final ProviderContainer container = _container(
+        DiscoveryTestHarness(),
+        tmdb: TmdbClient(
+          config: const TmdbConfig(apiKey: _testTmdbKey),
+          transport: _RoutingTmdbTransport(),
+        ),
       );
-      h.sandbox.setAsyncResult(
-        'JSON.stringify(await _spectaInstance.details("$urlB"))',
-        payloadB,
+      final DetailsSessionNotifier notifier = container.read(
+        detailsSessionProvider.notifier,
       );
-      h.sandbox.delay = const Duration(milliseconds: 150);
+      final DiscoveryItem item = _catalogueOnlyItem('The Matrix', 1999);
 
-      final ProviderContainer container = _container(h);
-      final DetailsSessionNotifier notifier =
-          container.read(detailsSessionProvider.notifier);
+      await notifier.open(item);
+      t.expect(
+        container.read(detailsSessionProvider).status,
+        DetailsStatus.success,
+      );
 
-      final Future<void> openA = notifier.open(_movieItem('extA', urlA));
+      // Mid-refresh the screen must NOT be blank: `loading` here means "new
+      // round in flight", and the old record stays readable throughout.
+      final Future<void> refreshing = notifier.open(item, refresh: true);
       await _waitFor(
-        () => container.read(detailsSessionProvider).status ==
+        () =>
+            container.read(detailsSessionProvider).status ==
             DetailsStatus.loading,
-        reason: 'A never reached loading',
+        reason: 'refresh never reached loading',
       );
-      h.sandbox.delay = Duration.zero; // B answers immediately
+      t.expect(container.read(detailsSessionProvider).metadata, t.isNotNull);
+      await refreshing;
 
-      await notifier.open(_movieItem('extB', urlB));
-      await openA; // A lands late — must be rejected
+      t.expect(
+        container.read(detailsSessionProvider).status,
+        DetailsStatus.success,
+      );
+      t.expect(container.read(detailsSessionProvider).metadata, t.isNotNull);
+    });
 
-      final DetailsState state = container.read(detailsSessionProvider);
-      t.expect(state.status, DetailsStatus.success);
-      t.expect(state.metadata!.title, 'Fast Movie B');
+    t.test('an unreachable catalogue lands on failure, not loading', () async {
+      final ProviderContainer container = _container(
+        DiscoveryTestHarness(),
+        tmdb: TmdbClient(
+          config: const TmdbConfig(apiKey: _testTmdbKey),
+          transport: _RoutingTmdbTransport(searchStatus: 500),
+        ),
+      );
+
+      await container
+          .read(detailsSessionProvider.notifier)
+          .open(_catalogueOnlyItem('The Matrix', 1999));
+
+      // The zero-reference case deliberately holds `loading` while enrichment
+      // runs; if enrichment cannot complete the work it must resolve to
+      // `failure` rather than spinning forever.
+      t.expect(
+        container.read(detailsSessionProvider).status,
+        DetailsStatus.failure,
+      );
     });
   });
 }

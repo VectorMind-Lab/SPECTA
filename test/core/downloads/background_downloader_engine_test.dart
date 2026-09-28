@@ -33,49 +33,50 @@ void main() {
   setUpAll(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      (MethodCall call) async => '/tmp',
-    );
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (MethodCall call) async => '/tmp',
+        );
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('dev.fluttercommunity.plus/connectivity'),
-      (MethodCall call) async => <String>['wifi'],
-    );
+          const MethodChannel('dev.fluttercommunity.plus/connectivity'),
+          (MethodCall call) async => <String>['wifi'],
+        );
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('com.bbflight.background_downloader'),
-      (MethodCall call) async {
-        switch (call.method) {
-          case 'enqueue':
-            enqueuedTaskJson.add(
-              jsonDecode(call.arguments[0] as String) as Map<String, Object?>,
-            );
-            return true;
-          case 'pause':
-          case 'resume':
-          case 'cancelTasksWithIds':
-            return true;
-          case 'enqueueAll':
-            final List<dynamic> tasksJson =
-                jsonDecode(call.arguments[0] as String) as List<dynamic>;
-            return tasksJson.map((_) => true).toList();
-          case 'reset':
-            return 0;
-          case 'platformVersion':
-            return '34';
-          case 'allTasks':
-            return <dynamic>[];
-          case 'taskForId':
-            return null;
-          case 'popResumeData':
-          case 'popStatusUpdates':
-          case 'popProgressUpdates':
-            return '{}';
-          default:
-            return null;
-        }
-      },
-    );
+          const MethodChannel('com.bbflight.background_downloader'),
+          (MethodCall call) async {
+            switch (call.method) {
+              case 'enqueue':
+                enqueuedTaskJson.add(
+                  jsonDecode(call.arguments[0] as String)
+                      as Map<String, Object?>,
+                );
+                return true;
+              case 'pause':
+              case 'resume':
+              case 'cancelTasksWithIds':
+                return true;
+              case 'enqueueAll':
+                final List<dynamic> tasksJson =
+                    jsonDecode(call.arguments[0] as String) as List<dynamic>;
+                return tasksJson.map((_) => true).toList();
+              case 'reset':
+                return 0;
+              case 'platformVersion':
+                return '34';
+              case 'allTasks':
+                return <dynamic>[];
+              case 'taskForId':
+                return null;
+              case 'popResumeData':
+              case 'popStatusUpdates':
+              case 'popProgressUpdates':
+                return '{}';
+              default:
+                return null;
+            }
+          },
+        );
     storage = _RecordingStorage();
     FileDownloader(persistentStorage: storage);
   });
@@ -102,120 +103,145 @@ void main() {
       );
 
   DownloadTask pluginTask(String id) => DownloadTask(
-        taskId: id,
-        url: 'https://cdn.example/video.mp4',
-        filename: 'Title.mp4.part',
-        directory: '/media',
-        baseDirectory: BaseDirectory.root,
-        updates: Updates.statusAndProgress,
-        allowPause: true,
-      );
+    taskId: id,
+    url: 'https://cdn.example/video.mp4',
+    filename: 'Title.mp4.part',
+    directory: '/media',
+    baseDirectory: BaseDirectory.root,
+    updates: Updates.statusAndProgress,
+    allowPause: true,
+  );
 
   group('start / enqueue', () {
-    test('enqueue carries the SPECTA download id as the deterministic task id',
-        () async {
-      final BackgroundDownloaderEngine e = engine();
-      final Future<DownloadAttemptResult> attempt = e.start(input('dl|1'));
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'enqueue carries the SPECTA download id as the deterministic task id',
+      () async {
+        final BackgroundDownloaderEngine e = engine();
+        final Future<DownloadAttemptResult> attempt = e.start(input('dl|1'));
+        await Future<void>.delayed(Duration.zero);
 
-      expect(enqueuedTaskJson, hasLength(1));
-      final Map<String, Object?> task = enqueuedTaskJson.single;
-      expect(task['taskId'], 'dl|1',
-          reason: '2G-C §38: SPECTA download identity IS the engine task id — '
-              'reversible without persisting engine metadata');
-      expect(task['allowPause'], isTrue);
-      expect(jsonEncode(task), isNot(contains('"retries":1')),
-          reason: 'no second retry budget inside the plugin');
-      // The engine must not hold SPECTA state; settle to keep the test clean.
-      FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(pluginTask('dl|1'), TaskStatus.canceled),
-          );
-      await attempt;
-      e.disposeForTesting();
-    });
+        expect(enqueuedTaskJson, hasLength(1));
+        final Map<String, Object?> task = enqueuedTaskJson.single;
+        expect(
+          task['taskId'],
+          'dl|1',
+          reason:
+              '2G-C §38: SPECTA download identity IS the engine task id — '
+              'reversible without persisting engine metadata',
+        );
+        expect(task['allowPause'], isTrue);
+        expect(
+          jsonEncode(task),
+          isNot(contains('"retries":1')),
+          reason: 'no second retry budget inside the plugin',
+        );
+        // The engine must not hold SPECTA state; settle to keep the test clean.
+        FileDownloader().downloaderForTesting.processStatusUpdate(
+          TaskStatusUpdate(pluginTask('dl|1'), TaskStatus.canceled),
+        );
+        await attempt;
+        e.disposeForTesting();
+      },
+    );
 
-    test('progress translation uses WHOLE-FILE math (no resume double-count)',
-        () async {
-      final BackgroundDownloaderEngine e = engine();
-      final List<DownloadEngineEvent> events = <DownloadEngineEvent>[];
-      final StreamSubscription<DownloadEngineEvent> sub =
-          e.events.listen(events.add);
+    test(
+      'progress translation uses WHOLE-FILE math (no resume double-count)',
+      () async {
+        final BackgroundDownloaderEngine e = engine();
+        final List<DownloadEngineEvent> events = <DownloadEngineEvent>[];
+        final StreamSubscription<DownloadEngineEvent> sub = e.events.listen(
+          events.add,
+        );
 
-      // resumeFrom is the bytes the PREVIOUS attempt wrote; the plugin's
-      // fraction is already whole-file (TaskRunner.kt), so a 0.5 fraction at
-      // expected 1000 must report 500 bytes — NOT resumeFrom + 500.
-      final Future<DownloadAttemptResult> attempt =
-          e.start(input('dl|2', resumeFrom: 400));
-      await Future<void>.delayed(Duration.zero);
+        // resumeFrom is the bytes the PREVIOUS attempt wrote; the plugin's
+        // fraction is already whole-file (TaskRunner.kt), so a 0.5 fraction at
+        // expected 1000 must report 500 bytes — NOT resumeFrom + 500.
+        final Future<DownloadAttemptResult> attempt = e.start(
+          input('dl|2', resumeFrom: 400),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      final DownloadTask task = pluginTask('dl|2');
-      FileDownloader().downloaderForTesting.processProgressUpdate(
-            TaskProgressUpdate(task, 0.5, 1000),
-          );
-      FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(task, TaskStatus.canceled),
-          );
-      final DownloadAttemptResult result = await attempt;
-      await sub.cancel();
+        final DownloadTask task = pluginTask('dl|2');
+        FileDownloader().downloaderForTesting.processProgressUpdate(
+          TaskProgressUpdate(task, 0.5, 1000),
+        );
+        FileDownloader().downloaderForTesting.processStatusUpdate(
+          TaskStatusUpdate(task, TaskStatus.canceled),
+        );
+        final DownloadAttemptResult result = await attempt;
+        await sub.cancel();
 
-      final DownloadEngineProgress progress =
-          events.whereType<DownloadEngineProgress>().single;
-      expect(progress.bytesOnDisk, 500,
-          reason: 'progress * expected, whole-file — the resumed prefix is '
-              'already inside the plugin fraction');
-      expect(progress.totalBytes, 1000);
-      expect(result.kind, DownloadAttemptOutcomeKind.cancelled);
-      e.disposeForTesting();
-    });
+        final DownloadEngineProgress progress = events
+            .whereType<DownloadEngineProgress>()
+            .single;
+        expect(
+          progress.bytesOnDisk,
+          500,
+          reason:
+              'progress * expected, whole-file — the resumed prefix is '
+              'already inside the plugin fraction',
+        );
+        expect(progress.totalBytes, 1000);
+        expect(result.kind, DownloadAttemptOutcomeKind.cancelled);
+        e.disposeForTesting();
+      },
+    );
 
     test('a size-less stream never fabricates bytes or totals', () async {
       final BackgroundDownloaderEngine e = engine();
       final List<DownloadEngineEvent> events = <DownloadEngineEvent>[];
-      final StreamSubscription<DownloadEngineEvent> sub =
-          e.events.listen(events.add);
+      final StreamSubscription<DownloadEngineEvent> sub = e.events.listen(
+        events.add,
+      );
 
-      final Future<DownloadAttemptResult> attempt =
-          e.start(input('dl|3', resumeFrom: 250));
+      final Future<DownloadAttemptResult> attempt = e.start(
+        input('dl|3', resumeFrom: 250),
+      );
       await Future<void>.delayed(Duration.zero);
 
       final DownloadTask task = pluginTask('dl|3');
       // expectedFileSize -1 (server declared no length).
       FileDownloader().downloaderForTesting.processProgressUpdate(
-            TaskProgressUpdate(task, 0.7, -1),
-          );
+        TaskProgressUpdate(task, 0.7, -1),
+      );
       FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(task, TaskStatus.canceled),
-          );
+        TaskStatusUpdate(task, TaskStatus.canceled),
+      );
       await attempt;
       await sub.cancel();
 
-      expect(events, isEmpty,
-          reason: 'no total → hold the last known bytes; no fabricated data');
+      expect(
+        events,
+        isEmpty,
+        reason: 'no total → hold the last known bytes; no fabricated data',
+      );
       e.disposeForTesting();
     });
   });
 
   group('status translation', () {
-    test('complete settles the attempt completed with the transferred bytes',
-        () async {
-      final BackgroundDownloaderEngine e = engine();
-      final Future<DownloadAttemptResult> attempt = e.start(input('dl|4'));
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'complete settles the attempt completed with the transferred bytes',
+      () async {
+        final BackgroundDownloaderEngine e = engine();
+        final Future<DownloadAttemptResult> attempt = e.start(input('dl|4'));
+        await Future<void>.delayed(Duration.zero);
 
-      final DownloadTask task = pluginTask('dl|4');
-      FileDownloader().downloaderForTesting.processProgressUpdate(
-            TaskProgressUpdate(task, 1.0, 4096),
-          );
-      FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(task, TaskStatus.complete),
-          );
-      final DownloadAttemptResult result = await attempt;
+        final DownloadTask task = pluginTask('dl|4');
+        FileDownloader().downloaderForTesting.processProgressUpdate(
+          TaskProgressUpdate(task, 1.0, 4096),
+        );
+        FileDownloader().downloaderForTesting.processStatusUpdate(
+          TaskStatusUpdate(task, TaskStatus.complete),
+        );
+        final DownloadAttemptResult result = await attempt;
 
-      expect(result.kind, DownloadAttemptOutcomeKind.completed);
-      expect(result.bytesOnDisk, 4096);
-      expect(result.totalBytes, 4096);
-      e.disposeForTesting();
-    });
+        expect(result.kind, DownloadAttemptOutcomeKind.completed);
+        expect(result.bytesOnDisk, 4096);
+        expect(result.totalBytes, 4096);
+        e.disposeForTesting();
+      },
+    );
 
     test('complete reports the DECLARED total, never a total derived from its '
         'own byte count (the truncated-transfer disguise)', () async {
@@ -230,21 +256,25 @@ void main() {
 
       final DownloadTask task = pluginTask('dl|30');
       FileDownloader().downloaderForTesting.processProgressUpdate(
-            TaskProgressUpdate(task, 0.25, 8000),
-          );
+        TaskProgressUpdate(task, 0.25, 8000),
+      );
       FileDownloader().downloaderForTesting.processProgressUpdate(
-            TaskProgressUpdate(task, 0.25, 0),
-          );
+        TaskProgressUpdate(task, 0.25, 0),
+      );
       FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(task, TaskStatus.complete),
-          );
+        TaskStatusUpdate(task, TaskStatus.complete),
+      );
       final DownloadAttemptResult result = await attempt;
 
       expect(result.kind, DownloadAttemptOutcomeKind.completed);
       expect(result.bytesOnDisk, 2000);
-      expect(result.totalBytes, 8000,
-          reason: 'the source declared 8000 — the engine must not restate its '
-              'own 2000 as the total');
+      expect(
+        result.totalBytes,
+        8000,
+        reason:
+            'the source declared 8000 — the engine must not restate its '
+            'own 2000 as the total',
+      );
       e.disposeForTesting();
     });
 
@@ -255,13 +285,16 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(pluginTask('dl|31'), TaskStatus.complete),
-          );
+        TaskStatusUpdate(pluginTask('dl|31'), TaskStatus.complete),
+      );
       final DownloadAttemptResult result = await attempt;
 
       expect(result.kind, DownloadAttemptOutcomeKind.completed);
-      expect(result.totalBytes, isNull,
-          reason: 'no source-declared size means unknown, never invented');
+      expect(
+        result.totalBytes,
+        isNull,
+        reason: 'no source-declared size means unknown, never invented',
+      );
       e.disposeForTesting();
     });
 
@@ -272,36 +305,43 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(pluginTask('dl|5'), TaskStatus.paused),
-          );
+        TaskStatusUpdate(pluginTask('dl|5'), TaskStatus.paused),
+      );
       final DownloadAttemptResult result = await attempt.timeout(
         const Duration(seconds: 2),
         onTimeout: () => throw TimeoutException(
-            'paused must settle the SPECTA attempt — the manager persisted '
-            'paused BEFORE asking and must never wait forever'),
+          'paused must settle the SPECTA attempt — the manager persisted '
+          'paused BEFORE asking and must never wait forever',
+        ),
       );
 
       expect(result.kind, DownloadAttemptOutcomeKind.paused);
       e.disposeForTesting();
     });
 
-    test('notFound maps to the source-recovery classification (httpError)',
-        () async {
-      final BackgroundDownloaderEngine e = engine();
-      final Future<DownloadAttemptResult> attempt = e.start(input('dl|6'));
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'notFound maps to the source-recovery classification (httpError)',
+      () async {
+        final BackgroundDownloaderEngine e = engine();
+        final Future<DownloadAttemptResult> attempt = e.start(input('dl|6'));
+        await Future<void>.delayed(Duration.zero);
 
-      FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(pluginTask('dl|6'), TaskStatus.notFound),
-          );
-      final DownloadAttemptResult result = await attempt;
+        FileDownloader().downloaderForTesting.processStatusUpdate(
+          TaskStatusUpdate(pluginTask('dl|6'), TaskStatus.notFound),
+        );
+        final DownloadAttemptResult result = await attempt;
 
-      expect(result.kind, DownloadAttemptOutcomeKind.failed);
-      expect(result.failure!.type, DownloadFailureType.httpError,
-          reason: 'the source is gone — exactly the case the manager’s '
-              'fresh-source recovery exists for');
-      e.disposeForTesting();
-    });
+        expect(result.kind, DownloadAttemptOutcomeKind.failed);
+        expect(
+          result.failure!.type,
+          DownloadFailureType.httpError,
+          reason:
+              'the source is gone — exactly the case the manager’s '
+              'fresh-source recovery exists for',
+        );
+        e.disposeForTesting();
+      },
+    );
 
     test('typed plugin failures map onto SPECTA failures without leaking '
         'plugin types', () async {
@@ -310,12 +350,12 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(
-              pluginTask('dl|7'),
-              TaskStatus.failed,
-              TaskHttpException('gone', 404),
-            ),
-          );
+        TaskStatusUpdate(
+          pluginTask('dl|7'),
+          TaskStatus.failed,
+          TaskHttpException('gone', 404),
+        ),
+      );
       final DownloadAttemptResult result = await attempt;
 
       expect(result.failure!.type, DownloadFailureType.httpError);
@@ -325,23 +365,25 @@ void main() {
       e.disposeForTesting();
     });
 
-    test('5xx maps to serverError (plausibly transient), 4xx to httpError',
-        () async {
-      final BackgroundDownloaderEngine e = engine();
-      final Future<DownloadAttemptResult> attempt = e.start(input('dl|8'));
-      await Future<void>.delayed(Duration.zero);
+    test(
+      '5xx maps to serverError (plausibly transient), 4xx to httpError',
+      () async {
+        final BackgroundDownloaderEngine e = engine();
+        final Future<DownloadAttemptResult> attempt = e.start(input('dl|8'));
+        await Future<void>.delayed(Duration.zero);
 
-      FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(
-              pluginTask('dl|8'),
-              TaskStatus.failed,
-              TaskHttpException('overloaded', 503),
-            ),
-          );
-      final DownloadAttemptResult result = await attempt;
-      expect(result.failure!.type, DownloadFailureType.serverError);
-      e.disposeForTesting();
-    });
+        FileDownloader().downloaderForTesting.processStatusUpdate(
+          TaskStatusUpdate(
+            pluginTask('dl|8'),
+            TaskStatus.failed,
+            TaskHttpException('overloaded', 503),
+          ),
+        );
+        final DownloadAttemptResult result = await attempt;
+        expect(result.failure!.type, DownloadFailureType.serverError);
+        e.disposeForTesting();
+      },
+    );
 
     test('filesystem/resume/connection/url exceptions map honestly', () async {
       final BackgroundDownloaderEngine e = engine();
@@ -351,8 +393,8 @@ void main() {
         final Future<DownloadAttemptResult> attempt = e.start(input(id));
         await Future<void>.delayed(Duration.zero);
         FileDownloader().downloaderForTesting.processStatusUpdate(
-              TaskStatusUpdate(pluginTask(id), TaskStatus.failed, exception),
-            );
+          TaskStatusUpdate(pluginTask(id), TaskStatus.failed, exception),
+        );
         final DownloadAttemptResult result = await attempt;
         return result.failure!.type;
       }
@@ -383,99 +425,114 @@ void main() {
 
       final DownloadTask task = pluginTask('dl|9');
       FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(task, TaskStatus.complete),
-          );
+        TaskStatusUpdate(task, TaskStatus.complete),
+      );
       final DownloadAttemptResult first = await attempt;
       // A late duplicate/contradicting status for the settled attempt:
       FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(task, TaskStatus.failed),
-          );
-      await Future<void>.delayed(Duration.zero);
-
-      expect(first.kind, DownloadAttemptOutcomeKind.completed,
-          reason: 'the first terminal result stands; late noise cannot '
-              'rewrite a settled attempt');
-      e.disposeForTesting();
-    });
-
-    test('updates for non-download tasks are ignored, not mis-translated',
-        () async {
-      final BackgroundDownloaderEngine e = engine();
-      final List<DownloadEngineEvent> events = <DownloadEngineEvent>[];
-      final StreamSubscription<DownloadEngineEvent> sub =
-          e.events.listen(events.add);
-
-      final Future<DownloadAttemptResult> attempt = e.start(input('dl|10'));
-      await Future<void>.delayed(Duration.zero);
-
-      // An UploadTask update (another plugin user's task) must not settle or
-      // report anything for SPECTA's attempt.
-      final UploadTask foreign = UploadTask(
-        taskId: 'dl|10',
-        url: 'https://cdn.example/upload',
-        filename: 'x.bin',
-        directory: '/media',
-        baseDirectory: BaseDirectory.root,
+        TaskStatusUpdate(task, TaskStatus.failed),
       );
-      FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(foreign, TaskStatus.complete),
-          );
       await Future<void>.delayed(Duration.zero);
 
-      expect(events, isEmpty);
-      // The SPECTA attempt is still waiting; settle it honestly.
-      FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(pluginTask('dl|10'), TaskStatus.canceled),
-          );
-      await attempt;
-      await sub.cancel();
+      expect(
+        first.kind,
+        DownloadAttemptOutcomeKind.completed,
+        reason:
+            'the first terminal result stands; late noise cannot '
+            'rewrite a settled attempt',
+      );
       e.disposeForTesting();
     });
+
+    test(
+      'updates for non-download tasks are ignored, not mis-translated',
+      () async {
+        final BackgroundDownloaderEngine e = engine();
+        final List<DownloadEngineEvent> events = <DownloadEngineEvent>[];
+        final StreamSubscription<DownloadEngineEvent> sub = e.events.listen(
+          events.add,
+        );
+
+        final Future<DownloadAttemptResult> attempt = e.start(input('dl|10'));
+        await Future<void>.delayed(Duration.zero);
+
+        // An UploadTask update (another plugin user's task) must not settle or
+        // report anything for SPECTA's attempt.
+        final UploadTask foreign = UploadTask(
+          taskId: 'dl|10',
+          url: 'https://cdn.example/upload',
+          filename: 'x.bin',
+          directory: '/media',
+          baseDirectory: BaseDirectory.root,
+        );
+        FileDownloader().downloaderForTesting.processStatusUpdate(
+          TaskStatusUpdate(foreign, TaskStatus.complete),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(events, isEmpty);
+        // The SPECTA attempt is still waiting; settle it honestly.
+        FileDownloader().downloaderForTesting.processStatusUpdate(
+          TaskStatusUpdate(pluginTask('dl|10'), TaskStatus.canceled),
+        );
+        await attempt;
+        await sub.cancel();
+        e.disposeForTesting();
+      },
+    );
   });
 
   group('attach (restart adoption)', () {
-    test('a completed plugin record settles immediately — no new transfer',
-        () async {
-      final BackgroundDownloaderEngine e = engine();
-      final DownloadTask task = pluginTask('dl|11');
-      await storage.storeTaskRecord(
-        TaskRecord(task, TaskStatus.complete, 1.0, 8192),
-      );
+    test(
+      'a completed plugin record settles immediately — no new transfer',
+      () async {
+        final BackgroundDownloaderEngine e = engine();
+        final DownloadTask task = pluginTask('dl|11');
+        await storage.storeTaskRecord(
+          TaskRecord(task, TaskStatus.complete, 1.0, 8192),
+        );
 
-      final DownloadAttemptResult result = await e.attach('dl|11');
-      expect(result.kind, DownloadAttemptOutcomeKind.completed);
-      expect(result.bytesOnDisk, 8192);
-      expect(result.totalBytes, 8192);
-      expect(enqueuedTaskJson, isEmpty,
-          reason: 'adoption must NOT re-enqueue — the plugin has no existing-'
-              'task guard, and a second native task would duplicate work');
-      e.disposeForTesting();
-    });
+        final DownloadAttemptResult result = await e.attach('dl|11');
+        expect(result.kind, DownloadAttemptOutcomeKind.completed);
+        expect(result.bytesOnDisk, 8192);
+        expect(result.totalBytes, 8192);
+        expect(
+          enqueuedTaskJson,
+          isEmpty,
+          reason:
+              'adoption must NOT re-enqueue — the plugin has no existing-'
+              'task guard, and a second native task would duplicate work',
+        );
+        e.disposeForTesting();
+      },
+    );
 
-    test('a live plugin record is adopted and settled by its updates',
-        () async {
-      final BackgroundDownloaderEngine e = engine();
-      final DownloadTask task = pluginTask('dl|12');
-      await storage.storeTaskRecord(
-        TaskRecord(task, TaskStatus.running, 0.25, 4000),
-      );
+    test(
+      'a live plugin record is adopted and settled by its updates',
+      () async {
+        final BackgroundDownloaderEngine e = engine();
+        final DownloadTask task = pluginTask('dl|12');
+        await storage.storeTaskRecord(
+          TaskRecord(task, TaskStatus.running, 0.25, 4000),
+        );
 
-      final Future<DownloadAttemptResult> attempt = e.attach('dl|12');
-      await Future<void>.delayed(Duration.zero);
+        final Future<DownloadAttemptResult> attempt = e.attach('dl|12');
+        await Future<void>.delayed(Duration.zero);
 
-      FileDownloader().downloaderForTesting.processProgressUpdate(
-            TaskProgressUpdate(task, 0.5, 4000),
-          );
-      FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(task, TaskStatus.complete),
-          );
-      final DownloadAttemptResult result = await attempt;
+        FileDownloader().downloaderForTesting.processProgressUpdate(
+          TaskProgressUpdate(task, 0.5, 4000),
+        );
+        FileDownloader().downloaderForTesting.processStatusUpdate(
+          TaskStatusUpdate(task, TaskStatus.complete),
+        );
+        final DownloadAttemptResult result = await attempt;
 
-      expect(result.kind, DownloadAttemptOutcomeKind.completed);
-      expect(result.bytesOnDisk, 2000);
-      expect(enqueuedTaskJson, isEmpty);
-      e.disposeForTesting();
-    });
+        expect(result.kind, DownloadAttemptOutcomeKind.completed);
+        expect(result.bytesOnDisk, 2000);
+        expect(enqueuedTaskJson, isEmpty);
+        e.disposeForTesting();
+      },
+    );
 
     test('an unknown record (probe said active, engine lost it meanwhile) '
         'stays waitable — cancel() resolves it instead of hanging', () async {
@@ -487,7 +544,8 @@ void main() {
       final DownloadAttemptResult result = await attempt.timeout(
         const Duration(seconds: 2),
         onTimeout: () => throw TimeoutException(
-            'cancel must settle an adopted attempt whose record vanished'),
+          'cancel must settle an adopted attempt whose record vanished',
+        ),
       );
       expect(result.kind, DownloadAttemptOutcomeKind.cancelled);
       e.disposeForTesting();
@@ -495,12 +553,14 @@ void main() {
   });
 
   group('isTransferActive (restart seam)', () {
-    test('answers false when the engine holds nothing (mocked allTasks)',
-        () async {
-      final BackgroundDownloaderEngine e = engine();
-      expect(await e.isTransferActive('nope|1'), isFalse);
-      e.disposeForTesting();
-    });
+    test(
+      'answers false when the engine holds nothing (mocked allTasks)',
+      () async {
+        final BackgroundDownloaderEngine e = engine();
+        expect(await e.isTransferActive('nope|1'), isFalse);
+        e.disposeForTesting();
+      },
+    );
   });
 
   group('cancellation (2G-C §13/§17)', () {
@@ -513,9 +573,13 @@ void main() {
       await e.cancel('dl|20');
       final DownloadAttemptResult result = await attempt;
 
-      expect(result.kind, DownloadAttemptOutcomeKind.cancelled,
-          reason: 'the manager\'s cancellation must settle the attempt — it '
-              'cannot wait on a native callback that may never come');
+      expect(
+        result.kind,
+        DownloadAttemptOutcomeKind.cancelled,
+        reason:
+            'the manager\'s cancellation must settle the attempt — it '
+            'cannot wait on a native callback that may never come',
+      );
       e.disposeForTesting();
     });
 
@@ -530,12 +594,12 @@ void main() {
       // The plugin's own `canceled` status arrives late, after the engine
       // already settled the attempt: a duplicate settle must be a no-op.
       FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(pluginTask('dl|21'), TaskStatus.canceled),
-          );
+        TaskStatusUpdate(pluginTask('dl|21'), TaskStatus.canceled),
+      );
       // And a contradicting late status after deregistration:
       FileDownloader().downloaderForTesting.processStatusUpdate(
-            TaskStatusUpdate(pluginTask('dl|21'), TaskStatus.complete),
-          );
+        TaskStatusUpdate(pluginTask('dl|21'), TaskStatus.complete),
+      );
       await Future<void>.delayed(Duration.zero);
 
       // No crash is the assertion — the attempt settled exactly once.

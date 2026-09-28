@@ -97,17 +97,19 @@ void main() {
       isTrue,
     );
     // ignore: avoid_print
-    print('LIVE-1: ${search.valueOrNull!.length} results; '
-        'first=${search.valueOrNull!.first.title} '
-        '(${search.valueOrNull!.first.url})');
+    print(
+      'LIVE-1: ${search.valueOrNull!.length} results; '
+      'first=${search.valueOrNull!.first.title} '
+      '(${search.valueOrNull!.first.url})',
+    );
   });
 
   test('LIVE-2 details and sources resolve to a real playable MP4', () async {
     final SpectaResult<List<SearchResult>> search = await manager
         .callOperation<List<SearchResult>>(
           _extensionId,
-          (ExtensionRuntime r) => r.search(query: 'chaplin film festival',
-              page: 1),
+          (ExtensionRuntime r) =>
+              r.search(query: 'chaplin film festival', page: 1),
         );
     expect(search.isOk, isTrue, reason: search.failureOrNull?.message);
     expect(search.valueOrNull, isNotEmpty);
@@ -151,7 +153,8 @@ void main() {
     expect(
       found,
       isNotNull,
-      reason: 'no item out of the first $inspected search results yielded a '
+      reason:
+          'no item out of the first $inspected search results yielded a '
           'playable MP4; the live provider may have changed',
     );
     final ExtensionSource source = found!;
@@ -159,8 +162,10 @@ void main() {
     expect(source.url.startsWith('https://'), isTrue);
 
     // ignore: avoid_print
-    print('LIVE-2: reference=$reference extracted=$inspected '
-        'source=${source.url} quality=${source.quality}');
+    print(
+      'LIVE-2: reference=$reference extracted=$inspected '
+      'source=${source.url} quality=${source.quality}',
+    );
 
     // The decisive check: the URL SPECTA would hand to MediaKit must really be
     // a video/mp4 endpoint. Probed independently of the extension, so the
@@ -196,10 +201,8 @@ void main() {
     final SpectaResult<List<SearchResult>> search = await manager
         .callOperation<List<SearchResult>>(
           _extensionId,
-          (ExtensionRuntime r) => r.search(
-            query: 'zzzqqqnosuchtitle12345xy',
-            page: 1,
-          ),
+          (ExtensionRuntime r) =>
+              r.search(query: 'zzzqqqnosuchtitle12345xy', page: 1),
         );
 
     expect(search.isOk, isTrue, reason: search.failureOrNull?.message);
@@ -221,13 +224,16 @@ void main() {
       expect(failure.message, isNotEmpty);
       // The provider reason lives in `detail`; both are printed so the evidence
       // records WHY it failed, not just that it did.
-      final String? detail =
-          failure is ExtensionFailure ? failure.detail : null;
+      final String? detail = failure is ExtensionFailure
+          ? failure.detail
+          : null;
       expect(detail, isNotNull);
       expect(detail, isNotEmpty);
       // ignore: avoid_print
-      print('LIVE-4: restricted item rejected: '
-          '${failure.message} | $detail');
+      print(
+        'LIVE-4: restricted item rejected: '
+        '${failure.message} | $detail',
+      );
     } else {
       expect(details.valueOrNull!.title, isNotEmpty);
       // ignore: avoid_print

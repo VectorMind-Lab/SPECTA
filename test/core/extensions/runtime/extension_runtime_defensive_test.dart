@@ -49,35 +49,37 @@ void main() {
         ]),
       );
 
-      final SpectaResult<List<ExtensionSource>> result =
-          await runtime.getSources(reference: reference);
+      final SpectaResult<List<ExtensionSource>> result = await runtime
+          .getSources(reference: reference);
 
       expect(result.isOk, isTrue);
       expect(result.valueOrNull, hasLength(2));
     });
 
-    test('a source with an unsupported type is skipped, others survive',
-        () async {
-      await loadRuntime();
-      const String reference = 'https://example.com/m/2';
-      sandbox.setAsyncResult(
-        'JSON.stringify(await _spectaInstance.getSources("$reference"))',
-        jsonEncode(<dynamic>[
-          <String, dynamic>{'url': 'https://cdn.test/a.mp4', 'type': 'mp4'},
-          <String, dynamic>{'url': 'https://cdn.test/x.mpd', 'type': 'dash'},
-          <String, dynamic>{'url': 'https://cdn.test/b.mp4', 'type': 'mp4'},
-        ]),
-      );
+    test(
+      'a source with an unsupported type is skipped, others survive',
+      () async {
+        await loadRuntime();
+        const String reference = 'https://example.com/m/2';
+        sandbox.setAsyncResult(
+          'JSON.stringify(await _spectaInstance.getSources("$reference"))',
+          jsonEncode(<dynamic>[
+            <String, dynamic>{'url': 'https://cdn.test/a.mp4', 'type': 'mp4'},
+            <String, dynamic>{'url': 'https://cdn.test/x.mpd', 'type': 'dash'},
+            <String, dynamic>{'url': 'https://cdn.test/b.mp4', 'type': 'mp4'},
+          ]),
+        );
 
-      final SpectaResult<List<ExtensionSource>> result =
-          await runtime.getSources(reference: reference);
+        final SpectaResult<List<ExtensionSource>> result = await runtime
+            .getSources(reference: reference);
 
-      expect(result.isOk, isTrue);
-      expect(
-        result.valueOrNull!.map((ExtensionSource s) => s.url),
-        <String>['https://cdn.test/a.mp4', 'https://cdn.test/b.mp4'],
-      );
-    });
+        expect(result.isOk, isTrue);
+        expect(result.valueOrNull!.map((ExtensionSource s) => s.url), <String>[
+          'https://cdn.test/a.mp4',
+          'https://cdn.test/b.mp4',
+        ]);
+      },
+    );
 
     test('a source without a url is skipped, not fatal', () async {
       await loadRuntime();
@@ -90,49 +92,59 @@ void main() {
         ]),
       );
 
-      final SpectaResult<List<ExtensionSource>> result =
-          await runtime.getSources(reference: reference);
+      final SpectaResult<List<ExtensionSource>> result = await runtime
+          .getSources(reference: reference);
 
       expect(result.isOk, isTrue);
       expect(result.valueOrNull, hasLength(1));
     });
 
-    test('a list that is entirely unusable parses to an empty success',
-        () async {
-      await loadRuntime();
-      const String reference = 'https://example.com/m/4';
-      sandbox.setAsyncResult(
-        'JSON.stringify(await _spectaInstance.getSources("$reference"))',
-        jsonEncode(<dynamic>['nope', <String, dynamic>{'type': 'mp4'}]),
-      );
+    test(
+      'a list that is entirely unusable parses to an empty success',
+      () async {
+        await loadRuntime();
+        const String reference = 'https://example.com/m/4';
+        sandbox.setAsyncResult(
+          'JSON.stringify(await _spectaInstance.getSources("$reference"))',
+          jsonEncode(<dynamic>[
+            'nope',
+            <String, dynamic>{'type': 'mp4'},
+          ]),
+        );
 
-      final SpectaResult<List<ExtensionSource>> result =
-          await runtime.getSources(reference: reference);
+        final SpectaResult<List<ExtensionSource>> result = await runtime
+            .getSources(reference: reference);
 
-      expect(result.isOk, isTrue);
-      expect(result.valueOrNull, isEmpty);
-    });
+        expect(result.isOk, isTrue);
+        expect(result.valueOrNull, isEmpty);
+      },
+    );
   });
 
   group('§36.4 request timeout — num handling', () {
-    test('a fractional timeout (2.5) becomes a duration, not a failure',
-        () async {
-      await loadRuntime();
-      final dynamic response = await sandbox.handlers['specta_request']!(
-        <String, dynamic>{
-          'url': 'https://example.test/api',
-          'method': 'GET',
-          'timeout': 2.5,
-        },
-      );
-      final Map<String, dynamic> decoded =
-          jsonDecode(response as String) as Map<String, dynamic>;
+    test(
+      'a fractional timeout (2.5) becomes a duration, not a failure',
+      () async {
+        await loadRuntime();
+        final dynamic response = await sandbox.handlers['specta_request']!(
+          <String, dynamic>{
+            'url': 'https://example.test/api',
+            'method': 'GET',
+            'timeout': 2.5,
+          },
+        );
+        final Map<String, dynamic> decoded =
+            jsonDecode(response as String) as Map<String, dynamic>;
 
-      expect(decoded['ok'], isTrue,
-          reason: 'a fractional JS timeout must not fail the request');
-      expect(api.lastRequest, isNotNull);
-      expect(api.lastRequest!.timeout, const Duration(milliseconds: 3));
-    });
+        expect(
+          decoded['ok'],
+          isTrue,
+          reason: 'a fractional JS timeout must not fail the request',
+        );
+        expect(api.lastRequest, isNotNull);
+        expect(api.lastRequest!.timeout, const Duration(milliseconds: 3));
+      },
+    );
 
     test('a string timeout degrades to the default, not a failure', () async {
       await loadRuntime();
@@ -152,20 +164,17 @@ void main() {
 
     test('a large timeout is clamped by the API policy as before', () async {
       await loadRuntime();
-      await sandbox.handlers['specta_request']!(
-        <String, dynamic>{
-          'url': 'https://example.test/api',
-          'method': 'GET',
-          'timeout': 999999999,
-        },
-      );
+      await sandbox.handlers['specta_request']!(<String, dynamic>{
+        'url': 'https://example.test/api',
+        'method': 'GET',
+        'timeout': 999999999,
+      });
       expect(api.lastRequest!.timeout, greaterThan(const Duration(days: 1)));
     });
   });
 
   group('§36.4 details — non-string status must not fail the payload', () {
-    test('a numeric status degrades to null/unknown without failing',
-        () async {
+    test('a numeric status degrades to null/unknown without failing', () async {
       await loadRuntime();
       const String reference = 'https://example.com/m/1';
       sandbox.setAsyncResult(
@@ -179,8 +188,9 @@ void main() {
         }),
       );
 
-      final SpectaResult<MediaDetails> result =
-          await runtime.details(url: reference);
+      final SpectaResult<MediaDetails> result = await runtime.details(
+        url: reference,
+      );
 
       expect(result.isOk, isTrue, reason: result.failureOrNull.toString());
       expect(result.valueOrNull!.status, isNull);
@@ -208,80 +218,88 @@ void main() {
         }),
       );
 
-      final SpectaResult<MediaDetails> result =
-          await runtime.details(url: reference);
+      final SpectaResult<MediaDetails> result = await runtime.details(
+        url: reference,
+      );
 
       expect(result.isOk, isTrue);
       expect(result.valueOrNull!.status, SeriesStatus.ongoing);
     });
 
-    test('non-string optional detail fields degrade to null, not failure',
-        () async {
-      await loadRuntime();
-      const String reference = 'https://example.com/m/1';
-      sandbox.setAsyncResult(
-        'JSON.stringify(await _spectaInstance.details("$reference"))',
-        jsonEncode(<String, dynamic>{
-          'id': 'm1',
-          'title': 'Test Movie',
-          'url': reference,
-          'type': 'movie',
-          'originalTitle': 99,
-          'cover': <String>['nope'],
-          'backdrop': true,
-          'description': 3.14,
-        }),
-      );
+    test(
+      'non-string optional detail fields degrade to null, not failure',
+      () async {
+        await loadRuntime();
+        const String reference = 'https://example.com/m/1';
+        sandbox.setAsyncResult(
+          'JSON.stringify(await _spectaInstance.details("$reference"))',
+          jsonEncode(<String, dynamic>{
+            'id': 'm1',
+            'title': 'Test Movie',
+            'url': reference,
+            'type': 'movie',
+            'originalTitle': 99,
+            'cover': <String>['nope'],
+            'backdrop': true,
+            'description': 3.14,
+          }),
+        );
 
-      final SpectaResult<MediaDetails> result =
-          await runtime.details(url: reference);
+        final SpectaResult<MediaDetails> result = await runtime.details(
+          url: reference,
+        );
 
-      expect(result.isOk, isTrue, reason: result.failureOrNull.toString());
-      expect(result.valueOrNull!.originalTitle, isNull);
-      expect(result.valueOrNull!.cover, isNull);
-      expect(result.valueOrNull!.backdrop, isNull);
-      expect(result.valueOrNull!.description, isNull);
-    });
+        expect(result.isOk, isTrue, reason: result.failureOrNull.toString());
+        expect(result.valueOrNull!.originalTitle, isNull);
+        expect(result.valueOrNull!.cover, isNull);
+        expect(result.valueOrNull!.backdrop, isNull);
+        expect(result.valueOrNull!.description, isNull);
+      },
+    );
   });
 
   group('§36.4 search — malformed optional fields skip only that entry', () {
-    test('numeric type/cover entries are skipped without losing others',
-        () async {
-      await loadRuntime();
-      sandbox.setAsyncResult(
-        'JSON.stringify(await _spectaInstance.search("batman", 1))',
-        jsonEncode(<dynamic>[
-          <String, dynamic>{
-            'title': 'Good',
-            'url': 'https://e.test/good',
-            'type': 'movie',
-          },
-          <String, dynamic>{
-            'title': 'NumericType',
-            'url': 'https://e.test/t',
-            'type': 7,
-          },
-          <String, dynamic>{
-            'title': 'NumericCover',
-            'url': 'https://e.test/c',
-            'type': 'movie',
-            'cover': 12345,
-          },
-        ]),
-      );
+    test(
+      'numeric type/cover entries are skipped without losing others',
+      () async {
+        await loadRuntime();
+        sandbox.setAsyncResult(
+          'JSON.stringify(await _spectaInstance.search("batman", 1))',
+          jsonEncode(<dynamic>[
+            <String, dynamic>{
+              'title': 'Good',
+              'url': 'https://e.test/good',
+              'type': 'movie',
+            },
+            <String, dynamic>{
+              'title': 'NumericType',
+              'url': 'https://e.test/t',
+              'type': 7,
+            },
+            <String, dynamic>{
+              'title': 'NumericCover',
+              'url': 'https://e.test/c',
+              'type': 'movie',
+              'cover': 12345,
+            },
+          ]),
+        );
 
-      final SpectaResult<List<SearchResult>> result =
-          await runtime.search(query: 'batman', page: 1);
+        final SpectaResult<List<SearchResult>> result = await runtime.search(
+          query: 'batman',
+          page: 1,
+        );
 
-      expect(result.isOk, isTrue);
-      final List<SearchResult> results = result.valueOrNull!;
-      // NumericType is skipped (unsupported type); NumericCover survives
-      // with the cover dropped (a bad cover must not lose the row).
-      expect(results, hasLength(2));
-      expect(results[0].title, 'Good');
-      expect(results[1].title, 'NumericCover');
-      expect(results[1].cover, isNull);
-    });
+        expect(result.isOk, isTrue);
+        final List<SearchResult> results = result.valueOrNull!;
+        // NumericType is skipped (unsupported type); NumericCover survives
+        // with the cover dropped (a bad cover must not lose the row).
+        expect(results, hasLength(2));
+        expect(results[0].title, 'Good');
+        expect(results[1].title, 'NumericCover');
+        expect(results[1].cover, isNull);
+      },
+    );
   });
 }
 

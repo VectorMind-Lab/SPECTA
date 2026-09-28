@@ -17,8 +17,9 @@ import 'playback_session_state.dart';
 /// engines on leave, and stale entries would otherwise pin native resources).
 VideoController? _controllerForEngine(PlaybackEngine? engine) {
   if (engine is! MediaKitPlaybackEngine) return null;
-  _controllerCache
-      .removeWhere((PlaybackEngine k, VideoController _) => !identical(k, engine));
+  _controllerCache.removeWhere(
+    (PlaybackEngine k, VideoController _) => !identical(k, engine),
+  );
   return _controllerCache.putIfAbsent(
     engine,
     () => VideoController(engine.player),
@@ -100,18 +101,16 @@ class _PlaybackViewState extends ConsumerState<PlaybackView> {
   Widget build(BuildContext context) {
     final PlaybackSnapshot snapshot = ref.watch(playbackSessionProvider);
     final bool isTv = ref.watch(formFactorProvider).isTelevision;
-    final VideoController? controller =
-        _controllerForEngine(snapshot.engine);
+    final VideoController? controller = _controllerForEngine(snapshot.engine);
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: switch (snapshot.status) {
         PlaybackStatus.idle => const _CenteredMessage(
-            icon: Icons.movie_creation_outlined,
-            message: 'Nothing is playing.',
-          ),
-        PlaybackStatus.loading ||
-        PlaybackStatus.switchingSource =>
+          icon: Icons.movie_creation_outlined,
+          message: 'Nothing is playing.',
+        ),
+        PlaybackStatus.loading || PlaybackStatus.switchingSource =>
           _LoadingBody(snapshot: snapshot, isTv: isTv),
         PlaybackStatus.playing ||
         PlaybackStatus.paused ||
@@ -130,18 +129,18 @@ class _PlaybackViewState extends ConsumerState<PlaybackView> {
                   ],
                 ),
         PlaybackStatus.completed => _TerminalBody(
-            snapshot: snapshot,
-            isTv: isTv,
-            icon: Icons.check_circle_outline_rounded,
-            message: 'Playback finished.',
-          ),
+          snapshot: snapshot,
+          isTv: isTv,
+          icon: Icons.check_circle_outline_rounded,
+          message: 'Playback finished.',
+        ),
         PlaybackStatus.failed => _TerminalBody(
-            snapshot: snapshot,
-            isTv: isTv,
-            icon: Icons.cloud_off_rounded,
-            message: snapshot.failure?.message ??
-                'This source could not be played.',
-          ),
+          snapshot: snapshot,
+          isTv: isTv,
+          icon: Icons.cloud_off_rounded,
+          message:
+              snapshot.failure?.message ?? 'This source could not be played.',
+        ),
       },
     );
   }
@@ -199,7 +198,10 @@ class _LoadingBody extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 3),
             ),
           ),
-          Align(alignment: Alignment.topLeft, child: _BackButton(isTv: isTv)),
+          Align(
+            alignment: Alignment.topLeft,
+            child: _BackButton(isTv: isTv),
+          ),
           if (snapshot.candidates.isNotEmpty)
             Align(
               alignment: Alignment.bottomCenter,
@@ -222,9 +224,9 @@ class _LoadingBody extends StatelessWidget {
                     Text(
                       switching
                           ? 'Trying source ${snapshot.attemptedCount} of '
-                              '${snapshot.candidates.length}…'
+                                '${snapshot.candidates.length}…'
                           : 'Source ${snapshot.attemptedCount} of '
-                              '${snapshot.candidates.length}',
+                                '${snapshot.candidates.length}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: SpectaColors.textMuted,
@@ -262,7 +264,10 @@ class _TerminalBody extends ConsumerWidget {
       child: Stack(
         children: <Widget>[
           _CenteredMessage(icon: icon, message: message),
-          Align(alignment: Alignment.topLeft, child: _BackButton(isTv: isTv)),
+          Align(
+            alignment: Alignment.topLeft,
+            child: _BackButton(isTv: isTv),
+          ),
           if (snapshot.candidates.isNotEmpty)
             Align(
               alignment: Alignment.bottomCenter,
@@ -428,8 +433,9 @@ class _SpectaPlayerControlsState extends ConsumerState<SpectaPlayerControls> {
     super.didUpdateWidget(oldWidget);
     // New candidate or status change while hidden: surface the controls so
     // the user can see what is happening.
-    if (!_visible && oldWidget.snapshot.current?.source.url !=
-        widget.snapshot.current?.source.url) {
+    if (!_visible &&
+        oldWidget.snapshot.current?.source.url !=
+            widget.snapshot.current?.source.url) {
       _poke();
     }
   }
@@ -527,9 +533,7 @@ class _SpectaPlayerControlsState extends ConsumerState<SpectaPlayerControls> {
                             ),
                           ),
                           if (s.availableSubtitles.isNotEmpty)
-                            _SubtitleMenuButton(
-                              onPoke: _poke,
-                            ),
+                            _SubtitleMenuButton(onPoke: _poke),
                           _SpeedMenuButton(onPoke: _poke),
                         ],
                       ),
@@ -563,25 +567,34 @@ class _SpectaPlayerControlsState extends ConsumerState<SpectaPlayerControls> {
                                 data: SliderTheme.of(context).copyWith(
                                   trackHeight: 3,
                                   thumbShape: const RoundSliderThumbShape(
-                                      enabledThumbRadius: 6),
+                                    enabledThumbRadius: 6,
+                                  ),
                                 ),
                                 child: Slider(
                                   value: s.duration > Duration.zero
                                       ? (s.position.inMilliseconds /
-                                              s.duration.inMilliseconds)
-                                          .clamp(0.0, 1.0)
+                                                s.duration.inMilliseconds)
+                                            .clamp(0.0, 1.0)
                                       : 0,
                                   max: 1,
                                   onChanged: s.duration > Duration.zero
                                       ? (double v) {
                                           _poke();
                                           ref
-                                              .read(playbackSessionProvider
-                                                  .notifier)
-                                              .seek(Duration(
+                                              .read(
+                                                playbackSessionProvider
+                                                    .notifier,
+                                              )
+                                              .seek(
+                                                Duration(
                                                   milliseconds:
-                                                      (v * s.duration.inMilliseconds)
-                                                          .round()));
+                                                      (v *
+                                                              s
+                                                                  .duration
+                                                                  .inMilliseconds)
+                                                          .round(),
+                                                ),
+                                              );
                                         }
                                       : null,
                                 ),
@@ -678,8 +691,9 @@ class _SubtitleMenuButton extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 13,
                 color: SpectaColors.textPrimary,
-                fontWeight:
-                    identical(selected, t) ? FontWeight.w700 : FontWeight.w400,
+                fontWeight: identical(selected, t)
+                    ? FontWeight.w700
+                    : FontWeight.w400,
               ),
             ),
           ),
@@ -694,8 +708,11 @@ class _SubtitleMenuButton extends ConsumerWidget {
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.subtitles_rounded,
-                size: 16, color: SpectaColors.textPrimary),
+            Icon(
+              Icons.subtitles_rounded,
+              size: 16,
+              color: SpectaColors.textPrimary,
+            ),
             SizedBox(width: 6),
             Text(
               'CC',
@@ -763,8 +780,11 @@ class _SpeedMenuButton extends ConsumerWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.speed_rounded,
-                size: 16, color: SpectaColors.textPrimary),
+            const Icon(
+              Icons.speed_rounded,
+              size: 16,
+              color: SpectaColors.textPrimary,
+            ),
             const SizedBox(width: 6),
             Text(
               rate == 1.0 ? 'Speed' : _rateLabel(rate),

@@ -20,19 +20,26 @@ class InMemoryLibraryStore implements LibraryStore {
 
   @override
   Future<List<WatchProgress>> continueWatching({int limit = 20}) async {
-    final List<WatchProgress> rows = _rows.values
-        .where((WatchProgress p) => !p.completed && p.position > Duration.zero)
-        .toList()
-      ..sort((WatchProgress a, WatchProgress b) =>
-          b.updatedAt.compareTo(a.updatedAt));
+    final List<WatchProgress> rows =
+        _rows.values
+            .where(
+              (WatchProgress p) => !p.completed && p.position > Duration.zero,
+            )
+            .toList()
+          ..sort(
+            (WatchProgress a, WatchProgress b) =>
+                b.updatedAt.compareTo(a.updatedAt),
+          );
     return rows.take(limit).toList(growable: false);
   }
 
   @override
   Future<List<WatchProgress>> history({int limit = 50}) async {
     final List<WatchProgress> rows = _rows.values.toList()
-      ..sort((WatchProgress a, WatchProgress b) =>
-          b.updatedAt.compareTo(a.updatedAt));
+      ..sort(
+        (WatchProgress a, WatchProgress b) =>
+            b.updatedAt.compareTo(a.updatedAt),
+      );
     return rows.take(limit).toList(growable: false);
   }
 
@@ -47,8 +54,10 @@ class InMemoryLibraryStore implements LibraryStore {
   @override
   Future<void> saveReferences(
     String mediaKey,
-    List<DiscoveryReference> references,
-  ) async {
+    List<DiscoveryReference> references, {
+    String? canonicalId,
+    int identityVersion = 1,
+  }) async {
     _references[mediaKey] = List<DiscoveryReference>.of(references);
   }
 

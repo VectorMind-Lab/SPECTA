@@ -1,7 +1,7 @@
 name: specta
 description: "SPECTA — fast, simple, login-free movies and series for Android phone and Android TV."
 publish_to: "none"
-version: 0.0.1+1
+version: 1.0.0+1
 
 environment:
   # Dart 3.13.3 ships with Flutter 3.47.4, the SDK version this project was

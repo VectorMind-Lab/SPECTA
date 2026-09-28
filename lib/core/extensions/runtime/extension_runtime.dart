@@ -240,14 +240,19 @@ class ExtensionRuntime {
     for (final dynamic item in json) {
       if (item is! Map<String, dynamic>) continue;
       final dynamic typeCode = item['type'];
-      final MediaType? type =
-          typeCode is String ? MediaType.fromCode(typeCode) : null;
+      final MediaType? type = typeCode is String
+          ? MediaType.fromCode(typeCode)
+          : null;
       if (type == null) continue; // unsupported type — safely ignored
       final dynamic title = item['title'];
       final dynamic url = item['url'];
       if (title is! String || title.isEmpty) continue;
       if (url is! String || url.isEmpty) continue;
       final dynamic cover = item['cover'];
+      final ExternalIds? externalIds = ExternalIds.fromJson(
+        item['externalIds'],
+      );
+      if (type == MediaType.anime && externalIds?.anilistId == null) continue;
       parsed.add(
         SearchResult(
           title: title,
@@ -255,6 +260,7 @@ class ExtensionRuntime {
           type: type,
           cover: cover is String ? cover : null,
           year: item['year'] is int ? item['year'] as int : null,
+          externalIds: externalIds,
         ),
       );
     }
@@ -314,6 +320,7 @@ class ExtensionRuntime {
       title: title.trim(),
       type: type,
       url: url,
+      externalIds: ExternalIds.fromJson(json['externalIds']),
       originalTitle: json['originalTitle'] is String
           ? json['originalTitle'] as String
           : null,
@@ -379,8 +386,9 @@ class ExtensionRuntime {
           title: entry['title'] as String?,
           description: entry['description'] as String?,
           cover: entry['cover'] as String?,
-          durationSeconds:
-              entry['duration'] is int ? entry['duration'] as int : null,
+          durationSeconds: entry['duration'] is int
+              ? entry['duration'] as int
+              : null,
         ),
       );
     }

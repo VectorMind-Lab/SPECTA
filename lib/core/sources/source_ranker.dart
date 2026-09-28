@@ -30,12 +30,12 @@ abstract final class SourceRanker {
   /// Native quality tier. Higher is more detail. `null` (unknown) is a
   /// distinct, explicitly-scored case.
   static int? _tier(String? quality) => switch (quality?.trim()) {
-        '480p' => 480,
-        '720p' => 720,
-        '1080p' => 1080,
-        '4K' => 2160,
-        _ => null,
-      };
+    '480p' => 480,
+    '720p' => 720,
+    '1080p' => 1080,
+    '4K' => 2160,
+    _ => null,
+  };
 
   /// Ranks [candidates] for [preference]. Returns a new list, best first.
   static List<RankedSource> rank(
@@ -54,19 +54,18 @@ abstract final class SourceRanker {
         .toList(growable: false);
 
     final List<RankedSource> sorted = <RankedSource>[...scored]
-      ..sort(
-        (RankedSource a, RankedSource b) {
-          int cmp = b.score.compareTo(a.score);
-          if (cmp != 0) return cmp;
-          // Deterministic tie-breakers: quality tier, then type, then URL.
-          cmp = (_tier(b.source.quality) ?? -1)
-              .compareTo(_tier(a.source.quality) ?? -1);
-          if (cmp != 0) return cmp;
-          cmp = b.source.type.code.compareTo(a.source.type.code);
-          if (cmp != 0) return cmp;
-          return a.source.url.compareTo(b.source.url);
-        },
-      );
+      ..sort((RankedSource a, RankedSource b) {
+        int cmp = b.score.compareTo(a.score);
+        if (cmp != 0) return cmp;
+        // Deterministic tie-breakers: quality tier, then type, then URL.
+        cmp = (_tier(b.source.quality) ?? -1).compareTo(
+          _tier(a.source.quality) ?? -1,
+        );
+        if (cmp != 0) return cmp;
+        cmp = b.source.type.code.compareTo(a.source.type.code);
+        if (cmp != 0) return cmp;
+        return a.source.url.compareTo(b.source.url);
+      });
     return sorted;
   }
 

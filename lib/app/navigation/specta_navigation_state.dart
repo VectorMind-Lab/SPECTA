@@ -20,6 +20,7 @@ class SpectaNavigationNotifier extends Notifier<SpectaDestination> {
 
 /// Current navigation destination state.
 final NotifierProvider<SpectaNavigationNotifier, SpectaDestination>
-    spectaNavigationProvider = NotifierProvider<SpectaNavigationNotifier, SpectaDestination>(
-  SpectaNavigationNotifier.new,
-);
+spectaNavigationProvider =
+    NotifierProvider<SpectaNavigationNotifier, SpectaDestination>(
+      SpectaNavigationNotifier.new,
+    );

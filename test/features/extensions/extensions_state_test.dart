@@ -106,24 +106,26 @@ void main() {
     expect(state.items.single.enabled, isTrue);
   });
 
-  test('a rejected file reports a structured error and changes nothing',
-      () async {
-    final ProviderContainer container = containerFor(manager);
-    await waitFor(
-      container,
-      (ExtensionsState s) => s.status == ExtensionsStatus.ready,
-    );
+  test(
+    'a rejected file reports a structured error and changes nothing',
+    () async {
+      final ProviderContainer container = containerFor(manager);
+      await waitFor(
+        container,
+        (ExtensionsState s) => s.status == ExtensionsStatus.ready,
+      );
 
-    final SpectaResult<ExtensionRecord> result = await container
-        .read(extensionsProvider.notifier)
-        .install('${dir.path}/definitely-absent.js');
+      final SpectaResult<ExtensionRecord> result = await container
+          .read(extensionsProvider.notifier)
+          .install('${dir.path}/definitely-absent.js');
 
-    expect(result.isErr, isTrue);
-    final ExtensionsState state = container.read(extensionsProvider);
-    expect(state.errorMessage, isNotNull);
-    expect(state.items, isEmpty);
-    expect(await registry.getAll(), isEmpty);
-  });
+      expect(result.isErr, isTrue);
+      final ExtensionsState state = container.read(extensionsProvider);
+      expect(state.errorMessage, isNotNull);
+      expect(state.items, isEmpty);
+      expect(await registry.getAll(), isEmpty);
+    },
+  );
 
   test('disable and enable are persisted and reflected in state', () async {
     final ProviderContainer container = containerFor(manager);
@@ -153,33 +155,37 @@ void main() {
     expect(await registry.getById('com.test.rm'), isNull);
   });
 
-  test('reload picks up an extension installed behind the notifier\'s back',
-      () async {
-    final ProviderContainer container = containerFor(manager);
-    await waitFor(
-      container,
-      (ExtensionsState s) => s.status == ExtensionsStatus.ready,
-    );
+  test(
+    'reload picks up an extension installed behind the notifier\'s back',
+    () async {
+      final ProviderContainer container = containerFor(manager);
+      await waitFor(
+        container,
+        (ExtensionsState s) => s.status == ExtensionsStatus.ready,
+      );
 
-    await registry.install(_record('com.test.external'));
-    await container.read(extensionsProvider.notifier).reload();
+      await registry.install(_record('com.test.external'));
+      await container.read(extensionsProvider.notifier).reload();
 
-    expect(
-      container.read(extensionsProvider).items.single.id,
-      'com.test.external',
-    );
-  });
+      expect(
+        container.read(extensionsProvider).items.single.id,
+        'com.test.external',
+      );
+    },
+  );
 
-  test('a failing registry surfaces the failure state, not an exception',
-      () async {
-    final ProviderContainer container = containerFor(_ThrowingManager());
-    await waitFor(
-      container,
-      (ExtensionsState s) => s.status == ExtensionsStatus.failure,
-    );
+  test(
+    'a failing registry surfaces the failure state, not an exception',
+    () async {
+      final ProviderContainer container = containerFor(_ThrowingManager());
+      await waitFor(
+        container,
+        (ExtensionsState s) => s.status == ExtensionsStatus.failure,
+      );
 
-    expect(container.read(extensionsProvider).errorMessage, isNotNull);
-  });
+      expect(container.read(extensionsProvider).errorMessage, isNotNull);
+    },
+  );
 }
 
 String _source({
@@ -230,11 +236,11 @@ class _NoopRuntimeApi implements ExtensionRuntimeApi {
 /// storage failures instead of letting them escape to the UI.
 class _ThrowingManager extends ExtensionManager {
   _ThrowingManager()
-      : super(
-          registry: _ThrowingRegistry(),
-          runtimeApi: _NoopRuntimeApi(),
-          sandboxFactory: FakeJsSandbox.new,
-        );
+    : super(
+        registry: _ThrowingRegistry(),
+        runtimeApi: _NoopRuntimeApi(),
+        sandboxFactory: FakeJsSandbox.new,
+      );
 }
 
 class _ThrowingRegistry implements ExtensionRegistry {

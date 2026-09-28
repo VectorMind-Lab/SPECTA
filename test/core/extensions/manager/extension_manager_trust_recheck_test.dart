@@ -111,8 +111,9 @@ void main() {
     final ExtensionRecord? record = await registry.getById(
       'com.example.signed',
     );
-    final List<ExtensionFailureRecord> failures = await registry
-        .getFailures('com.example.signed');
+    final List<ExtensionFailureRecord> failures = await registry.getFailures(
+      'com.example.signed',
+    );
     return (record!, failures);
   }
 
@@ -139,13 +140,18 @@ void main() {
 
     final (ExtensionRecord record, List<ExtensionFailureRecord> failures) =
         await state();
-    expect(record.trustLevel, TrustLevel.unverified,
-        reason: 'the file changed after import; stored "official" must not '
-            'survive a load');
+    expect(
+      record.trustLevel,
+      TrustLevel.unverified,
+      reason:
+          'the file changed after import; stored "official" must not '
+          'survive a load',
+    );
     expect(
       failures.where(
-          (ExtensionFailureRecord f) =>
-              f.message.contains('Trust level re-classified')),
+        (ExtensionFailureRecord f) =>
+            f.message.contains('Trust level re-classified'),
+      ),
       isNotEmpty,
       reason: 'the divergence must be recorded, never silent',
     );
@@ -161,12 +167,16 @@ void main() {
 
     final (ExtensionRecord record, List<ExtensionFailureRecord> failures) =
         await state();
-    expect(record.trustLevel, TrustLevel.official,
-        reason: 'nothing changed; trust must not be downgraded spuriously');
+    expect(
+      record.trustLevel,
+      TrustLevel.official,
+      reason: 'nothing changed; trust must not be downgraded spuriously',
+    );
     expect(
       failures.where(
-          (ExtensionFailureRecord f) =>
-              f.message.contains('Trust level re-classified')),
+        (ExtensionFailureRecord f) =>
+            f.message.contains('Trust level re-classified'),
+      ),
       isEmpty,
     );
   });
@@ -174,10 +184,9 @@ void main() {
   test('the failure record names both levels for diagnostics', () async {
     await importSignedToFile(source: await _sign(_source(), keyPair));
     await File(filePath).writeAsString(
-      (await File(filePath).readAsString()).replaceFirst(
-        'return [];',
-        'return []; // tampered',
-      ),
+      (await File(
+        filePath,
+      ).readAsString()).replaceFirst('return [];', 'return []; // tampered'),
       flush: true,
     );
 
@@ -187,8 +196,9 @@ void main() {
         await state();
     final ExtensionFailureRecord? entry = failures
         .where(
-            (ExtensionFailureRecord f) =>
-                f.message.contains('Trust level re-classified'))
+          (ExtensionFailureRecord f) =>
+              f.message.contains('Trust level re-classified'),
+        )
         .firstOrNull;
     expect(entry, isNotNull);
     expect(entry!.message, contains('official'));
@@ -196,7 +206,6 @@ void main() {
     expect(entry.operation, 'load');
   });
 }
-
 
 /// Minimal runtime API for load-flow tests: requests succeed, logs are
 /// ignored. The trust re-check does not depend on either.

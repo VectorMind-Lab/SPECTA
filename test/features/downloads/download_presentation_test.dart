@@ -154,14 +154,16 @@ void main() {
     });
 
     test('reports both sides when the total is known', () {
-      final DownloadRecord r =
-          record(bytesDownloaded: 1024, totalBytes: 4096);
+      final DownloadRecord r = record(bytesDownloaded: 1024, totalBytes: 4096);
       expect(downloadProgressText(r), '1.0 KB of 4.0 KB');
       expect(downloadFraction(r), 0.25);
     });
 
     test('never invents a fraction from a zero or negative total', () {
-      expect(downloadFraction(record(bytesDownloaded: 10, totalBytes: 0)), isNull);
+      expect(
+        downloadFraction(record(bytesDownloaded: 10, totalBytes: 0)),
+        isNull,
+      );
       expect(
         downloadFraction(record(bytesDownloaded: 10, totalBytes: -5)),
         isNull,
@@ -182,42 +184,51 @@ void main() {
 
   group('orderDownloadsForDisplay', () {
     test('puts actionable work first and finished work last', () {
-      final List<DownloadRecord> ordered = orderDownloadsForDisplay(<DownloadRecord>[
-        record(id: 'c', status: DownloadStatus.completed),
-        record(id: 'f', status: DownloadStatus.failed),
-        record(id: 'a', status: DownloadStatus.downloading),
-        record(id: 'q', status: DownloadStatus.queued),
-        record(id: 'p', status: DownloadStatus.paused),
-        record(id: 'x', status: DownloadStatus.cancelled),
-      ]);
-      expect(
-        ordered.map((DownloadRecord r) => r.id).toList(),
-        <String>['a', 'q', 'p', 'f', 'x', 'c'],
+      final List<DownloadRecord> ordered = orderDownloadsForDisplay(
+        <DownloadRecord>[
+          record(id: 'c', status: DownloadStatus.completed),
+          record(id: 'f', status: DownloadStatus.failed),
+          record(id: 'a', status: DownloadStatus.downloading),
+          record(id: 'q', status: DownloadStatus.queued),
+          record(id: 'p', status: DownloadStatus.paused),
+          record(id: 'x', status: DownloadStatus.cancelled),
+        ],
       );
+      expect(ordered.map((DownloadRecord r) => r.id).toList(), <String>[
+        'a',
+        'q',
+        'p',
+        'f',
+        'x',
+        'c',
+      ]);
     });
 
     test('is deterministic within a group (created time, then identity)', () {
-      final List<DownloadRecord> ordered = orderDownloadsForDisplay(<DownloadRecord>[
-        record(
-          id: 'b',
-          status: DownloadStatus.completed,
-          createdAt: DateTime.utc(2026, 1, 2),
-        ),
-        record(
-          id: 'a',
-          status: DownloadStatus.completed,
-          createdAt: DateTime.utc(2026, 1, 1),
-        ),
-        record(
-          id: 'z',
-          status: DownloadStatus.completed,
-          createdAt: DateTime.utc(2026, 1, 1),
-        ),
-      ]);
-      expect(
-        ordered.map((DownloadRecord r) => r.id).toList(),
-        <String>['a', 'z', 'b'],
+      final List<DownloadRecord> ordered = orderDownloadsForDisplay(
+        <DownloadRecord>[
+          record(
+            id: 'b',
+            status: DownloadStatus.completed,
+            createdAt: DateTime.utc(2026, 1, 2),
+          ),
+          record(
+            id: 'a',
+            status: DownloadStatus.completed,
+            createdAt: DateTime.utc(2026, 1, 1),
+          ),
+          record(
+            id: 'z',
+            status: DownloadStatus.completed,
+            createdAt: DateTime.utc(2026, 1, 1),
+          ),
+        ],
       );
+      expect(ordered.map((DownloadRecord r) => r.id).toList(), <String>[
+        'a',
+        'z',
+        'b',
+      ]);
     });
 
     test('does not mutate the input list', () {
@@ -226,7 +237,10 @@ void main() {
         record(id: 'a', status: DownloadStatus.downloading),
       ];
       orderDownloadsForDisplay(input);
-      expect(input.map((DownloadRecord r) => r.id).toList(), <String>['c', 'a']);
+      expect(input.map((DownloadRecord r) => r.id).toList(), <String>[
+        'c',
+        'a',
+      ]);
     });
   });
 

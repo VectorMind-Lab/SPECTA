@@ -4,6 +4,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'migrations.dart';
 import 'tables/downloads_table.dart';
 import 'tables/media_references_table.dart';
+import 'tables/metadata_cache_table.dart';
 import 'tables/settings_entries.dart';
 import 'tables/watch_progress_table.dart';
 
@@ -28,6 +29,7 @@ part 'specta_database.g.dart';
     WatchProgressEntries,
     MediaReferences,
     Downloads,
+    MetadataCache,
   ],
 )
 class SpectaDatabase extends _$SpectaDatabase {

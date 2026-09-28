@@ -10,100 +10,84 @@ RankedSource _cand(
   SourceType type = SourceType.mp4,
   bool adaptive = false,
   String extensionId = 'extA',
-}) =>
-    RankedSource(
-      source: ExtensionSource(
-        url: url,
-        type: type,
-        quality: quality,
-        isAdaptive: adaptive,
-      ),
-      extensionId: extensionId,
-      reference: 'ref',
-      score: 0,
-    );
+}) => RankedSource(
+  source: ExtensionSource(
+    url: url,
+    type: type,
+    quality: quality,
+    isAdaptive: adaptive,
+  ),
+  extensionId: extensionId,
+  reference: 'ref',
+  score: 0,
+);
 
 void main() {
   group('SourceRanker — quality preference', () {
-    test('exact preference match beats higher quality (not highest-first)',
-        () {
-      final List<RankedSource> ranked = SourceRanker.rank(
-        <RankedSource>[
-          _cand('https://a/4k', quality: '4K'),
-          _cand('https://a/1080', quality: '1080p'),
-          _cand('https://a/720', quality: '720p'),
-        ],
-        QualityPreference.p720,
-      );
+    test('exact preference match beats higher quality (not highest-first)', () {
+      final List<RankedSource> ranked = SourceRanker.rank(<RankedSource>[
+        _cand('https://a/4k', quality: '4K'),
+        _cand('https://a/1080', quality: '1080p'),
+        _cand('https://a/720', quality: '720p'),
+      ], QualityPreference.p720);
 
       expect(ranked.first.source.url, 'https://a/720');
     });
 
     test('near quality beats far quality deterministically', () {
-      final List<RankedSource> ranked = SourceRanker.rank(
-        <RankedSource>[
-          _cand('https://a/480', quality: '480p'),
-          _cand('https://a/1080', quality: '1080p'),
-        ],
-        QualityPreference.p720,
-      );
+      final List<RankedSource> ranked = SourceRanker.rank(<RankedSource>[
+        _cand('https://a/480', quality: '480p'),
+        _cand('https://a/1080', quality: '1080p'),
+      ], QualityPreference.p720);
 
       expect(ranked.first.source.url, 'https://a/1080');
     });
 
     test('auto prefers higher native quality', () {
-      final List<RankedSource> ranked = SourceRanker.rank(
-        <RankedSource>[
-          _cand('https://a/480', quality: '480p'),
-          _cand('https://a/1080', quality: '1080p'),
-        ],
-        QualityPreference.auto,
-      );
+      final List<RankedSource> ranked = SourceRanker.rank(<RankedSource>[
+        _cand('https://a/480', quality: '480p'),
+        _cand('https://a/1080', quality: '1080p'),
+      ], QualityPreference.auto);
 
       expect(ranked.first.source.url, 'https://a/1080');
     });
 
-    test('missing quality is never ranked above a known resolution under auto',
-        () {
-      final List<RankedSource> ranked = SourceRanker.rank(
-        <RankedSource>[
+    test(
+      'missing quality is never ranked above a known resolution under auto',
+      () {
+        final List<RankedSource> ranked = SourceRanker.rank(<RankedSource>[
           _cand('https://a/unknown', quality: null),
           _cand('https://a/480', quality: '480p'),
-        ],
-        QualityPreference.auto,
-      );
+        ], QualityPreference.auto);
 
-      expect(ranked.first.source.url, 'https://a/480');
-      // And the unknown candidate is still usable (not discarded).
-      expect(ranked, hasLength(2));
-    });
+        expect(ranked.first.source.url, 'https://a/480');
+        // And the unknown candidate is still usable (not discarded).
+        expect(ranked, hasLength(2));
+      },
+    );
 
-    test('under a concrete preference, unknown quality is a fallback, not a win',
-        () {
-      final List<RankedSource> ranked = SourceRanker.rank(
-        <RankedSource>[
+    test(
+      'under a concrete preference, unknown quality is a fallback, not a win',
+      () {
+        final List<RankedSource> ranked = SourceRanker.rank(<RankedSource>[
           _cand('https://a/unknown', quality: null),
           _cand('https://a/1080', quality: '1080p'),
-        ],
-        QualityPreference.p1080,
-      );
+        ], QualityPreference.p1080);
 
-      expect(ranked.first.source.url, 'https://a/1080');
-    });
+        expect(ranked.first.source.url, 'https://a/1080');
+      },
+    );
 
     test('adaptive is rewarded under auto', () {
-      final List<RankedSource> ranked = SourceRanker.rank(
-        <RankedSource>[
-          _cand('https://a/fixed-hls', quality: '720p', type: SourceType.hls),
-          _cand(
-            'https://a/adaptive-hls',
-            quality: '720p',
-            type: SourceType.hls,
-            adaptive: true,
-          ),
-        ],
-        QualityPreference.auto,
-      );
+      final List<RankedSource> ranked = SourceRanker.rank(<RankedSource>[
+        _cand('https://a/fixed-hls', quality: '720p', type: SourceType.hls),
+        _cand(
+          'https://a/adaptive-hls',
+          quality: '720p',
+          type: SourceType.hls,
+          adaptive: true,
+        ),
+      ], QualityPreference.auto);
 
       expect(ranked.first.source.url, 'https://a/adaptive-hls');
     });
@@ -134,13 +118,10 @@ void main() {
     });
 
     test('quality tier is the tie-breaker before URL', () {
-      final List<RankedSource> ranked = SourceRanker.rank(
-        <RankedSource>[
-          _cand('https://a/480', quality: '480p'),
-          _cand('https://b/480', quality: '480p'),
-        ],
-        QualityPreference.auto,
-      );
+      final List<RankedSource> ranked = SourceRanker.rank(<RankedSource>[
+        _cand('https://a/480', quality: '480p'),
+        _cand('https://b/480', quality: '480p'),
+      ], QualityPreference.auto);
 
       // Equal score + equal tier + different URLs -> URL order.
       expect(ranked.first.source.url, 'https://a/480');

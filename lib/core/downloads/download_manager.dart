@@ -76,11 +76,11 @@ abstract interface class DownloadSourceResolver {
   /// classifications can never drift apart.
   static const Set<DownloadFailureType> sourceInvalidatingFailures =
       <DownloadFailureType>{
-    DownloadFailureType.httpError,
-    DownloadFailureType.invalidResponse,
-    DownloadFailureType.unsupportedSource,
-    DownloadFailureType.sourcesExhausted,
-  };
+        DownloadFailureType.httpError,
+        DownloadFailureType.invalidResponse,
+        DownloadFailureType.unsupportedSource,
+        DownloadFailureType.sourcesExhausted,
+      };
 
   /// The pool for [record]'s next attempt, or null when it cannot be
   /// resolved right now.
@@ -132,9 +132,11 @@ final class SessionDownloadSourceResolver implements DownloadSourceResolver {
     DownloadRecord record, {
     DownloadFailure? lastFailure,
   }) async {
-    final bool sourceInvalidated = lastFailure != null &&
-        DownloadSourceResolver.sourceInvalidatingFailures
-            .contains(lastFailure.type);
+    final bool sourceInvalidated =
+        lastFailure != null &&
+        DownloadSourceResolver.sourceInvalidatingFailures.contains(
+          lastFailure.type,
+        );
     if (sourceInvalidated) {
       // The captured URL just failed as unusable. Drop it — never re-serve
       // the dead URL, and never let a later attempt inherit it silently.
@@ -261,7 +263,8 @@ final class FileDownloadCompletionFinalizer
     throw DownloadFailure(
       type: DownloadFailureType.interrupted,
       message: DownloadFailureType.interrupted.message,
-      detail: 'The engine reported completion with $engineBytes bytes, but '
+      detail:
+          'The engine reported completion with $engineBytes bytes, but '
           'only $bytesOnDisk of the $declared declared bytes are on disk.',
     );
   }
@@ -330,11 +333,10 @@ final class DownloadManager {
     Future<String> Function()? mediaDirectory,
     int concurrency = defaultConcurrency,
     this.onChanged,
-  })  : _sourceResolver =
-            sourceResolver ?? SessionDownloadSourceResolver(),
-        _completionFinalizer =
-            completionFinalizer ?? const FileDownloadCompletionFinalizer(),
-        _mediaDirectory = mediaDirectory ?? _defaultMediaDirectory {
+  }) : _sourceResolver = sourceResolver ?? SessionDownloadSourceResolver(),
+       _completionFinalizer =
+           completionFinalizer ?? const FileDownloadCompletionFinalizer(),
+       _mediaDirectory = mediaDirectory ?? _defaultMediaDirectory {
     _concurrency = _clampConcurrency(concurrency);
   }
 
@@ -375,7 +377,8 @@ final class DownloadManager {
   int _epochCounter = 0;
 
   /// Latest progress reported by the engine for the running attempt.
-  final Map<String, DownloadProgress> _liveProgress = <String, DownloadProgress>{};
+  final Map<String, DownloadProgress> _liveProgress =
+      <String, DownloadProgress>{};
   final Map<String, int> _lastPersistedBytes = <String, int>{};
   final Map<String, DateTime> _lastPersistedAt = <String, DateTime>{};
 
@@ -428,9 +431,11 @@ final class DownloadManager {
   }
 
   void _triggerPump() {
-    unawaited(_serialized(() async {
-      await _pump();
-    }));
+    unawaited(
+      _serialized(() async {
+        await _pump();
+      }),
+    );
   }
 
   /// Test-only quiescence point: resolves when every manager operation
@@ -463,8 +468,10 @@ final class DownloadManager {
 
       _eventsSubscription = engine.events.listen(
         _onEngineEvent,
-        onError: (Object _) {/* engine stream errors are engine bugs; the
-                              manager keeps running and reconciles results. */},
+        onError: (Object _) {
+          /* engine stream errors are engine bugs; the
+                              manager keeps running and reconciles results. */
+        },
       );
 
       final List<DownloadRecord> records = await store.all();
@@ -487,7 +494,9 @@ final class DownloadManager {
             if (staleEngineWork) {
               try {
                 await engine.cancel(record.id);
-              } on Object {/* best-effort cleanup */}
+              } on Object {
+                /* best-effort cleanup */
+              }
             }
           }
           continue;
@@ -548,7 +557,9 @@ final class DownloadManager {
     for (final String id in active) {
       try {
         await engine.cancel(id);
-      } on Object {/* best-effort: the engine owns its own cleanup */}
+      } on Object {
+        /* best-effort: the engine owns its own cleanup */
+      }
     }
     _liveProgress.clear();
     _lastPersistedBytes.clear();
@@ -567,18 +578,24 @@ final class DownloadManager {
         switch (existing.status) {
           case DownloadStatus.queued:
             return EnqueueResult(
-                record: existing, action: DownloadEnqueueAction.alreadyQueued);
+              record: existing,
+              action: DownloadEnqueueAction.alreadyQueued,
+            );
           case DownloadStatus.downloading:
             return EnqueueResult(
-                record: existing,
-                action: DownloadEnqueueAction.alreadyDownloading);
+              record: existing,
+              action: DownloadEnqueueAction.alreadyDownloading,
+            );
           case DownloadStatus.paused:
             return EnqueueResult(
-                record: existing, action: DownloadEnqueueAction.alreadyPaused);
+              record: existing,
+              action: DownloadEnqueueAction.alreadyPaused,
+            );
           case DownloadStatus.completed:
             return EnqueueResult(
-                record: existing,
-                action: DownloadEnqueueAction.alreadyCompleted);
+              record: existing,
+              action: DownloadEnqueueAction.alreadyCompleted,
+            );
           case DownloadStatus.failed:
           case DownloadStatus.cancelled:
             // Explicit re-request of a dead download = a new run: the
@@ -643,7 +660,9 @@ final class DownloadManager {
         );
         await _persist(failed);
         return EnqueueResult(
-            record: failed, action: DownloadEnqueueAction.createdFailed);
+          record: failed,
+          action: DownloadEnqueueAction.createdFailed,
+        );
       }
 
       final DownloadRecord record = DownloadRecord(
@@ -668,7 +687,9 @@ final class DownloadManager {
       await _persist(record);
       _sourceResolver.rememberPool(request.id, request.pool);
       return EnqueueResult(
-          record: record, action: DownloadEnqueueAction.created);
+        record: record,
+        action: DownloadEnqueueAction.created,
+      );
     });
     _triggerPump();
     return result;
@@ -683,14 +704,18 @@ final class DownloadManager {
       if (record == null || record.status != DownloadStatus.downloading) {
         return false; // machine: only downloading→paused
       }
-      final int bytes =
-          _maxBytes(record.bytesDownloaded, _liveProgress[id]?.bytesOnDisk);
-      await _persist(record.copyWith(
-        status: DownloadStatus.paused,
-        bytesDownloaded: bytes,
-        waitReason: null,
-        updatedAt: clock.now(),
-      ));
+      final int bytes = _maxBytes(
+        record.bytesDownloaded,
+        _liveProgress[id]?.bytesOnDisk,
+      );
+      await _persist(
+        record.copyWith(
+          status: DownloadStatus.paused,
+          bytesDownloaded: bytes,
+          waitReason: null,
+          updatedAt: clock.now(),
+        ),
+      );
       return true;
     });
     if (requested) {
@@ -724,11 +749,13 @@ final class DownloadManager {
         _startAttempt(resumed);
         return true;
       }
-      await _persist(record.copyWith(
-        status: DownloadStatus.queued,
-        waitReason: DownloadWaitReason.waitingForSlot,
-        updatedAt: clock.now(),
-      ));
+      await _persist(
+        record.copyWith(
+          status: DownloadStatus.queued,
+          waitReason: DownloadWaitReason.waitingForSlot,
+          updatedAt: clock.now(),
+        ),
+      );
       return true;
     }).then((bool resumed) {
       _triggerPump();
@@ -749,18 +776,24 @@ final class DownloadManager {
         return (false, false); // terminal protection
       }
       if (!DownloadStateMachine.canTransition(
-          record.status, DownloadStatus.cancelled)) {
+        record.status,
+        DownloadStatus.cancelled,
+      )) {
         return (false, false);
       }
       final bool hadAttempt = _activeEpoch.containsKey(id);
-      final int bytes =
-          _maxBytes(record.bytesDownloaded, _liveProgress[id]?.bytesOnDisk);
-      await _persist(record.copyWith(
-        status: DownloadStatus.cancelled,
-        bytesDownloaded: bytes,
-        waitReason: null,
-        updatedAt: clock.now(),
-      ));
+      final int bytes = _maxBytes(
+        record.bytesDownloaded,
+        _liveProgress[id]?.bytesOnDisk,
+      );
+      await _persist(
+        record.copyWith(
+          status: DownloadStatus.cancelled,
+          bytesDownloaded: bytes,
+          waitReason: null,
+          updatedAt: clock.now(),
+        ),
+      );
       // The generation dies here: any result from this attempt is stale.
       _activeEpoch.remove(id);
       _liveProgress.remove(id);
@@ -770,7 +803,9 @@ final class DownloadManager {
       if (hadAttempt) {
         try {
           await engine.cancel(id);
-        } on Object {/* best-effort: the record is already cancelled */}
+        } on Object {
+          /* best-effort: the record is already cancelled */
+        }
       }
       onChanged?.call();
       _triggerPump(); // the slot is free — the queue advances
@@ -789,16 +824,20 @@ final class DownloadManager {
         return false;
       }
       if (!DownloadStateMachine.canTransition(
-          record.status, DownloadStatus.queued)) {
+        record.status,
+        DownloadStatus.queued,
+      )) {
         return false;
       }
-      await _persist(record.copyWith(
-        status: DownloadStatus.queued,
-        attempt: 0,
-        failure: null,
-        waitReason: null,
-        updatedAt: clock.now(),
-      ));
+      await _persist(
+        record.copyWith(
+          status: DownloadStatus.queued,
+          attempt: 0,
+          failure: null,
+          waitReason: null,
+          updatedAt: clock.now(),
+        ),
+      );
       // 2G-C §25 (stale-pool protection): a manual retry of a FAILED
       // download keeps the previous run's failure in memory so the resolver
       // can re-resolve FRESHLY when that failure was source-invalidating —
@@ -816,8 +855,7 @@ final class DownloadManager {
   /// no-op returning false. An active attempt is cancelled best-effort so no
   /// orphaned transfer keeps running.
   Future<bool> remove(String id) async {
-    final (bool existed, bool wasActive) = await _serialized(
-        () async {
+    final (bool existed, bool wasActive) = await _serialized(() async {
       final DownloadRecord? record = await store.recordFor(id);
       _activeEpoch.remove(id);
       _liveProgress.remove(id);
@@ -828,15 +866,14 @@ final class DownloadManager {
       if (record == null) return (false, false); // idempotent
       await store.remove(id);
       onChanged?.call();
-      return (
-        true,
-        record.status == DownloadStatus.downloading,
-      );
+      return (true, record.status == DownloadStatus.downloading);
     });
     if (existed && wasActive) {
       try {
         await engine.cancel(id);
-      } on Object {/* best-effort */}
+      } on Object {
+        /* best-effort */
+      }
     }
     _triggerPump(); // removal freed a slot or removed a blocked queued item
     return existed;
@@ -850,8 +887,7 @@ final class DownloadManager {
     if (_disposed) return;
     while (_activeEpoch.length < _concurrency) {
       final List<DownloadRecord> all = await store.all(); // FIFO by creation
-      final NetworkPolicyVerdict verdict =
-          await _evaluateNetworkPolicyOnce();
+      final NetworkPolicyVerdict verdict = await _evaluateNetworkPolicyOnce();
       DownloadRecord? next;
       for (final DownloadRecord record in all) {
         if (record.status != DownloadStatus.queued) continue;
@@ -861,8 +897,7 @@ final class DownloadManager {
           continue; // policy blocks every queued job alike
         }
         if (!await _storageAllows(record)) {
-          await _setWaitReason(
-              record, DownloadWaitReason.insufficientStorage);
+          await _setWaitReason(record, DownloadWaitReason.insufficientStorage);
           continue; // item-specific: try the next one
         }
         next = record;
@@ -924,8 +959,9 @@ final class DownloadManager {
         lastFailure: _lastSourceFailure[starting.id],
       );
       _lastSourceFailure.remove(starting.id);
-      final RankedSource? candidate =
-          pool == null ? null : _pickDownloadable(pool);
+      final RankedSource? candidate = pool == null
+          ? null
+          : _pickDownloadable(pool);
       if (candidate == null) {
         final DownloadFailureType type = pool == null
             ? DownloadFailureType.sourcesExhausted
@@ -935,13 +971,15 @@ final class DownloadManager {
           starting.bytesDownloaded,
         );
       } else {
-        result = await engine.start(DownloadAttemptInput(
-          downloadId: starting.id,
-          url: candidate.source.url,
-          partPath: downloadPartPathFor(starting.filePath),
-          resumeFrom: starting.bytesDownloaded,
-          headers: candidate.source.headers ?? const <String, String>{},
-        ));
+        result = await engine.start(
+          DownloadAttemptInput(
+            downloadId: starting.id,
+            url: candidate.source.url,
+            partPath: downloadPartPathFor(starting.filePath),
+            resumeFrom: starting.bytesDownloaded,
+            headers: candidate.source.headers ?? const <String, String>{},
+          ),
+        );
       }
     } on Object catch (error) {
       // An engine must report problems as data; a throw is a contract
@@ -988,7 +1026,10 @@ final class DownloadManager {
   /// the state it would apply is stale (paused/cancelled/removed meanwhile) —
   /// otherwise a dead attempt would leak a concurrency slot forever.
   Future<void> _reconcileResult(
-      String id, int epoch, DownloadAttemptResult result) async {
+    String id,
+    int epoch,
+    DownloadAttemptResult result,
+  ) async {
     if (_disposed) return;
     if (_activeEpoch[id] != epoch) return; // stale attempt result
     _finishAttempt(id); // the engine attempt is over; free the slot
@@ -1002,8 +1043,9 @@ final class DownloadManager {
         // performed by the finalizer; a gate failure becomes an honest
         // failure through the retry policy — never a masked success.
         final int bytes = _maxBytes(
-            current.bytesDownloaded,
-            _maxBytes(result.bytesOnDisk, _liveProgress[id]?.bytesOnDisk));
+          current.bytesDownloaded,
+          _maxBytes(result.bytesOnDisk, _liveProgress[id]?.bytesOnDisk),
+        );
         // The total the gate must verify against: what the SOURCE declared
         // (carried by the live progress events / the persisted record), not
         // what the engine's own byte counter implies. The engine's report is
@@ -1025,14 +1067,16 @@ final class DownloadManager {
           return;
         }
         final int? total = declaredTotal ?? result.totalBytes;
-        await _persist(current.copyWith(
-          status: DownloadStatus.completed,
-          bytesDownloaded: verifiedBytes,
-          totalBytes: total,
-          completedAt: clock.now(),
-          updatedAt: clock.now(),
-          waitReason: null,
-        ));
+        await _persist(
+          current.copyWith(
+            status: DownloadStatus.completed,
+            bytesDownloaded: verifiedBytes,
+            totalBytes: total,
+            completedAt: clock.now(),
+            updatedAt: clock.now(),
+            waitReason: null,
+          ),
+        );
         await _pump();
       case DownloadAttemptOutcomeKind.paused:
         // The manager already persisted `paused` before asking the engine;
@@ -1040,13 +1084,13 @@ final class DownloadManager {
         // `paused` result against a resumed (downloading) record is stale.
         if (current.status != DownloadStatus.paused) return;
         final int bytes = _maxBytes(
-            current.bytesDownloaded,
-            _maxBytes(result.bytesOnDisk, _liveProgress[id]?.bytesOnDisk));
+          current.bytesDownloaded,
+          _maxBytes(result.bytesOnDisk, _liveProgress[id]?.bytesOnDisk),
+        );
         if (bytes > current.bytesDownloaded) {
-          await _persist(current.copyWith(
-            bytesDownloaded: bytes,
-            updatedAt: clock.now(),
-          ));
+          await _persist(
+            current.copyWith(bytesDownloaded: bytes, updatedAt: clock.now()),
+          );
         }
         // The slot is genuinely free now that the engine has settled — let
         // the queue use it.
@@ -1055,18 +1099,23 @@ final class DownloadManager {
         if (current.status == DownloadStatus.downloading) {
           // Engine-initiated cancellation (not the manager's path in 2G-B)
           // reconciles honestly into the cancelled state.
-          await _persist(current.copyWith(
-            status: DownloadStatus.cancelled,
-            bytesDownloaded: _maxBytes(current.bytesDownloaded,
-                _maxBytes(result.bytesOnDisk, _liveProgress[id]?.bytesOnDisk)),
-            updatedAt: clock.now(),
-            waitReason: null,
-          ));
+          await _persist(
+            current.copyWith(
+              status: DownloadStatus.cancelled,
+              bytesDownloaded: _maxBytes(
+                current.bytesDownloaded,
+                _maxBytes(result.bytesOnDisk, _liveProgress[id]?.bytesOnDisk),
+              ),
+              updatedAt: clock.now(),
+              waitReason: null,
+            ),
+          );
         }
         await _pump();
       case DownloadAttemptOutcomeKind.failed:
         if (current.status != DownloadStatus.downloading) return; // stale
-        final DownloadFailure failure = result.failure ??
+        final DownloadFailure failure =
+            result.failure ??
             DownloadFailure(
               type: DownloadFailureType.engineFailure,
               message: DownloadFailureType.engineFailure.message,
@@ -1084,10 +1133,14 @@ final class DownloadManager {
   /// failures with budget left re-queue after backoff; everything else stays
   /// honestly failed until the user acts.
   Future<void> _applyFailure(
-      DownloadRecord current, DownloadFailure failure, int engineBytes) async {
+    DownloadRecord current,
+    DownloadFailure failure,
+    int engineBytes,
+  ) async {
     final int bytes = _maxBytes(
-        current.bytesDownloaded,
-        _maxBytes(engineBytes, _liveProgress[current.id]?.bytesOnDisk));
+      current.bytesDownloaded,
+      _maxBytes(engineBytes, _liveProgress[current.id]?.bytesOnDisk),
+    );
     final DownloadRecord failedRecord = current.copyWith(
       status: DownloadStatus.failed,
       failure: failure,
@@ -1098,8 +1151,12 @@ final class DownloadManager {
     await _persist(failedRecord);
 
     if (retryPolicy.shouldAutoRetry(failure, failedRecord.attempt)) {
-      unawaited(_scheduleAutoRetry(
-          current.id, retryPolicy.backoffAfter(failedRecord.attempt)));
+      unawaited(
+        _scheduleAutoRetry(
+          current.id,
+          retryPolicy.backoffAfter(failedRecord.attempt),
+        ),
+      );
     }
     await _pump();
   }
@@ -1117,12 +1174,14 @@ final class DownloadManager {
     await _serialized(() async {
       final DownloadRecord? record = await store.recordFor(id);
       if (record == null || record.status != DownloadStatus.failed) return;
-      await _persist(record.copyWith(
-        status: DownloadStatus.queued,
-        waitReason: null,
-        failure: null,
-        updatedAt: clock.now(),
-      ));
+      await _persist(
+        record.copyWith(
+          status: DownloadStatus.queued,
+          waitReason: null,
+          failure: null,
+          updatedAt: clock.now(),
+        ),
+      );
     });
     _triggerPump();
   }
@@ -1138,7 +1197,10 @@ final class DownloadManager {
     } on Object {
       access = null; // a failing probe is an unknown network — conservative
     }
-    return evaluateNetworkPolicy(networkPolicy, access ?? NetworkAccess.unknown);
+    return evaluateNetworkPolicy(
+      networkPolicy,
+      access ?? NetworkAccess.unknown,
+    );
   }
 
   /// Storage pre-flight seam: skip the comparison when either side is
@@ -1158,12 +1220,11 @@ final class DownloadManager {
   }
 
   Future<void> _setWaitReason(
-      DownloadRecord record, DownloadWaitReason? reason) async {
+    DownloadRecord record,
+    DownloadWaitReason? reason,
+  ) async {
     if (record.waitReason == reason) return;
-    await _persist(record.copyWith(
-      waitReason: reason,
-      updatedAt: clock.now(),
-    ));
+    await _persist(record.copyWith(waitReason: reason, updatedAt: clock.now()));
   }
 
   // ---------------------------------------------------------------------------
@@ -1196,21 +1257,27 @@ final class DownloadManager {
     )) {
       return;
     }
-    unawaited(_serialized(() async {
-      if (_disposed) return;
-      final DownloadRecord? record = await store.recordFor(event.downloadId);
-      if (record == null || record.status != DownloadStatus.downloading) {
-        return; // transient ticks never resurrect or mutate other states
-      }
-      await _persist(record.copyWith(
-        bytesDownloaded:
-            _maxBytes(record.bytesDownloaded, event.bytesOnDisk),
-        // The live progress carries the last STATED total, so a coalesced
-        // size-bearing update still reaches the persisted record.
-        totalBytes: progress.totalBytes ?? record.totalBytes,
-        updatedAt: clock.now(),
-      ));
-    }));
+    unawaited(
+      _serialized(() async {
+        if (_disposed) return;
+        final DownloadRecord? record = await store.recordFor(event.downloadId);
+        if (record == null || record.status != DownloadStatus.downloading) {
+          return; // transient ticks never resurrect or mutate other states
+        }
+        await _persist(
+          record.copyWith(
+            bytesDownloaded: _maxBytes(
+              record.bytesDownloaded,
+              event.bytesOnDisk,
+            ),
+            // The live progress carries the last STATED total, so a coalesced
+            // size-bearing update still reaches the persisted record.
+            totalBytes: progress.totalBytes ?? record.totalBytes,
+            updatedAt: clock.now(),
+          ),
+        );
+      }),
+    );
   }
 
   // ---------------------------------------------------------------------------

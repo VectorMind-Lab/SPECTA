@@ -3,8 +3,9 @@
 // Exercises the REAL on-device SQLite database inside the real app process on
 // a physical device:
 //
-//   1. The application database opens and reports schema v4, proving the
-//      registered v2 -> v3 -> v4 migrations run on a real installed database.
+//   1. The application database opens and reports the schema version THIS
+//      BUILD declares, proving every registered additive migration runs on a
+//      real installed database created by an earlier build.
 //   2. The persistent progress sink writes real watch progress through the
 //      same LibraryStore/Dao the player uses, and reads it back.
 //   3. Episode identity is preserved on device (s1e2 is its own row).
@@ -21,6 +22,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:specta/core/database/database_providers.dart';
+import 'package:specta/core/database/migrations.dart';
 import 'package:specta/core/database/specta_database.dart';
 import 'package:specta/core/discovery/discovery_models.dart';
 import 'package:specta/core/extensions/contract/result_models.dart';
@@ -40,18 +42,35 @@ const String testEpisodeKey = '__p2f_test__|series|2026|s1e2';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  test('P2F-1: the on-device database is at schema v4 (migrations ran)',
-      () async {
-    final ProviderContainer container = ProviderContainer();
-    addTearDown(container.dispose);
+  // ONE container — and therefore ONE database connection — for this file.
+  //
+  // Drift keeps a process-global count of how many times a database class has
+  // been instantiated and warns on the second one, because two live connections
+  // over the same file is a hazard. Building a container per test is exactly
+  // what made every device run print "you've created the database class
+  // SpectaDatabase multiple times… might corrupt the database", which is both
+  // alarming in the evidence log and an unnecessary second connection to the
+  // user's database. Sharing the single container the application itself would
+  // have is both truthful and safe.
+  final ProviderContainer container = ProviderContainer();
+  tearDownAll(container.dispose);
+
+  test('P2F-1: the on-device database is at the declared schema version', () async {
     final SpectaDatabase db = container.read(spectaDatabaseProvider);
 
     // Force a real open; the registered migration runs before this returns.
-    final List<QueryRow> rows =
-        await db.customSelect('PRAGMA user_version').get();
+    final List<QueryRow> rows = await db
+        .customSelect('PRAGMA user_version')
+        .get();
     final int version = rows.single.read<int>('user_version');
     marker('on-device PRAGMA user_version = $version');
-    expect(version, 4, reason: 'the v2 -> v4 migrations did not complete');
+    expect(
+      version,
+      SpectaMigrations.schemaVersion,
+      reason:
+          'a registered migration did not complete: the device reports '
+          'v$version but this build declares v${SpectaMigrations.schemaVersion}',
+    );
 
     // The pre-existing v1 settings table is still reachable.
     await db.customSelect('SELECT key FROM settings_entries LIMIT 1').get();
@@ -62,87 +81,89 @@ void main() {
     marker('watch_progress reachable after upgrade');
 
     // The v4 resume-provenance table is queryable.
-    await db.customSelect('SELECT media_key FROM media_references LIMIT 1').get();
+    await db
+        .customSelect('SELECT media_key FROM media_references LIMIT 1')
+        .get();
     marker('media_references reachable after upgrade');
   });
 
-  test('P2F-2: the persistent sink writes real progress to the device database',
-      () async {
-    final ProviderContainer container = ProviderContainer();
-    addTearDown(container.dispose);
-    final LibraryStore store = container.read(libraryStoreProvider);
-    final PersistentPlaybackProgressSink sink =
-        PersistentPlaybackProgressSink(store);
+  test(
+    'P2F-2: the persistent sink writes real progress to the device database',
+    () async {
+      final LibraryStore store = container.read(libraryStoreProvider);
+      final PersistentPlaybackProgressSink sink =
+          PersistentPlaybackProgressSink(store);
 
-    sink.report(
-      targetKey: testMovieKey,
-      elapsed: const Duration(minutes: 1),
-      position: const Duration(seconds: 30),
-      duration: const Duration(minutes: 2),
-      completed: false,
-      mediaKey: testMovieKey,
-      mediaType: 'movie',
-      title: 'P2F Test Movie',
-    );
-    sink.report(
-      targetKey: testEpisodeKey,
-      elapsed: const Duration(minutes: 2),
-      position: const Duration(seconds: 45),
-      duration: const Duration(minutes: 3),
-      completed: false,
-      mediaKey: '__p2f_test__|series|2026',
-      mediaType: 'series',
-      title: 'P2F Test Show',
-      subtitleLine: 'Season 1 · Episode 2',
-      seasonNumber: 1,
-      episodeNumber: 2,
-    );
-    await sink.idle;
+      sink.report(
+        targetKey: testMovieKey,
+        elapsed: const Duration(minutes: 1),
+        position: const Duration(seconds: 30),
+        duration: const Duration(minutes: 2),
+        completed: false,
+        mediaKey: testMovieKey,
+        mediaType: 'movie',
+        title: 'P2F Test Movie',
+      );
+      sink.report(
+        targetKey: testEpisodeKey,
+        elapsed: const Duration(minutes: 2),
+        position: const Duration(seconds: 45),
+        duration: const Duration(minutes: 3),
+        completed: false,
+        mediaKey: '__p2f_test__|series|2026',
+        mediaType: 'series',
+        title: 'P2F Test Show',
+        subtitleLine: 'Season 1 · Episode 2',
+        seasonNumber: 1,
+        episodeNumber: 2,
+      );
+      await sink.idle;
 
-    final WatchProgress? movie = await store.progressFor(testMovieKey);
-    final WatchProgress? episode = await store.progressFor(testEpisodeKey);
+      final WatchProgress? movie = await store.progressFor(testMovieKey);
+      final WatchProgress? episode = await store.progressFor(testEpisodeKey);
 
-    expect(movie, isNotNull);
-    expect(movie!.mediaType, MediaType.movie);
-    expect(movie.position, const Duration(seconds: 30));
-    expect(movie.fraction, closeTo(0.25, 0.001));
+      expect(movie, isNotNull);
+      expect(movie!.mediaType, MediaType.movie);
+      expect(movie.position, const Duration(seconds: 30));
+      expect(movie.fraction, closeTo(0.25, 0.001));
 
-    expect(episode, isNotNull);
-    expect(episode!.mediaType, MediaType.series);
-    expect(episode.seasonNumber, 1);
-    expect(episode.episodeNumber, 2);
-    expect(episode.subtitleLine, 'Season 1 · Episode 2');
+      expect(episode, isNotNull);
+      expect(episode!.mediaType, MediaType.series);
+      expect(episode.seasonNumber, 1);
+      expect(episode.episodeNumber, 2);
+      expect(episode.subtitleLine, 'Season 1 · Episode 2');
 
-    final List<WatchProgress> continueWatching = await store.continueWatching();
-    expect(
-      continueWatching.any((WatchProgress p) => p.id == testMovieKey),
-      isTrue,
-    );
-    expect(
-      continueWatching.any((WatchProgress p) => p.id == testEpisodeKey),
-      isTrue,
-    );
-    marker('continue watching rows present on device: '
-        '${continueWatching.map((WatchProgress p) => p.id).toList()}');
+      final List<WatchProgress> continueWatching = await store
+          .continueWatching();
+      expect(
+        continueWatching.any((WatchProgress p) => p.id == testMovieKey),
+        isTrue,
+      );
+      expect(
+        continueWatching.any((WatchProgress p) => p.id == testEpisodeKey),
+        isTrue,
+      );
+      marker(
+        'continue watching rows present on device: '
+        '${continueWatching.map((WatchProgress p) => p.id).toList()}',
+      );
 
-    // Cleanup: never leave verification rows in the user's library.
-    await store.remove(testMovieKey);
-    await store.remove(testEpisodeKey);
-    expect(await store.progressFor(testMovieKey), isNull);
-    expect(await store.progressFor(testEpisodeKey), isNull);
-    marker('verification rows removed');
-  });
+      // Cleanup: never leave verification rows in the user's library.
+      await store.remove(testMovieKey);
+      await store.remove(testEpisodeKey);
+      expect(await store.progressFor(testMovieKey), isNull);
+      expect(await store.progressFor(testEpisodeKey), isNull);
+      marker('verification rows removed');
+    },
+  );
 
-  test('P2F-3: durable resume provenance is stored on the device database',
-      () async {
-    final ProviderContainer container = ProviderContainer();
-    addTearDown(container.dispose);
-    final LibraryStore store = container.read(libraryStoreProvider);
+  test(
+    'P2F-3: durable resume provenance is stored on the device database',
+    () async {
+      final LibraryStore store = container.read(libraryStoreProvider);
 
-    const String mediaKey = '__p2f_test__|series|2026';
-    await store.saveReferences(
-      mediaKey,
-      const <DiscoveryReference>[
+      const String mediaKey = '__p2f_test__|series|2026';
+      await store.saveReferences(mediaKey, const <DiscoveryReference>[
         DiscoveryReference(
           extensionId: '__p2f_ext_a__',
           url: 'https://a/__p2f_test__',
@@ -151,19 +172,21 @@ void main() {
           extensionId: '__p2f_ext_b__',
           url: 'https://b/__p2f_test__',
         ),
-      ],
-    );
+      ]);
 
-    final List<DiscoveryReference> refs = await store.referencesFor(mediaKey);
-    expect(refs.length, 2);
-    expect(refs[0].extensionId, '__p2f_ext_a__');
-    expect(refs[1].extensionId, '__p2f_ext_b__');
-    marker('durable provenance on device: '
-        '${refs.map((DiscoveryReference r) => r.extensionId).toList()}');
+      final List<DiscoveryReference> refs = await store.referencesFor(mediaKey);
+      expect(refs.length, 2);
+      expect(refs[0].extensionId, '__p2f_ext_a__');
+      expect(refs[1].extensionId, '__p2f_ext_b__');
+      marker(
+        'durable provenance on device: '
+        '${refs.map((DiscoveryReference r) => r.extensionId).toList()}',
+      );
 
-    // Cleanup: replace with nothing, then confirm empty.
-    await store.saveReferences(mediaKey, const <DiscoveryReference>[]);
-    expect(await store.referencesFor(mediaKey), isEmpty);
-    marker('provenance verification rows removed');
-  });
+      // Cleanup: replace with nothing, then confirm empty.
+      await store.saveReferences(mediaKey, const <DiscoveryReference>[]);
+      expect(await store.referencesFor(mediaKey), isEmpty);
+      marker('provenance verification rows removed');
+    },
+  );
 }

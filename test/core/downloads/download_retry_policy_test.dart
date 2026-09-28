@@ -12,16 +12,18 @@ import 'package:specta/core/errors/specta_failure.dart';
 // download_manager_test.dart; this file pins the POLICY ITSELF.
 void main() {
   group('retryability (§19/§22)', () {
-    test('retryable failure types are marked retryable in the failure model',
-        () {
-      // The manager delegates classification to the failure model; these
-      // assertions pin the documented classification contract.
-      expect(DownloadFailureType.networkError.retryable, isTrue);
-      expect(DownloadFailureType.timeout.retryable, isTrue);
-      expect(DownloadFailureType.serverError.retryable, isTrue);
-      expect(DownloadFailureType.storageFailure.retryable, isTrue);
-      expect(DownloadFailureType.interrupted.retryable, isTrue);
-    });
+    test(
+      'retryable failure types are marked retryable in the failure model',
+      () {
+        // The manager delegates classification to the failure model; these
+        // assertions pin the documented classification contract.
+        expect(DownloadFailureType.networkError.retryable, isTrue);
+        expect(DownloadFailureType.timeout.retryable, isTrue);
+        expect(DownloadFailureType.serverError.retryable, isTrue);
+        expect(DownloadFailureType.storageFailure.retryable, isTrue);
+        expect(DownloadFailureType.interrupted.retryable, isTrue);
+      },
+    );
 
     test('non-retryable failure types never retry', () {
       expect(DownloadFailureType.httpError.retryable, isFalse);
@@ -102,17 +104,26 @@ void main() {
 
       expect(policy.backoffAfter(1), const Duration(seconds: 2));
       expect(policy.backoffAfter(2), const Duration(seconds: 4));
-      expect(policy.backoffAfter(3), const Duration(seconds: 5),
-          reason: '8s would exceed the 5s cap');
-      expect(policy.backoffAfter(10), const Duration(seconds: 5),
-          reason: 'the cap holds forever — no unbounded growth');
+      expect(
+        policy.backoffAfter(3),
+        const Duration(seconds: 5),
+        reason: '8s would exceed the 5s cap',
+      );
+      expect(
+        policy.backoffAfter(10),
+        const Duration(seconds: 5),
+        reason: 'the cap holds forever — no unbounded growth',
+      );
     });
 
     test('the default policy caps at one minute', () {
       const DownloadRetryPolicy policy = DownloadRetryPolicy();
 
-      expect(policy.backoffAfter(6), const Duration(minutes: 1),
-          reason: '64s would exceed the 60s cap');
+      expect(
+        policy.backoffAfter(6),
+        const Duration(minutes: 1),
+        reason: '64s would exceed the 60s cap',
+      );
       expect(policy.backoffAfter(50), const Duration(minutes: 1));
     });
 
@@ -145,14 +156,8 @@ void main() {
 
     test('a budget below 1 is a compile-time programming error', () {
       // The const assert guards misconfiguration; verify it fires.
-      expect(
-        () => DownloadRetryPolicy(maxAttempts: 0),
-        throwsA(anything),
-      );
-      expect(
-        () => DownloadRetryPolicy(maxAttempts: -3),
-        throwsA(anything),
-      );
+      expect(() => DownloadRetryPolicy(maxAttempts: 0), throwsA(anything));
+      expect(() => DownloadRetryPolicy(maxAttempts: -3), throwsA(anything));
     });
   });
 }

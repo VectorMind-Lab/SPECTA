@@ -48,10 +48,7 @@ enum PlaybackStatus {
 /// candidate itself ([ExtensionSource] via [RankedSource]) is NOT duplicated
 /// — the ranked source is referenced directly.
 final class PlaybackCandidate {
-  const PlaybackCandidate({
-    required this.ranked,
-    required this.attempt,
-  });
+  const PlaybackCandidate({required this.ranked, required this.attempt});
 
   /// The ranked pool entry (source + extensionId + reference + score).
   final RankedSource ranked;
@@ -146,7 +143,8 @@ final class PlaybackAttemptRecord {
   final DateTime recordedAt;
 
   @override
-  String toString() => 'PlaybackAttemptRecord($extensionId, $outcome, '
+  String toString() =>
+      'PlaybackAttemptRecord($extensionId, $outcome, '
       'ttff: ${timeToPlayable ?? "-"}, attempt: $attempt)';
 }
 
@@ -258,7 +256,9 @@ final class PlaybackSnapshot {
       status: status ?? this.status,
       generation: generation ?? this.generation,
       title: identical(title, unset) ? this.title : title as String?,
-      subtitle: identical(subtitle, unset) ? this.subtitle : subtitle as String?,
+      subtitle: identical(subtitle, unset)
+          ? this.subtitle
+          : subtitle as String?,
       candidates: candidates ?? this.candidates,
       current: identical(current, unset)
           ? this.current
@@ -278,7 +278,9 @@ final class PlaybackSnapshot {
       failure: identical(failure, unset)
           ? this.failure
           : failure as PlaybackFailure?,
-      engine: identical(engine, unset) ? this.engine : engine as PlaybackEngine?,
+      engine: identical(engine, unset)
+          ? this.engine
+          : engine as PlaybackEngine?,
     );
   }
 

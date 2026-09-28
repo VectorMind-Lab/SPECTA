@@ -40,20 +40,14 @@ enum DownloadAction {
 /// never present a control that silently does nothing.
 List<DownloadAction> downloadActionsFor(DownloadStatus status) =>
     switch (status) {
-      DownloadStatus.queued ||
-      DownloadStatus.downloading => const <DownloadAction>[
-        DownloadAction.pause,
-        DownloadAction.cancel,
-      ],
+      DownloadStatus.queued || DownloadStatus.downloading =>
+        const <DownloadAction>[DownloadAction.pause, DownloadAction.cancel],
       DownloadStatus.paused => const <DownloadAction>[
         DownloadAction.resume,
         DownloadAction.cancel,
       ],
-      DownloadStatus.failed ||
-      DownloadStatus.cancelled => const <DownloadAction>[
-        DownloadAction.retry,
-        DownloadAction.remove,
-      ],
+      DownloadStatus.failed || DownloadStatus.cancelled =>
+        const <DownloadAction>[DownloadAction.retry, DownloadAction.remove],
       DownloadStatus.completed => const <DownloadAction>[
         DownloadAction.play,
         DownloadAction.remove,
@@ -141,8 +135,7 @@ List<DownloadRecord> orderDownloadsForDisplay(List<DownloadRecord> records) {
 
   final List<DownloadRecord> ordered = List<DownloadRecord>.of(records);
   ordered.sort((DownloadRecord a, DownloadRecord b) {
-    final int byPriority =
-        priority(a.status).compareTo(priority(b.status));
+    final int byPriority = priority(a.status).compareTo(priority(b.status));
     if (byPriority != 0) return byPriority;
     final int byCreated = a.createdAt.compareTo(b.createdAt);
     if (byCreated != 0) return byCreated;

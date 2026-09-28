@@ -40,8 +40,9 @@ abstract final class DiscoveryDeduplicator {
     for (final DiscoveryObservation o in observations) {
       if (!seenUrls.add('${o.extensionId}|${o.url}')) continue;
 
-      final String key =
-          '${o.keyTitle}|${o.type.code}|${o.year?.toString() ?? 'none'}';
+      final String key = o.type == MediaType.anime
+          ? MediaIdentity.anilistKey(o.externalIds!.anilistId!)!
+          : '${o.keyTitle}|${o.type.code}|${o.year?.toString() ?? 'none'}';
       final _Accumulator? existing = byKey[key];
 
       if (existing == null) {

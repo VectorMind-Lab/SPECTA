@@ -1,4 +1,4 @@
-/// Canonical persisted setting keys.
+﻿/// Canonical persisted setting keys.
 ///
 /// These strings are written into the settings table on users' devices, so
 /// renaming one is a data migration, never a refactor.
@@ -11,9 +11,6 @@ abstract final class SpectaSettingKeys {
 
   /// Selected UI theme preset name (cyanTeal, emeraldGreen, etc.).
   static const String themePreset = 'ui.themePreset';
-
-  /// TMDB personal API key for metadata resolution. Stored locally.
-  static const String tmdbApiKey = 'api.tmdbApiKey';
 
   /// Extension repository catalogue URL for remote discovery.
   static const String extensionRepoUrl = 'extensions.repositoryUrl';

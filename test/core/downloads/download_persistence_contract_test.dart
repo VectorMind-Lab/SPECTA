@@ -40,7 +40,8 @@ void main() {
       }
     });
 
-    SpectaDatabase openDatabase() => SpectaDatabase(NativeDatabase(File(dbPath)));
+    SpectaDatabase openDatabase() =>
+        SpectaDatabase(NativeDatabase(File(dbPath)));
 
     DownloadRecord record(
       String id, {
@@ -58,40 +59,49 @@ void main() {
       DateTime? createdAt,
       DateTime? updatedAt,
       DateTime? completedAt,
-    }) =>
-        DownloadRecord(
-          id: id,
-          mediaKey: mediaKey,
-          mediaType: mediaType,
-          title: title,
-          subtitleLine: subtitleLine,
-          seasonNumber: seasonNumber,
-          episodeNumber: episodeNumber,
-          status: status,
-          bytesDownloaded: bytesDownloaded,
-          totalBytes: totalBytes,
-          filePath: '/data/media/Movie (x).mp4',
-          attempt: attempt,
-          failure: failure,
-          createdAt: createdAt ?? DateTime(2026, 1, 1),
-          updatedAt: updatedAt ?? DateTime(2026, 1, 2),
-          completedAt: completedAt,
-        );
+    }) => DownloadRecord(
+      id: id,
+      mediaKey: mediaKey,
+      mediaType: mediaType,
+      title: title,
+      subtitleLine: subtitleLine,
+      seasonNumber: seasonNumber,
+      episodeNumber: episodeNumber,
+      status: status,
+      bytesDownloaded: bytesDownloaded,
+      totalBytes: totalBytes,
+      filePath: '/data/media/Movie (x).mp4',
+      attempt: attempt,
+      failure: failure,
+      createdAt: createdAt ?? DateTime(2026, 1, 1),
+      updatedAt: updatedAt ?? DateTime(2026, 1, 2),
+      completedAt: completedAt,
+    );
 
     test('every state survives store recreation (queued, downloading, paused,'
         ' failed, completed, cancelled)', () async {
       // Session 1: write one record per state.
       final SpectaDatabase first = openDatabase();
       final DownloadDao writer = DownloadDao(first);
-      await writer.upsert(record('queued|movie|2024',
-          status: DownloadStatus.queued));
-      await writer.upsert(record('downloading|movie|2024',
+      await writer.upsert(
+        record('queued|movie|2024', status: DownloadStatus.queued),
+      );
+      await writer.upsert(
+        record(
+          'downloading|movie|2024',
           status: DownloadStatus.downloading,
           bytesDownloaded: 512,
           totalBytes: 2048,
-          attempt: 1));
-      await writer.upsert(record('paused|movie|2024',
-          status: DownloadStatus.paused, bytesDownloaded: 1024));
+          attempt: 1,
+        ),
+      );
+      await writer.upsert(
+        record(
+          'paused|movie|2024',
+          status: DownloadStatus.paused,
+          bytesDownloaded: 1024,
+        ),
+      );
       await writer.upsert(
         record(
           'failed|movie|2024',
@@ -103,13 +113,18 @@ void main() {
           attempt: 2,
         ),
       );
-      await writer.upsert(record('completed|movie|2024',
+      await writer.upsert(
+        record(
+          'completed|movie|2024',
           status: DownloadStatus.completed,
           bytesDownloaded: 2048,
           totalBytes: 2048,
-          completedAt: DateTime(2026, 1, 3)));
-      await writer.upsert(record('cancelled|movie|2024',
-          status: DownloadStatus.cancelled));
+          completedAt: DateTime(2026, 1, 3),
+        ),
+      );
+      await writer.upsert(
+        record('cancelled|movie|2024', status: DownloadStatus.cancelled),
+      );
       await first.close();
 
       // Session 2: a fresh manager/store over the same file reconstructs
@@ -141,10 +156,15 @@ void main() {
       expect(failed.attempt, 2);
       expect(failed.failure, isNotNull);
       expect(failed.failure!.type, DownloadFailureType.httpError);
-      expect(failed.failure!.isRetryable, isFalse,
-          reason: 'retry eligibility is reconstructed from the stored type');
-      expect(failed.failure!.message,
-          'The server refused this download (source unavailable).');
+      expect(
+        failed.failure!.isRetryable,
+        isFalse,
+        reason: 'retry eligibility is reconstructed from the stored type',
+      );
+      expect(
+        failed.failure!.message,
+        'The server refused this download (source unavailable).',
+      );
 
       final DownloadRecord completed = byId['completed|movie|2024']!;
       expect(completed.status, DownloadStatus.completed);
@@ -178,8 +198,8 @@ void main() {
       // and must never be needed to reconstruct SPECTA domain state.
       final SpectaDatabase second = openDatabase();
       addTearDown(second.close);
-      final DownloadRecord r =
-          (await DownloadDao(second).recordFor('Show|series|2024|s1e2'))!;
+      final DownloadRecord r = (await DownloadDao(second)
+          .recordFor('Show|series|2024|s1e2'))!;
 
       // §2 of the contract: every product-relevant fact is present.
       expect(r.id, 'Show|series|2024|s1e2'); // download identity
@@ -201,65 +221,91 @@ void main() {
       expect(r.failure, isNull); // no failure was stored
     });
 
-    test('queue ordering survives recreation (FIFO replay after restart)',
-        () async {
-      final SpectaDatabase first = openDatabase();
-      final DownloadDao writer = DownloadDao(first);
-      await writer.upsert(record('b|movie|2024', createdAt: DateTime(2026, 1, 2)));
-      await writer.upsert(record('a|movie|2024', createdAt: DateTime(2026, 1, 1)));
-      await writer.upsert(record('c|movie|2024', createdAt: DateTime(2026, 1, 3)));
-      await first.close();
+    test(
+      'queue ordering survives recreation (FIFO replay after restart)',
+      () async {
+        final SpectaDatabase first = openDatabase();
+        final DownloadDao writer = DownloadDao(first);
+        await writer.upsert(
+          record('b|movie|2024', createdAt: DateTime(2026, 1, 2)),
+        );
+        await writer.upsert(
+          record('a|movie|2024', createdAt: DateTime(2026, 1, 1)),
+        );
+        await writer.upsert(
+          record('c|movie|2024', createdAt: DateTime(2026, 1, 3)),
+        );
+        await first.close();
 
-      final SpectaDatabase second = openDatabase();
-      addTearDown(second.close);
-      final List<String> ids =
-          (await DownloadDao(second).all()).map((DownloadRecord r) => r.id).toList();
+        final SpectaDatabase second = openDatabase();
+        addTearDown(second.close);
+        final List<String> ids = (await DownloadDao(
+          second,
+        ).all()).map((DownloadRecord r) => r.id).toList();
 
-      expect(ids, <String>['a|movie|2024', 'b|movie|2024', 'c|movie|2024']);
-    });
+        expect(ids, <String>['a|movie|2024', 'b|movie|2024', 'c|movie|2024']);
+      },
+    );
 
-    test('duplicate identity remains one record across recreation (§8)',
-        () async {
-      final SpectaDatabase first = openDatabase();
-      final DownloadDao writer = DownloadDao(first);
-      await writer.upsert(record('dup|movie|2024', status: DownloadStatus.queued));
-      // Enqueue the same identity again (user retry / duplicate request).
-      await writer.upsert(
-        record('dup|movie|2024', status: DownloadStatus.downloading, attempt: 1),
-      );
-      await first.close();
+    test(
+      'duplicate identity remains one record across recreation (§8)',
+      () async {
+        final SpectaDatabase first = openDatabase();
+        final DownloadDao writer = DownloadDao(first);
+        await writer.upsert(
+          record('dup|movie|2024', status: DownloadStatus.queued),
+        );
+        // Enqueue the same identity again (user retry / duplicate request).
+        await writer.upsert(
+          record(
+            'dup|movie|2024',
+            status: DownloadStatus.downloading,
+            attempt: 1,
+          ),
+        );
+        await first.close();
 
-      final SpectaDatabase second = openDatabase();
-      addTearDown(second.close);
-      final List<DownloadRecord> all = await DownloadDao(second).all();
+        final SpectaDatabase second = openDatabase();
+        addTearDown(second.close);
+        final List<DownloadRecord> all = await DownloadDao(second).all();
 
-      expect(all.length, 1);
-      expect(all.single.status, DownloadStatus.downloading);
-      expect(all.single.attempt, 1,
-          reason: 'the second enqueue replaced the first, atomically');
-    });
+        expect(all.length, 1);
+        expect(all.single.status, DownloadStatus.downloading);
+        expect(
+          all.single.attempt,
+          1,
+          reason: 'the second enqueue replaced the first, atomically',
+        );
+      },
+    );
 
-    test('a single upsert lands state, attempt and timestamps together (§9)',
-        () async {
-      final SpectaDatabase db = openDatabase();
-      addTearDown(db.close);
-      final DownloadDao dao = DownloadDao(db);
+    test(
+      'a single upsert lands state, attempt and timestamps together (§9)',
+      () async {
+        final SpectaDatabase db = openDatabase();
+        addTearDown(db.close);
+        final DownloadDao dao = DownloadDao(db);
 
-      final DateTime updated = DateTime(2026, 1, 5);
-      await dao.upsert(record('atomic|movie|2024',
-          status: DownloadStatus.downloading,
-          bytesDownloaded: 128,
-          attempt: 1,
-          updatedAt: updated));
+        final DateTime updated = DateTime(2026, 1, 5);
+        await dao.upsert(
+          record(
+            'atomic|movie|2024',
+            status: DownloadStatus.downloading,
+            bytesDownloaded: 128,
+            attempt: 1,
+            updatedAt: updated,
+          ),
+        );
 
-      final DownloadRecord r = (await dao.all()).single;
-      // One INSERT OR REPLACE wrote every field of the logical state change;
-      // the row cannot show a mixed old/new state.
-      expect(r.status, DownloadStatus.downloading);
-      expect(r.attempt, 1);
-      expect(r.bytesDownloaded, 128);
-      expect(r.updatedAt, updated);
-    });
+        final DownloadRecord r = (await dao.all()).single;
+        // One INSERT OR REPLACE wrote every field of the logical state change;
+        // the row cannot show a mixed old/new state.
+        expect(r.status, DownloadStatus.downloading);
+        expect(r.attempt, 1);
+        expect(r.bytesDownloaded, 128);
+        expect(r.updatedAt, updated);
+      },
+    );
 
     test('terminal records cannot be resurrected — the state machine the '
         'manager must consult refuses it (§11)', () {
@@ -269,12 +315,16 @@ void main() {
       // completed/cancelled into downloading.
       expect(
         DownloadStateMachine.canTransition(
-            DownloadStatus.completed, DownloadStatus.downloading),
+          DownloadStatus.completed,
+          DownloadStatus.downloading,
+        ),
         isFalse,
       );
       expect(
         DownloadStateMachine.canTransition(
-            DownloadStatus.cancelled, DownloadStatus.downloading),
+          DownloadStatus.cancelled,
+          DownloadStatus.downloading,
+        ),
         isFalse,
       );
       for (final DownloadStatus to in DownloadStatus.values) {
@@ -291,19 +341,21 @@ void main() {
       }
     });
 
-    test('recreation is repeatable: initializing the store twice is safe (§8)',
-        () async {
-      // Manager initialization must be idempotent; the store it reads must
-      // tolerate being opened any number of times over the same file.
-      for (int i = 0; i < 3; i++) {
-        final SpectaDatabase session = openDatabase();
-        final DownloadDao dao = DownloadDao(session);
-        if (i == 0) {
-          await dao.upsert(record('steady|movie|2024'));
+    test(
+      'recreation is repeatable: initializing the store twice is safe (§8)',
+      () async {
+        // Manager initialization must be idempotent; the store it reads must
+        // tolerate being opened any number of times over the same file.
+        for (int i = 0; i < 3; i++) {
+          final SpectaDatabase session = openDatabase();
+          final DownloadDao dao = DownloadDao(session);
+          if (i == 0) {
+            await dao.upsert(record('steady|movie|2024'));
+          }
+          expect((await dao.all()).length, 1);
+          await session.close();
         }
-        expect((await dao.all()).length, 1);
-        await session.close();
-      }
-    });
+      },
+    );
   });
 }

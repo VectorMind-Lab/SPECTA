@@ -62,23 +62,21 @@ void main() {
   });
 
   DownloadRequest request(String id, {SourcePool? pool}) => DownloadRequest(
-        id: id,
-        mediaKey: id,
-        mediaType: MediaType.movie,
-        title: 'Title $id',
-        extensions: const <String, String>{'extA': 'ref-a'},
-        pool: pool ?? _mp4Pool(),
-      );
+    id: id,
+    mediaKey: id,
+    mediaType: MediaType.movie,
+    title: 'Title $id',
+    extensions: const <String, String>{'extA': 'ref-a'},
+    pool: pool ?? _mp4Pool(),
+  );
 
   Future<DownloadRecord> recordOf(String id) async =>
       (await manager.store.recordFor(id))!;
 
   // The EXACT paths the manager derives (same stem function + part rule —
   // never a test-side guess of the filename format).
-  String finalPathFor(String id) => p.join(
-        mediaDir,
-        '${downloadFileStem(id, 'Title $id')}.mp4',
-      );
+  String finalPathFor(String id) =>
+      p.join(mediaDir, '${downloadFileStem(id, 'Title $id')}.mp4');
 
   String partPathFor(String id) => downloadPartPathFor(finalPathFor(id));
 
@@ -87,7 +85,9 @@ void main() {
   void writePart(String id, int bytes, {String? content}) {
     final File part = File(partPathFor(id));
     part.parent.createSync(recursive: true);
-    part.writeAsBytesSync(List<int>.filled(bytes, content?.codeUnitAt(0) ?? 120));
+    part.writeAsBytesSync(
+      List<int>.filled(bytes, content?.codeUnitAt(0) ?? 120),
+    );
   }
 
   group('restart adoption (2G-C §32)', () {
@@ -127,9 +127,13 @@ void main() {
       await manager2.debugIdle;
 
       // The engine was asked to ATTACH, never to start a second transfer.
-      expect(engine2.startedCount, 0,
-          reason: 'adoption re-attaches to the surviving native task; the '
-              'plugin has no re-enqueue guard, so starting would duplicate');
+      expect(
+        engine2.startedCount,
+        0,
+        reason:
+            'adoption re-attaches to the surviving native task; the '
+            'plugin has no re-enqueue guard, so starting would duplicate',
+      );
       expect(engine2.adoptable, contains('adopt1'));
 
       // Now the adopted transfer completes (as the real engine would):
@@ -140,13 +144,21 @@ void main() {
       await manager2.debugIdle;
 
       final DownloadRecord completed = await recordOf('adopt1');
-      expect(completed.status, DownloadStatus.completed,
-          reason: 'the surviving transfer finished; SPECTA adopted and '
-              'finalized it');
+      expect(
+        completed.status,
+        DownloadStatus.completed,
+        reason:
+            'the surviving transfer finished; SPECTA adopted and '
+            'finalized it',
+      );
       expect(completed.bytesDownloaded, 500);
-      expect(completed.attempt, 1,
-          reason: 'adoption does not spend a new attempt — the transfer is '
-              'the SAME attempt that was already running');
+      expect(
+        completed.attempt,
+        1,
+        reason:
+            'adoption does not spend a new attempt — the transfer is '
+            'the SAME attempt that was already running',
+      );
     });
 
     test('an adopted transfer that actually died is failed honestly under '
@@ -188,8 +200,11 @@ void main() {
       expect(failed.status, DownloadStatus.failed);
       expect(failed.failure!.type, DownloadFailureType.networkError);
       // The bounded auto-retry is scheduled (2s base backoff):
-      expect(clock2.pendingDelayCount, 1,
-          reason: 'retry policy stays manager-owned for adopted attempts too');
+      expect(
+        clock2.pendingDelayCount,
+        1,
+        reason: 'retry policy stays manager-owned for adopted attempts too',
+      );
     });
 
     test('a surviving transfer for a PAUSED record is not resumed behind '
@@ -221,9 +236,13 @@ void main() {
       // paused ≠ downloading: reconciliation only touches `downloading`
       // records. The engine's stale transfer must not resurrect anything.
       final DownloadRecord record = await recordOf('adopt3');
-      expect(record.status, DownloadStatus.paused,
-          reason: 'the user paused this download; a stale engine transfer '
-              'cannot override SPECTA state');
+      expect(
+        record.status,
+        DownloadStatus.paused,
+        reason:
+            'the user paused this download; a stale engine transfer '
+            'cannot override SPECTA state',
+      );
       expect(engine2.startedCount, 0);
       // The stale native transfer is cleaned up:
       expect(engine2.cancelCalls, contains('adopt3'));
@@ -238,9 +257,13 @@ void main() {
       await manager.debugIdle;
 
       final DownloadRecord record = await recordOf('gate1');
-      expect(record.status, DownloadStatus.failed,
-          reason: 'the engine SAID complete but produced no file — the gate '
-              'refuses to mark media that does not exist');
+      expect(
+        record.status,
+        DownloadStatus.failed,
+        reason:
+            'the engine SAID complete but produced no file — the gate '
+            'refuses to mark media that does not exist',
+      );
       expect(record.failure!.type, DownloadFailureType.engineFailure);
     });
 
@@ -275,10 +298,16 @@ void main() {
       final DownloadRecord record = await recordOf('gate3');
       expect(record.status, DownloadStatus.completed);
       expect(record.bytesDownloaded, 2048);
-      expect(File(finalPathFor('gate3')).existsSync(), isTrue,
-          reason: 'the gate renamed the verified part into the final path');
-      expect(File(partPathFor('gate3')).existsSync(), isFalse,
-          reason: 'no .part file survives a completed download');
+      expect(
+        File(finalPathFor('gate3')).existsSync(),
+        isTrue,
+        reason: 'the gate renamed the verified part into the final path',
+      );
+      expect(
+        File(partPathFor('gate3')).existsSync(),
+        isFalse,
+        reason: 'no .part file survives a completed download',
+      );
     });
 
     test('a TRUNCATED transfer is REFUSED: the gate verifies the declared '
@@ -299,16 +328,30 @@ void main() {
       await manager.debugIdle;
 
       final DownloadRecord record = await recordOf('gate4');
-      expect(record.status, DownloadStatus.failed,
-          reason: '8028 of the 2097176 DECLARED bytes is not completed media, '
-              'however firmly the engine says complete');
-      expect(record.failure!.type, DownloadFailureType.interrupted,
-          reason: 'a short transfer is an interruption, and it is retryable '
-              'under the bounded budget');
-      expect(File(finalPathFor('gate4')).existsSync(), isFalse,
-          reason: 'partial bytes must never be renamed into the final path');
-      expect(File(partPathFor('gate4')).existsSync(), isTrue,
-          reason: 'the bytes already transferred are kept for a resume');
+      expect(
+        record.status,
+        DownloadStatus.failed,
+        reason:
+            '8028 of the 2097176 DECLARED bytes is not completed media, '
+            'however firmly the engine says complete',
+      );
+      expect(
+        record.failure!.type,
+        DownloadFailureType.interrupted,
+        reason:
+            'a short transfer is an interruption, and it is retryable '
+            'under the bounded budget',
+      );
+      expect(
+        File(finalPathFor('gate4')).existsSync(),
+        isFalse,
+        reason: 'partial bytes must never be renamed into the final path',
+      );
+      expect(
+        File(partPathFor('gate4')).existsSync(),
+        isTrue,
+        reason: 'the bytes already transferred are kept for a resume',
+      );
     });
 
     test('a COMPLETE transfer is persisted with the file\'s verified byte '
@@ -326,43 +369,56 @@ void main() {
 
       final DownloadRecord record = await recordOf('gate5');
       expect(record.status, DownloadStatus.completed);
-      expect(record.bytesDownloaded, 2097176,
-          reason: 'the record must agree with the file that is on disk');
-      expect(record.totalBytes, 2097176,
-          reason: 'the declared total survives completion');
-    });
-
-    test('the gate never leaks a raw filesystem error: an unreadable final '
-        'artifact is an honest failed record, never a crashed reconcile', () async {
-      // Real-device shape (D-3 device run 4): two reconcilers may finalize
-      // the same transfer, and only one rename can win — the loser's probe
-      // found the file gone BETWEEN an existence check and a read, and the
-      // raw dart:io exception escaped the gate and crashed the reconcile.
-      // A directory on the final path makes File.length() throw the same
-      // class of raw OS error, deterministically, on every platform.
-      Directory(finalPathFor('gate6')).createSync(recursive: true);
-      engine.completeWith(2048, totalBytes: 2048);
-      await manager.enqueue(request('gate6'));
-      await manager.debugIdle;
-
-      final DownloadRecord record = await recordOf('gate6');
-      expect(record.status, DownloadStatus.failed,
-          reason: 'the gate reports what it can VERIFY — an unverifiable '
-              'artifact is an honest failure, not a crash');
-      // The deterministic trigger lands in the gate's no-file branch; the
-      // vanished-between-probes window that produced the raw
-      // PathNotFoundException on device is a TOCTOU race and cannot be
-      // reproduced deterministically offline — the gate now classifies BOTH
-      // as honest DownloadFailures (raw OS exceptions never escape).
-      expect(record.failure, isA<DownloadFailure>());
       expect(
-        record.failure!.type,
-        anyOf(
-          DownloadFailureType.engineFailure,
-          DownloadFailureType.storageFailure,
-        ),
+        record.bytesDownloaded,
+        2097176,
+        reason: 'the record must agree with the file that is on disk',
+      );
+      expect(
+        record.totalBytes,
+        2097176,
+        reason: 'the declared total survives completion',
       );
     });
+
+    test(
+      'the gate never leaks a raw filesystem error: an unreadable final '
+      'artifact is an honest failed record, never a crashed reconcile',
+      () async {
+        // Real-device shape (D-3 device run 4): two reconcilers may finalize
+        // the same transfer, and only one rename can win — the loser's probe
+        // found the file gone BETWEEN an existence check and a read, and the
+        // raw dart:io exception escaped the gate and crashed the reconcile.
+        // A directory on the final path makes File.length() throw the same
+        // class of raw OS error, deterministically, on every platform.
+        Directory(finalPathFor('gate6')).createSync(recursive: true);
+        engine.completeWith(2048, totalBytes: 2048);
+        await manager.enqueue(request('gate6'));
+        await manager.debugIdle;
+
+        final DownloadRecord record = await recordOf('gate6');
+        expect(
+          record.status,
+          DownloadStatus.failed,
+          reason:
+              'the gate reports what it can VERIFY — an unverifiable '
+              'artifact is an honest failure, not a crash',
+        );
+        // The deterministic trigger lands in the gate's no-file branch; the
+        // vanished-between-probes window that produced the raw
+        // PathNotFoundException on device is a TOCTOU race and cannot be
+        // reproduced deterministically offline — the gate now classifies BOTH
+        // as honest DownloadFailures (raw OS exceptions never escape).
+        expect(record.failure, isA<DownloadFailure>());
+        expect(
+          record.failure!.type,
+          anyOf(
+            DownloadFailureType.engineFailure,
+            DownloadFailureType.storageFailure,
+          ),
+        );
+      },
+    );
 
     test('the source-DECLARED total outranks an engine total derived from '
         'its own byte count', () async {
@@ -387,8 +443,9 @@ void main() {
     test('an expired source (httpError) is NOT trusted: the resolver is '
         'asked with the failure and recovery supplies a fresh pool', () async {
       final SourcePool freshPool = _mp4Pool(url: 'https://fresh.example/v.mp4');
-      final _RecordingResolver resolver =
-          _RecordingResolver(initialPool: _mp4Pool());
+      final _RecordingResolver resolver = _RecordingResolver(
+        initialPool: _mp4Pool(),
+      );
       final DownloadManager recovery = DownloadManager(
         store: DownloadDao(db),
         engine: engine,
@@ -431,76 +488,98 @@ void main() {
       await recovery.debugIdle;
 
       final DownloadRecord record = await recordOf('exp1');
-      expect(record.status, DownloadStatus.completed,
-          reason: 'fresh source → retried → success');
-      expect(record.attempt, 1,
-          reason: 'a manual retry is a NEW run — the budget resets '
-              'deliberately (user-initiated)');
-      // The resolver saw the source-invalidating failure:
-      expect(resolver.lastFailureFor('exp1')?.type,
-          DownloadFailureType.httpError);
-      expect(resolver.stalePoolRequests, contains('exp1'),
-          reason: 'a captured pool must not be silently reused after the '
-              'source itself failed — the resolver is told why');
-      expect(engine.startedInputs.last.url, 'https://fresh.example/v.mp4',
-          reason: 'the FRESH url drove the retry, never the expired one');
-    });
-
-    test('the bounded budget survives transient-failure recovery: a '
-        'retryable failure auto-retries up to maxAttempts, then fails '
-        'permanently (captured pool stays valid — the source did not)',
-        () async {
-      final _RecordingResolver resolver =
-          _RecordingResolver(initialPool: _mp4Pool());
-      final DownloadManager recovery = DownloadManager(
-        store: DownloadDao(db),
-        engine: engine,
-        environment: _WifiDeviceEnvironment(),
-        clock: clock,
-        mediaDirectory: () async => mediaDir,
-        sourceResolver: resolver,
+      expect(
+        record.status,
+        DownloadStatus.completed,
+        reason: 'fresh source → retried → success',
       );
-      addTearDown(() async {
-        await recovery.dispose();
-      });
-      await recovery.initialize();
-
-      // A 5xx is retryable (plausibly transient) but NOT source-
-      // invalidating: the captured pool must keep being served.
-      for (int i = 0; i < 3; i++) {
-        engine.failWith(
-          DownloadFailure(
-            type: DownloadFailureType.serverError,
-            message: DownloadFailureType.serverError.message,
-          ),
-          0,
-        );
-      }
-      await recovery.enqueue(request('exp2'));
-      await recovery.debugIdle;
-
-      // Attempt 1 failed → auto-retry 2 scheduled:
-      expect((await recordOf('exp2')).attempt, 1);
-      expect(clock.pendingDelayCount, 1);
-      clock.advance(const Duration(seconds: 3));
-      await recovery.debugIdle;
-      expect((await recordOf('exp2')).attempt, 2);
-      expect(clock.pendingDelayCount, 1);
-      clock.advance(const Duration(seconds: 5));
-      await recovery.debugIdle;
-
-      // The budget is absolute: 3 attempts → permanent failure.
-      final DownloadRecord record = await recordOf('exp2');
-      expect(record.status, DownloadStatus.failed);
-      expect(record.attempt, 3);
-      expect(clock.pendingDelayCount, 0,
-          reason: 'exhausted budget → no further auto-retries');
-      expect(engine.startedCount, 3);
-      // The resolver was consulted for every attempt and the pool stayed
-      // the captured one (serverError does not invalidate the source):
-      expect(resolver.resolveCallsFor('exp2'), 3);
-      expect(resolver.stalePoolRequests, isNot(contains('exp2')));
+      expect(
+        record.attempt,
+        1,
+        reason:
+            'a manual retry is a NEW run — the budget resets '
+            'deliberately (user-initiated)',
+      );
+      // The resolver saw the source-invalidating failure:
+      expect(
+        resolver.lastFailureFor('exp1')?.type,
+        DownloadFailureType.httpError,
+      );
+      expect(
+        resolver.stalePoolRequests,
+        contains('exp1'),
+        reason:
+            'a captured pool must not be silently reused after the '
+            'source itself failed — the resolver is told why',
+      );
+      expect(
+        engine.startedInputs.last.url,
+        'https://fresh.example/v.mp4',
+        reason: 'the FRESH url drove the retry, never the expired one',
+      );
     });
+
+    test(
+      'the bounded budget survives transient-failure recovery: a '
+      'retryable failure auto-retries up to maxAttempts, then fails '
+      'permanently (captured pool stays valid — the source did not)',
+      () async {
+        final _RecordingResolver resolver = _RecordingResolver(
+          initialPool: _mp4Pool(),
+        );
+        final DownloadManager recovery = DownloadManager(
+          store: DownloadDao(db),
+          engine: engine,
+          environment: _WifiDeviceEnvironment(),
+          clock: clock,
+          mediaDirectory: () async => mediaDir,
+          sourceResolver: resolver,
+        );
+        addTearDown(() async {
+          await recovery.dispose();
+        });
+        await recovery.initialize();
+
+        // A 5xx is retryable (plausibly transient) but NOT source-
+        // invalidating: the captured pool must keep being served.
+        for (int i = 0; i < 3; i++) {
+          engine.failWith(
+            DownloadFailure(
+              type: DownloadFailureType.serverError,
+              message: DownloadFailureType.serverError.message,
+            ),
+            0,
+          );
+        }
+        await recovery.enqueue(request('exp2'));
+        await recovery.debugIdle;
+
+        // Attempt 1 failed → auto-retry 2 scheduled:
+        expect((await recordOf('exp2')).attempt, 1);
+        expect(clock.pendingDelayCount, 1);
+        clock.advance(const Duration(seconds: 3));
+        await recovery.debugIdle;
+        expect((await recordOf('exp2')).attempt, 2);
+        expect(clock.pendingDelayCount, 1);
+        clock.advance(const Duration(seconds: 5));
+        await recovery.debugIdle;
+
+        // The budget is absolute: 3 attempts → permanent failure.
+        final DownloadRecord record = await recordOf('exp2');
+        expect(record.status, DownloadStatus.failed);
+        expect(record.attempt, 3);
+        expect(
+          clock.pendingDelayCount,
+          0,
+          reason: 'exhausted budget → no further auto-retries',
+        );
+        expect(engine.startedCount, 3);
+        // The resolver was consulted for every attempt and the pool stayed
+        // the captured one (serverError does not invalidate the source):
+        expect(resolver.resolveCallsFor('exp2'), 3);
+        expect(resolver.stalePoolRequests, isNot(contains('exp2')));
+      },
+    );
   });
 }
 

@@ -15,7 +15,11 @@ class Extensions extends Table {
 
   IntColumn get apiVersion => integer()();
 
-  /// ExtensionContentType.code, e.g. `movies_series`.
+  /// Contract revision declared by the manifest.
+  TextColumn get contractVersion =>
+      text().withDefault(const Constant('2.0.0'))();
+
+  /// ExtensionContentType.code, e.g. `movies_series` or `anime`.
   TextColumn get contentType => text()();
 
   /// Raw signature string from the manifest, or null when unsigned.

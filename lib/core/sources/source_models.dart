@@ -58,45 +58,44 @@ final class ExtensionSourceOutcome {
     String reference,
     List<ExtensionSource> candidates, {
     int droppedCount = 0,
-  }) =>
-      ExtensionSourceOutcome._(
-        kind: SourceOutcomeKind.success,
-        extensionId: extensionId,
-        reference: reference,
-        candidates: candidates,
-        droppedCount: droppedCount,
-      );
+  }) => ExtensionSourceOutcome._(
+    kind: SourceOutcomeKind.success,
+    extensionId: extensionId,
+    reference: reference,
+    candidates: candidates,
+    droppedCount: droppedCount,
+  );
 
-  factory ExtensionSourceOutcome.skipped(String extensionId, String reference) =>
-      ExtensionSourceOutcome._(
-        kind: SourceOutcomeKind.skipped,
-        extensionId: extensionId,
-        reference: reference,
-      );
+  factory ExtensionSourceOutcome.skipped(
+    String extensionId,
+    String reference,
+  ) => ExtensionSourceOutcome._(
+    kind: SourceOutcomeKind.skipped,
+    extensionId: extensionId,
+    reference: reference,
+  );
 
   factory ExtensionSourceOutcome.failed(
     String extensionId,
     String reference,
     SpectaFailure failure,
-  ) =>
-      ExtensionSourceOutcome._(
-        kind: SourceOutcomeKind.failed,
-        extensionId: extensionId,
-        reference: reference,
-        failure: failure,
-      );
+  ) => ExtensionSourceOutcome._(
+    kind: SourceOutcomeKind.failed,
+    extensionId: extensionId,
+    reference: reference,
+    failure: failure,
+  );
 
   factory ExtensionSourceOutcome.invalid(
     String extensionId,
     String reference, {
     int droppedCount = 0,
-  }) =>
-      ExtensionSourceOutcome._(
-        kind: SourceOutcomeKind.invalid,
-        extensionId: extensionId,
-        reference: reference,
-        droppedCount: droppedCount,
-      );
+  }) => ExtensionSourceOutcome._(
+    kind: SourceOutcomeKind.invalid,
+    extensionId: extensionId,
+    reference: reference,
+    droppedCount: droppedCount,
+  );
 
   final SourceOutcomeKind kind;
   final String extensionId;

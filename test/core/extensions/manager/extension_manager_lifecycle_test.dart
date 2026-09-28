@@ -96,27 +96,29 @@ void main() {
       expect(await registry.getById('com.test.valid'), isNotNull);
     });
 
-    test('a malformed file is rejected and never reaches the registry',
-        () async {
-      final ExtensionManager manager = buildManager();
-      final File file = await write('broken.js', 'function nope( {');
+    test(
+      'a malformed file is rejected and never reaches the registry',
+      () async {
+        final ExtensionManager manager = buildManager();
+        final File file = await write('broken.js', 'function nope( {');
 
-      final SpectaResult<ExtensionRecord> result = await manager
-          .importExtension(filePath: file.path);
+        final SpectaResult<ExtensionRecord> result = await manager
+            .importExtension(filePath: file.path);
 
-      expect(result.isErr, isTrue);
-      expect(await registry.getAll(), isEmpty);
-    });
+        expect(result.isErr, isTrue);
+        expect(await registry.getAll(), isEmpty);
+      },
+    );
 
     test('a missing required field is rejected', () async {
       final ExtensionManager manager = buildManager();
       final File file = await write(
         'missing.js',
         '// ==SpectaExtension==\n'
-        '// @id com.test.missing\n'
-        '// @name Only Two Fields\n'
-        '// ==/SpectaExtension==\n'
-        'class Extension extends SpectaExtension {}',
+            '// @id com.test.missing\n'
+            '// @name Only Two Fields\n'
+            '// ==/SpectaExtension==\n'
+            'class Extension extends SpectaExtension {}',
       );
 
       final SpectaResult<ExtensionRecord> result = await manager
@@ -174,48 +176,52 @@ void main() {
   });
 
   group('duplicate extension IDs', () {
-    test('re-installing the same id replaces the record, never duplicates it',
-        () async {
-      final ExtensionManager manager = buildManager();
-      final File first = await write(
-        'v1.js',
-        extensionSource(id: 'com.test.dup', name: 'Dup', version: '1.0.0'),
-      );
-      await manager.importExtension(filePath: first.path);
+    test(
+      're-installing the same id replaces the record, never duplicates it',
+      () async {
+        final ExtensionManager manager = buildManager();
+        final File first = await write(
+          'v1.js',
+          extensionSource(id: 'com.test.dup', name: 'Dup', version: '1.0.0'),
+        );
+        await manager.importExtension(filePath: first.path);
 
-      final File second = await write(
-        'v2.js',
-        extensionSource(id: 'com.test.dup', name: 'Dup', version: '2.0.0'),
-      );
-      await manager.importExtension(filePath: second.path);
+        final File second = await write(
+          'v2.js',
+          extensionSource(id: 'com.test.dup', name: 'Dup', version: '2.0.0'),
+        );
+        await manager.importExtension(filePath: second.path);
 
-      final List<ExtensionRecord> all = await registry.getAll();
-      expect(all.length, 1);
-      expect(all.single.version, '2.0.0');
-      expect(all.single.filePath, second.path);
-    });
+        final List<ExtensionRecord> all = await registry.getAll();
+        expect(all.length, 1);
+        expect(all.single.version, '2.0.0');
+        expect(all.single.filePath, second.path);
+      },
+    );
 
-    test('re-installing a DISABLED extension does not silently re-enable it',
-        () async {
-      final ExtensionManager manager = buildManager();
-      final File file = await write(
-        'toggle.js',
-        extensionSource(id: 'com.test.toggle'),
-      );
-      await manager.importExtension(filePath: file.path);
-      await manager.setEnabled('com.test.toggle', false);
+    test(
+      're-installing a DISABLED extension does not silently re-enable it',
+      () async {
+        final ExtensionManager manager = buildManager();
+        final File file = await write(
+          'toggle.js',
+          extensionSource(id: 'com.test.toggle'),
+        );
+        await manager.importExtension(filePath: file.path);
+        await manager.setEnabled('com.test.toggle', false);
 
-      await manager.importExtension(filePath: file.path);
+        await manager.importExtension(filePath: file.path);
 
-      final ExtensionRecord record = (await registry.getById(
-        'com.test.toggle',
-      ))!;
-      expect(
-        record.enabled,
-        isFalse,
-        reason: 'a re-import must not override the user\'s disable choice',
-      );
-    });
+        final ExtensionRecord record = (await registry.getById(
+          'com.test.toggle',
+        ))!;
+        expect(
+          record.enabled,
+          isFalse,
+          reason: 'a re-import must not override the user\'s disable choice',
+        );
+      },
+    );
 
     test('re-installing retires the running runtime for that id', () async {
       final ExtensionManager manager = buildManager();
@@ -289,8 +295,11 @@ void main() {
       final ExtensionFailure failure =
           result.failureOrNull! as ExtensionFailure;
       expect(failure.type, ExtensionFailureType.capabilityError);
-      expect(sandboxes, isEmpty,
-          reason: 'a disabled extension must not create a runtime');
+      expect(
+        sandboxes,
+        isEmpty,
+        reason: 'a disabled extension must not create a runtime',
+      );
     });
 
     test('re-enabling makes the extension loadable again', () async {
@@ -323,7 +332,8 @@ void main() {
       await manager.importExtension(filePath: off.path);
       await manager.setEnabled('com.test.off2', false);
 
-      final List<ExtensionRecord> enabled = await manager.getEnabledExtensions();
+      final List<ExtensionRecord> enabled = await manager
+          .getEnabledExtensions();
 
       expect(enabled.length, 1);
       expect(enabled.single.id, 'com.test.on');
@@ -392,37 +402,38 @@ void main() {
       expect(call.isErr, isTrue);
     });
 
-    test('one extension failing does not stop another from operating', () async {
-      final ExtensionManager manager = buildManager(
-        failAt: (int index) => index == 0,
-      );
-      final File bad = await write(
-        'bad.js',
-        extensionSource(id: 'com.test.bad'),
-      );
-      final File good = await write(
-        'good.js',
-        extensionSource(id: 'com.test.good'),
-      );
-      await manager.importExtension(filePath: bad.path);
-      await manager.importExtension(filePath: good.path);
+    test(
+      'one extension failing does not stop another from operating',
+      () async {
+        final ExtensionManager manager = buildManager(
+          failAt: (int index) => index == 0,
+        );
+        final File bad = await write(
+          'bad.js',
+          extensionSource(id: 'com.test.bad'),
+        );
+        final File good = await write(
+          'good.js',
+          extensionSource(id: 'com.test.good'),
+        );
+        await manager.importExtension(filePath: bad.path);
+        await manager.importExtension(filePath: good.path);
 
-      final SpectaResult<ExtensionRuntime> badLoad = await manager.loadRuntime(
-        'com.test.bad',
-      );
-      final SpectaResult<ExtensionRuntime> goodLoad = await manager.loadRuntime(
-        'com.test.good',
-      );
+        final SpectaResult<ExtensionRuntime> badLoad = await manager
+            .loadRuntime('com.test.bad');
+        final SpectaResult<ExtensionRuntime> goodLoad = await manager
+            .loadRuntime('com.test.good');
 
-      expect(badLoad.isErr, isTrue);
-      expect(goodLoad.isOk, isTrue, reason: goodLoad.failureOrNull?.message);
-      final SpectaResult<bool> healthy = await manager.callOperation<bool>(
-        'com.test.good',
-        (ExtensionRuntime runtime) => runtime.healthCheck(),
-      );
-      expect(healthy.isOk, isTrue);
-      expect(healthy.valueOrNull, isTrue);
-    });
+        expect(badLoad.isErr, isTrue);
+        expect(goodLoad.isOk, isTrue, reason: goodLoad.failureOrNull?.message);
+        final SpectaResult<bool> healthy = await manager.callOperation<bool>(
+          'com.test.good',
+          (ExtensionRuntime runtime) => runtime.healthCheck(),
+        );
+        expect(healthy.isOk, isTrue);
+        expect(healthy.valueOrNull, isTrue);
+      },
+    );
   });
 
   group('capability enforcement survives the lifecycle', () {
@@ -477,27 +488,29 @@ void main() {
   });
 
   group('ExtensionLifecycleService', () {
-    test('installFromFile then installed() reports the extension + health',
-        () async {
-      final ExtensionManager manager = buildManager();
-      final ExtensionLifecycleService service = ExtensionLifecycleService(
-        manager: manager,
-      );
-      final File file = await write(
-        'svc.js',
-        extensionSource(id: 'com.test.svc', name: 'Service One'),
-      );
+    test(
+      'installFromFile then installed() reports the extension + health',
+      () async {
+        final ExtensionManager manager = buildManager();
+        final ExtensionLifecycleService service = ExtensionLifecycleService(
+          manager: manager,
+        );
+        final File file = await write(
+          'svc.js',
+          extensionSource(id: 'com.test.svc', name: 'Service One'),
+        );
 
-      final SpectaResult<ExtensionRecord> install = await service
-          .installFromFile(file.path);
-      final List<ManagedExtension> installed = await service.installed();
+        final SpectaResult<ExtensionRecord> install = await service
+            .installFromFile(file.path);
+        final List<ManagedExtension> installed = await service.installed();
 
-      expect(install.isOk, isTrue);
-      expect(installed.length, 1);
-      expect(installed.single.id, 'com.test.svc');
-      expect(installed.single.name, 'Service One');
-      expect(installed.single.enabled, isTrue);
-    });
+        expect(install.isOk, isTrue);
+        expect(installed.length, 1);
+        expect(installed.single.id, 'com.test.svc');
+        expect(installed.single.name, 'Service One');
+        expect(installed.single.enabled, isTrue);
+      },
+    );
 
     test('installed() is ordered deterministically by name then id', () async {
       final ExtensionManager manager = buildManager();
@@ -517,15 +530,13 @@ void main() {
 
       final List<ManagedExtension> installed = await service.installed();
 
-      expect(
-        installed.map((ManagedExtension e) => e.id).toList(),
-        <String>['com.test.a', 'com.test.b'],
-        reason: 'case-insensitive name order, then id',
-      );
+      expect(installed.map((ManagedExtension e) => e.id).toList(), <String>[
+        'com.test.a',
+        'com.test.b',
+      ], reason: 'case-insensitive name order, then id');
     });
 
-    test('setEnabled and uninstall flow through to persisted state',
-        () async {
+    test('setEnabled and uninstall flow through to persisted state', () async {
       final ExtensionManager manager = buildManager();
       final ExtensionLifecycleService service = ExtensionLifecycleService(
         manager: manager,

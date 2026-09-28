@@ -32,13 +32,12 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    await container.read(autoUpdateExtensionsProvider.notifier).setEnabled(false);
+    await container
+        .read(autoUpdateExtensionsProvider.notifier)
+        .setEnabled(false);
 
     expect(container.read(autoUpdateExtensionsProvider), isFalse);
-    expect(
-      await store.read('extensions.autoUpdate'),
-      'false',
-    );
+    expect(await store.read('extensions.autoUpdate'), 'false');
   });
 
   test('a persisted value is restored on build', () async {

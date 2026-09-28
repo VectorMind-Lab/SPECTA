@@ -37,7 +37,10 @@ void main() {
         .read(spectaThemePresetProvider.notifier)
         .setPreset(SpectaThemePreset.warmAmber);
 
-    expect(container.read(spectaThemePresetProvider), SpectaThemePreset.warmAmber);
+    expect(
+      container.read(spectaThemePresetProvider),
+      SpectaThemePreset.warmAmber,
+    );
     expect(store.writeCount, 1);
     expect(
       await store.read('ui.themePreset'),
@@ -64,19 +67,22 @@ void main() {
     expect(container.read(spectaThemePresetProvider).name, 'oceanBlue');
   });
 
-  test('an unknown persisted preset name falls back to the brand default', () async {
-    final InMemorySettingsStore store = InMemorySettingsStore();
-    await store.write('ui.themePreset', 'not-a-preset');
+  test(
+    'an unknown persisted preset name falls back to the brand default',
+    () async {
+      final InMemorySettingsStore store = InMemorySettingsStore();
+      await store.write('ui.themePreset', 'not-a-preset');
 
-    final ProviderContainer container = ProviderContainer(
-      overrides: <Override>[
-        settingsStoreProvider.overrideWith((Ref ref) => store),
-      ],
-    );
-    addTearDown(container.dispose);
+      final ProviderContainer container = ProviderContainer(
+        overrides: <Override>[
+          settingsStoreProvider.overrideWith((Ref ref) => store),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
-    expect(container.read(spectaThemePresetProvider).name, 'cyanTeal');
-  });
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(spectaThemePresetProvider).name, 'cyanTeal');
+    },
+  );
 }

@@ -304,28 +304,36 @@ void main() {
         return runtime.details(url: url);
       }
 
-      test('a missing type is a controlled failure, not a silent movie',
-          () async {
-        final SpectaResult<MediaDetails> result = await parse(<String, dynamic>{
-          'id': 'x1',
-          'title': 'No Type',
-          'url': 'https://example.com/title/1',
-        });
+      test(
+        'a missing type is a controlled failure, not a silent movie',
+        () async {
+          final SpectaResult<MediaDetails> result = await parse(
+            <String, dynamic>{
+              'id': 'x1',
+              'title': 'No Type',
+              'url': 'https://example.com/title/1',
+            },
+          );
 
-        expect(result.isErr, isTrue);
-      });
+          expect(result.isErr, isTrue);
+        },
+      );
 
-      test('an unsupported type is a controlled failure, not a silent movie',
-          () async {
-        final SpectaResult<MediaDetails> result = await parse(<String, dynamic>{
-          'id': 'x1',
-          'title': 'Anime Thing',
-          'type': 'anime',
-          'url': 'https://example.com/title/1',
-        });
+      test(
+        'an unsupported type is a controlled failure, not a silent movie',
+        () async {
+          final SpectaResult<MediaDetails> result = await parse(
+            <String, dynamic>{
+              'id': 'x1',
+              'title': 'Documentary Thing',
+              'type': 'documentary',
+              'url': 'https://example.com/title/1',
+            },
+          );
 
-        expect(result.isErr, isTrue);
-      });
+          expect(result.isErr, isTrue);
+        },
+      );
 
       test('a blank title is a controlled failure', () async {
         final SpectaResult<MediaDetails> result = await parse(<String, dynamic>{
@@ -351,36 +359,42 @@ void main() {
         expect(result.valueOrNull!.rating, isNull);
       });
 
-      test('malformed season and episode rows are skipped individually',
-          () async {
-        final SpectaResult<MediaDetails> result = await parse(<String, dynamic>{
-          'id': 'x1',
-          'title': 'Messy Series',
-          'type': 'series',
-          'url': 'https://example.com/title/1',
-          'seasons': <dynamic>[
-            'not-a-season',
+      test(
+        'malformed season and episode rows are skipped individually',
+        () async {
+          final SpectaResult<MediaDetails> result = await parse(
             <String, dynamic>{
-              'seasonNumber': 1,
-              'episodes': <dynamic>[
-                'not-an-episode',
+              'id': 'x1',
+              'title': 'Messy Series',
+              'type': 'series',
+              'url': 'https://example.com/title/1',
+              'seasons': <dynamic>[
+                'not-a-season',
                 <String, dynamic>{
-                  'episodeNumber': 1,
-                  'url': 'https://example.com/title/1/e1',
+                  'seasonNumber': 1,
+                  'episodes': <dynamic>[
+                    'not-an-episode',
+                    <String, dynamic>{
+                      'episodeNumber': 1,
+                      'url': 'https://example.com/title/1/e1',
+                    },
+                    <String, dynamic>{'episodeNumber': 2}, // no url — skipped
+                  ],
                 },
-                <String, dynamic>{'episodeNumber': 2}, // no url — skipped
+                <String, dynamic>{
+                  'seasonNumber': 'two',
+                }, // no int number — skipped
               ],
             },
-            <String, dynamic>{'seasonNumber': 'two'}, // no int number — skipped
-          ],
-        });
+          );
 
-        expect(result.isOk, isTrue);
-        final MediaDetails details = result.valueOrNull!;
-        expect(details.seasons.length, 1);
-        expect(details.seasons.single.episodes.length, 1);
-        expect(details.seasons.single.episodes.single.episodeNumber, 1);
-      });
+          expect(result.isOk, isTrue);
+          final MediaDetails details = result.valueOrNull!;
+          expect(details.seasons.length, 1);
+          expect(details.seasons.single.episodes.length, 1);
+          expect(details.seasons.single.episodes.single.episodeNumber, 1);
+        },
+      );
 
       test('a non-object payload is a controlled failure', () async {
         final SpectaResult<MediaDetails> result = await parse('[1, 2, 3]');

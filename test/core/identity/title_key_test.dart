@@ -11,8 +11,11 @@ import 'package:specta/core/extensions/contract/result_models.dart';
 /// Background: both the discovery normalizer and the metadata manager used
 /// `RegExp(r'[^\w\s]')`, whose `\w` matches ASCII only, so every non-Latin
 /// title normalized to an empty key and collided with every other one.
-SearchResult _movie(String title, {int? year, String url = 'https://e.test/x'}) =>
-    SearchResult(title: title, url: url, type: MediaType.movie, year: year);
+SearchResult _movie(
+  String title, {
+  int? year,
+  String url = 'https://e.test/x',
+}) => SearchResult(title: title, url: url, type: MediaType.movie, year: year);
 
 DiscoveryItem _dedupedOne(SearchResult raw) {
   final DiscoveryObservation? o = DiscoveryNormalizer.normalize(raw, 'ext');
@@ -59,12 +62,14 @@ void main() {
       expect(TitleKey.normalize('１９９９'), '１９９９');
     });
 
-    test('two different Japanese titles with the same year get DIFFERENT keys',
-        () {
-      final String a = TitleKey.normalize('千と千尋の神隠し');
-      final String b = TitleKey.normalize('もののけ姫');
-      expect(a, isNot(b));
-    });
+    test(
+      'two different Japanese titles with the same year get DIFFERENT keys',
+      () {
+        final String a = TitleKey.normalize('千と千尋の神隠し');
+        final String b = TitleKey.normalize('もののけ姫');
+        expect(a, isNot(b));
+      },
+    );
   });
 
   group('TitleKey.normalize — empty-result fallback', () {
@@ -81,12 +86,14 @@ void main() {
       expect(TitleKey.normalize('|'), isNot(contains('|')));
     });
 
-    test('a whitespace/pipe-only title still yields a non-empty, pipe-free key',
-        () {
-      final String key = TitleKey.normalize('  |  |  ');
-      expect(key, isNotEmpty);
-      expect(key, isNot(contains('|')));
-    });
+    test(
+      'a whitespace/pipe-only title still yields a non-empty, pipe-free key',
+      () {
+        final String key = TitleKey.normalize('  |  |  ');
+        expect(key, isNotEmpty);
+        expect(key, isNot(contains('|')));
+      },
+    );
 
     test('two different symbol-only titles never share a key', () {
       expect(TitleKey.normalize('!!!'), isNot(TitleKey.normalize('???')));
@@ -132,10 +139,12 @@ void main() {
       });
     }
 
-    test('the golden list covers punctuation, case, spaces, digits, underscore',
-        () {
-      expect(golden.length, greaterThanOrEqualTo(16));
-    });
+    test(
+      'the golden list covers punctuation, case, spaces, digits, underscore',
+      () {
+        expect(golden.length, greaterThanOrEqualTo(16));
+      },
+    );
   });
 
   group('TitleKey.identityKey — format unchanged', () {
@@ -159,18 +168,13 @@ void main() {
 
     test('a non-Latin title keeps its letters in the key', () {
       expect(
-        TitleKey.identityKey(
-          title: '기생충',
-          typeCode: 'movie',
-          year: 2019,
-        ),
+        TitleKey.identityKey(title: '기생충', typeCode: 'movie', year: 2019),
         '기생충|movie|2019',
       );
     });
   });
 
-  group('Discovery + metadata agree on identity (proves the shared function)',
-      () {
+  group('Discovery + metadata agree on identity (proves the shared function)', () {
     test('discovery key == metadata identityKey for the same evidence', () {
       const String title = 'Amélie';
       const int year = 2001;
@@ -200,35 +204,41 @@ void main() {
       expect(item.key, '$title|movie|2001');
     });
 
-    test("accented Latin: 'Amélie' and 'Amelie' are deterministic and distinct",
-        () {
-      // Documented behavior (§36.1.3): the accent is now KEPT (é is a
-      // letter), so the two titles are distinct identities. Under the old
-      // ASCII-`\w` rule both collapsed to 'am lie' and MERGED — that was the
-      // bug. Both directions are deterministic.
-      final String accented = TitleKey.normalize('Amélie');
-      final String plain = TitleKey.normalize('Amelie');
-      expect(accented, 'amélie');
-      expect(plain, 'amelie');
-      expect(accented, isNot(plain));
-      expect(accented, TitleKey.normalize('Amélie')); // deterministic
-    });
+    test(
+      "accented Latin: 'Amélie' and 'Amelie' are deterministic and distinct",
+      () {
+        // Documented behavior (§36.1.3): the accent is now KEPT (é is a
+        // letter), so the two titles are distinct identities. Under the old
+        // ASCII-`\w` rule both collapsed to 'am lie' and MERGED — that was the
+        // bug. Both directions are deterministic.
+        final String accented = TitleKey.normalize('Amélie');
+        final String plain = TitleKey.normalize('Amelie');
+        expect(accented, 'amélie');
+        expect(plain, 'amelie');
+        expect(accented, isNot(plain));
+        expect(accented, TitleKey.normalize('Amélie')); // deterministic
+      },
+    );
 
-    test('a metadata manager key uses the same rule as the discovery item key',
-        () {
-      // End-to-end through the metadata manager's identityKey contract: the
-      // same input string must yield the same key part the deduplicator
-      // produced. Note the colon in the title is stripped by the rule, so it
-      // cannot interfere with the key format.
-      const String title = 'Léon The Professional';
-      final DiscoveryItem item = _dedupedOne(_movie(title, year: 1994));
-      expect(item.key.endsWith('|movie|1994'), isTrue, reason: item.key);
-      final String discoveryKeyPart =
-          item.key.substring(0, item.key.indexOf('|movie|'));
-      final String metadataKeyPart = TitleKey.normalize(title);
-      expect(discoveryKeyPart, metadataKeyPart);
-      expect(metadataKeyPart, 'léon the professional');
-    });
+    test(
+      'a metadata manager key uses the same rule as the discovery item key',
+      () {
+        // End-to-end through the metadata manager's identityKey contract: the
+        // same input string must yield the same key part the deduplicator
+        // produced. Note the colon in the title is stripped by the rule, so it
+        // cannot interfere with the key format.
+        const String title = 'Léon The Professional';
+        final DiscoveryItem item = _dedupedOne(_movie(title, year: 1994));
+        expect(item.key.endsWith('|movie|1994'), isTrue, reason: item.key);
+        final String discoveryKeyPart = item.key.substring(
+          0,
+          item.key.indexOf('|movie|'),
+        );
+        final String metadataKeyPart = TitleKey.normalize(title);
+        expect(discoveryKeyPart, metadataKeyPart);
+        expect(metadataKeyPart, 'léon the professional');
+      },
+    );
   });
 
   group('DiscoveryDeduplicator with non-Latin titles (regression)', () {
@@ -273,13 +283,15 @@ void main() {
       expect(items.single.references, hasLength(2));
     });
 
-    test('two different symbol-only titles do not merge (old bug: both "")',
-        () {
-      final List<DiscoveryItem> items = _dedupedAll(<SearchResult>[
-        _movie('!!!', year: 2020, url: 'https://e.test/a'),
-        _movie('???', year: 2020, url: 'https://e.test/b'),
-      ]);
-      expect(items, hasLength(2));
-    });
+    test(
+      'two different symbol-only titles do not merge (old bug: both "")',
+      () {
+        final List<DiscoveryItem> items = _dedupedAll(<SearchResult>[
+          _movie('!!!', year: 2020, url: 'https://e.test/a'),
+          _movie('???', year: 2020, url: 'https://e.test/b'),
+        ]);
+        expect(items, hasLength(2));
+      },
+    );
   });
 }

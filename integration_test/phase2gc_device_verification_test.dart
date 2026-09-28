@@ -64,31 +64,31 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   SourcePool poolWith(String url) => SourcePool(
-        ranked: <RankedSource>[
-          RankedSource(
-            extensionId: '__p2gc_ext__',
-            reference: '__p2gc_ref__',
-            source: ExtensionSource(
-              url: url,
-              type: SourceType.mp4,
-              quality: '720p',
-              label: 'Device verification source',
-            ),
-            score: 100,
-          ),
-        ],
-        outcomes: const <ExtensionSourceOutcome>[],
+    ranked: <RankedSource>[
+      RankedSource(
+        extensionId: '__p2gc_ext__',
         reference: '__p2gc_ref__',
-      );
+        source: ExtensionSource(
+          url: url,
+          type: SourceType.mp4,
+          quality: '720p',
+          label: 'Device verification source',
+        ),
+        score: 100,
+      ),
+    ],
+    outcomes: const <ExtensionSourceOutcome>[],
+    reference: '__p2gc_ref__',
+  );
 
   DownloadRequest request(String id) => DownloadRequest(
-        id: id,
-        mediaKey: '__p2gc_test__|movie|2026',
-        mediaType: MediaType.movie,
-        title: 'P2GC Device Verification',
-        extensions: const <String, String>{'__p2gc_ext__': '__p2gc_ref__'},
-        pool: poolWith(testUrl),
-      );
+    id: id,
+    mediaKey: '__p2gc_test__|movie|2026',
+    mediaType: MediaType.movie,
+    title: 'P2GC Device Verification',
+    extensions: const <String, String>{'__p2gc_ext__': '__p2gc_ref__'},
+    pool: poolWith(testUrl),
+  );
 
   /// Builds the manager from the REAL provider graph (the same wiring the app
   /// runs: real store, real engine adapter, real completion finalizer).
@@ -100,11 +100,13 @@ void main() {
   /// `blockedUnknown` for the LTE window — honestly refusing to start the
   /// queue there is correct behavior, but it would make this test flaky.
   (ProviderContainer, DownloadManager) wired() {
-    final ProviderContainer container = ProviderContainer(overrides: <Override>[
-      deviceNetworkPolicyProvider.overrideWithValue(
-        DownloadNetworkPolicy.wifiAndMobile,
-      ),
-    ]);
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        deviceNetworkPolicyProvider.overrideWithValue(
+          DownloadNetworkPolicy.wifiAndMobile,
+        ),
+      ],
+    );
     final DownloadManager manager = container.read(downloadManagerProvider);
     return (container, manager);
   }
@@ -141,7 +143,9 @@ void main() {
       if (stale.status.isActive) {
         try {
           await manager.engine.cancel(testId);
-        } on Object {/* best-effort ghost cleanup */}
+        } on Object {
+          /* best-effort ghost cleanup */
+        }
       }
       await manager.remove(testId);
     }
@@ -165,7 +169,9 @@ void main() {
         if (entity.path.contains('P2GC Device Verification')) {
           try {
             await entity.delete();
-          } on Object {/* best-effort */}
+          } on Object {
+            /* best-effort */
+          }
         }
       }
     }
@@ -182,17 +188,21 @@ void main() {
       // plugin's own progress/byte accounting is recorded verbatim so a
       // byte-count discrepancy can be attributed to a layer, not guessed.
       final List<String> engineProgress = <String>[];
-      final StreamSubscription<DownloadEngineEvent> progressTap =
-          manager.engine.events.listen((DownloadEngineEvent event) {
-        if (event is DownloadEngineProgress) {
-          engineProgress.add('${event.bytesOnDisk}/${event.totalBytes}');
-        }
-      });
+      final StreamSubscription<DownloadEngineEvent> progressTap = manager
+          .engine
+          .events
+          .listen((DownloadEngineEvent event) {
+            if (event is DownloadEngineProgress) {
+              engineProgress.add('${event.bytesOnDisk}/${event.totalBytes}');
+            }
+          });
       addTearDown(progressTap.cancel);
 
       final EnqueueResult enqueued = await manager.enqueue(request(testId));
-      marker('enqueue action=${enqueued.action.name} '
-          'status=${enqueued.record.status.code}');
+      marker(
+        'enqueue action=${enqueued.action.name} '
+        'status=${enqueued.record.status.code}',
+      );
       expect(enqueued.action, DownloadEnqueueAction.created);
 
       final DownloadRecord record = await waitFor(
@@ -202,31 +212,51 @@ void main() {
         const Duration(minutes: 5),
       );
 
-      marker('final status=${record.status.code} '
-          'bytes=${record.bytesDownloaded}/${record.totalBytes ?? '?'}');
-      marker('engine progress events=${engineProgress.length} '
-          'first=${engineProgress.isEmpty ? '-' : engineProgress.first} '
-          'last=${engineProgress.isEmpty ? '-' : engineProgress.last}');
+      marker(
+        'final status=${record.status.code} '
+        'bytes=${record.bytesDownloaded}/${record.totalBytes ?? '?'}',
+      );
+      marker(
+        'engine progress events=${engineProgress.length} '
+        'first=${engineProgress.isEmpty ? '-' : engineProgress.first} '
+        'last=${engineProgress.isEmpty ? '-' : engineProgress.last}',
+      );
       // Evidence: the REAL size of what the gate moved into place, measured
       // independently of the engine's own byte accounting.
-      marker('gate file bytes='
-          '${await File(record.filePath).exists() ? await File(record.filePath).length() : -1} '
-          'partExists=${File('${record.filePath}.part').existsSync()}');
-      expect(record.status, DownloadStatus.completed,
-          reason: 'the REAL device transfer must complete through the '
-              'manager gate; failure=${record.failure?.toString()}');
+      marker(
+        'gate file bytes='
+        '${await File(record.filePath).exists() ? await File(record.filePath).length() : -1} '
+        'partExists=${File('${record.filePath}.part').existsSync()}',
+      );
+      expect(
+        record.status,
+        DownloadStatus.completed,
+        reason:
+            'the REAL device transfer must complete through the '
+            'manager gate; failure=${record.failure?.toString()}',
+      );
 
       // The completion gate's verdict, verified on the real filesystem:
       // the transfer exists at the final path, no .part survives, and the
       // byte count is exactly what the server served.
       final File finalFile = File(record.filePath);
-      expect(finalFile.existsSync(), isTrue,
-          reason: 'the gate renamed the verified transfer into the final '
-              'media path');
-      expect(await finalFile.length(), expectedBytes,
-          reason: 'the completed file carries the served bytes');
-      expect(File('${record.filePath}.part').existsSync(), isFalse,
-          reason: 'no .part staging file survives a completed download');
+      expect(
+        finalFile.existsSync(),
+        isTrue,
+        reason:
+            'the gate renamed the verified transfer into the final '
+            'media path',
+      );
+      expect(
+        await finalFile.length(),
+        expectedBytes,
+        reason: 'the completed file carries the served bytes',
+      );
+      expect(
+        File('${record.filePath}.part').existsSync(),
+        isFalse,
+        reason: 'no .part staging file survives a completed download',
+      );
       expect(record.bytesDownloaded, expectedBytes);
       expect(record.completedAt, isNotNull);
 
@@ -267,17 +297,26 @@ void main() {
         const Duration(minutes: 2),
       );
 
-      expect(record.status, DownloadStatus.cancelled,
-          reason: 'the persisted cancellation stands; a late native event '
-              'cannot resurrect the record');
+      expect(
+        record.status,
+        DownloadStatus.cancelled,
+        reason:
+            'the persisted cancellation stands; a late native event '
+            'cannot resurrect the record',
+      );
       final File finalFile = File(record.filePath);
-      expect(finalFile.existsSync(), isFalse,
-          reason: 'a cancelled download never presents completed media');
+      expect(
+        finalFile.existsSync(),
+        isFalse,
+        reason: 'a cancelled download never presents completed media',
+      );
       // The .part staging file belongs to the plugin after a cancellation —
       // it is cleaned by the plugin or the next run's stale-artifact path;
       // SPECTA's contract is only that NO final media exists.
-      marker('part file after cancel: '
-          '${await File('${record.filePath}.part').exists()}');
+      marker(
+        'part file after cancel: '
+        '${await File('${record.filePath}.part').exists()}',
+      );
 
       await manager.remove(testId);
       final File part = File('${record.filePath}.part');
@@ -285,72 +324,88 @@ void main() {
       marker('P2GC-2 artifact cleaned');
     },
     timeout: const Timeout(Duration(minutes: 4)),
-  );    testWidgets(
-    'P2GC-3: restart reconciliation adopts a surviving transfer',
-    (WidgetTester tester) async {
-      // Session 1: enqueue and let the transfer start.
-      // NOTE: container1 is deliberately NOT disposed — a real process death
-      // runs no dispose() and cancels nothing. Disposing it here would cancel
-      // the native transfer and turn this into an interrupted-retry test.
-      final (ProviderContainer container1, DownloadManager manager1) = wired();
-      addTearDown(container1.dispose); // runs AFTER the assertions below
-      await cleanSlate(manager1);
-
-      await manager1.enqueue(request(testId));
-      final DownloadRecord started = await waitFor(
-        manager1,
-        testId,
-        (DownloadRecord r) => r.status == DownloadStatus.downloading,
-        const Duration(seconds: 30),
-      );
-      expect(started.status, DownloadStatus.downloading);
-      // The manager persists `downloading` BEFORE the engine registers the
-      // native task (persistence contract §5), so WorkManager registration
-      // may lag the record flip by a beat. Wait for the probe itself instead
-      // of asserting it instantly (777529d stabilization precedent).
-      bool transferActive = false;
-      final DateTime probeDeadline =
-          DateTime.now().add(const Duration(seconds: 30));
-      while (!transferActive && DateTime.now().isBefore(probeDeadline)) {
-        transferActive = await manager1.engine.isTransferActive(testId);
-        if (transferActive) break;
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-      }
-      expect(transferActive, isTrue,
-          reason: 'WorkManager holds the live native task');
-      marker('isTransferActive=$transferActive');
-
-      // "Restart": ABANDON the first container (no dispose — a real process
-      // death runs none) and create a fresh one over the SAME persisted
-      // database while the native transfer keeps running.
-      final (ProviderContainer container2, DownloadManager manager2) = wired();
-      addTearDown(container2.dispose);
-      await manager2.initialize();
-      await manager2.debugIdle;
-      marker('manager recreated; adoption decided');
-
-      // The surviving transfer is ADOPTED (never duplicated) and completes
-      // through the normal gate.
-      final DownloadRecord after = await waitFor(
-        manager2,
-        testId,
-        (DownloadRecord r) => r.status.isTerminal,
-        const Duration(minutes: 5),
-      );
-
-      marker('post-restart status=${after.status.code} '
-          'bytes=${after.bytesDownloaded}');
-      expect(after.status, DownloadStatus.completed,
-          reason: 'the adopted surviving transfer completes — no duplicate '
-              'transfer, no honest-failure misclassification');
-
-      await manager2.remove(testId);
-      final File finalFile = File(after.filePath);
-      if (finalFile.existsSync()) await finalFile.delete();
-      final File part = File('${after.filePath}.part');
-      if (part.existsSync()) await part.delete();
-      marker('P2GC-3 artifact cleaned');
-    },
-    timeout: const Timeout(Duration(minutes: 6)),
   );
+  testWidgets('P2GC-3: restart reconciliation adopts a surviving transfer', (
+    WidgetTester tester,
+  ) async {
+    // Session 1: enqueue and let the transfer start.
+    // NOTE: container1 is deliberately NOT disposed — a real process death
+    // runs no dispose() and cancels nothing. Disposing it here would cancel
+    // the native transfer and turn this into an interrupted-retry test.
+    final (ProviderContainer container1, DownloadManager manager1) = wired();
+    addTearDown(container1.dispose); // runs AFTER the assertions below
+    await cleanSlate(manager1);
+
+    await manager1.enqueue(request(testId));
+    final DownloadRecord started = await waitFor(
+      manager1,
+      testId,
+      (DownloadRecord r) => r.status == DownloadStatus.downloading,
+      const Duration(seconds: 30),
+    );
+    expect(started.status, DownloadStatus.downloading);
+    // The manager persists `downloading` BEFORE the engine registers the
+    // native task (persistence contract §5), so WorkManager registration
+    // may lag the record flip by a beat. Wait for the probe itself instead
+    // of asserting it instantly (777529d stabilization precedent).
+    bool transferActive = false;
+    final DateTime probeDeadline = DateTime.now().add(
+      const Duration(seconds: 30),
+    );
+    while (!transferActive && DateTime.now().isBefore(probeDeadline)) {
+      transferActive = await manager1.engine.isTransferActive(testId);
+      if (transferActive) break;
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    expect(
+      transferActive,
+      isTrue,
+      reason: 'WorkManager holds the live native task',
+    );
+    marker('isTransferActive=$transferActive');
+
+    // "Restart": ABANDON the first container (no dispose — a real process
+    // death runs none) and create a fresh one over the SAME persisted
+    // database while the native transfer keeps running.
+    //
+    // This deliberately opens a SECOND connection to the app database, which is
+    // exactly what Drift warns about in a debug build ("created the database
+    // class SpectaDatabase multiple times… might corrupt the database"). Here
+    // that second instance is the MECHANISM UNDER TEST — a process that died
+    // without closing anything and came back to the same file — not an
+    // accident, and this suite only proceeds if adoption behaves correctly.
+    final (ProviderContainer container2, DownloadManager manager2) = wired();
+    addTearDown(container2.dispose);
+    await manager2.initialize();
+    await manager2.debugIdle;
+    marker('manager recreated; adoption decided');
+
+    // The surviving transfer is ADOPTED (never duplicated) and completes
+    // through the normal gate.
+    final DownloadRecord after = await waitFor(
+      manager2,
+      testId,
+      (DownloadRecord r) => r.status.isTerminal,
+      const Duration(minutes: 5),
+    );
+
+    marker(
+      'post-restart status=${after.status.code} '
+      'bytes=${after.bytesDownloaded}',
+    );
+    expect(
+      after.status,
+      DownloadStatus.completed,
+      reason:
+          'the adopted surviving transfer completes — no duplicate '
+          'transfer, no honest-failure misclassification',
+    );
+
+    await manager2.remove(testId);
+    final File finalFile = File(after.filePath);
+    if (finalFile.existsSync()) await finalFile.delete();
+    final File part = File('${after.filePath}.part');
+    if (part.existsSync()) await part.delete();
+    marker('P2GC-3 artifact cleaned');
+  }, timeout: const Timeout(Duration(minutes: 6)));
 }

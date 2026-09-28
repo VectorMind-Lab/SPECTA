@@ -89,10 +89,16 @@ void main() {
       final SpectaResult<ExtensionRecord> plainInstall = await first.manager
           .importExtension(filePath: plainFile.path);
 
-      expect(signedInstall.isOk, isTrue,
-          reason: signedInstall.failureOrNull?.message);
-      expect(plainInstall.isOk, isTrue,
-          reason: plainInstall.failureOrNull?.message);
+      expect(
+        signedInstall.isOk,
+        isTrue,
+        reason: signedInstall.failureOrNull?.message,
+      );
+      expect(
+        plainInstall.isOk,
+        isTrue,
+        reason: plainInstall.failureOrNull?.message,
+      );
       expect(signedInstall.valueOrNull!.trustLevel, TrustLevel.official);
       expect(plainInstall.valueOrNull!.trustLevel, TrustLevel.unverified);
 
@@ -139,7 +145,11 @@ void main() {
       // stale copy of the stored value.
       final SpectaResult<ExtensionRuntime> signedLoad = await second.manager
           .loadRuntime('com.test.signed');
-      expect(signedLoad.isOk, isTrue, reason: signedLoad.failureOrNull?.message);
+      expect(
+        signedLoad.isOk,
+        isTrue,
+        reason: signedLoad.failureOrNull?.message,
+      );
       expect(
         (await second.manager.getExtension('com.test.signed'))!.trustLevel,
         TrustLevel.official,
@@ -176,7 +186,10 @@ void main() {
     final _App second = await startApp();
     await second.manager.importExtension(filePath: file.path);
 
-    expect((await second.manager.getExtension('com.test.dup'))!.enabled, isFalse);
+    expect(
+      (await second.manager.getExtension('com.test.dup'))!.enabled,
+      isFalse,
+    );
     await second.database.close();
   });
 }

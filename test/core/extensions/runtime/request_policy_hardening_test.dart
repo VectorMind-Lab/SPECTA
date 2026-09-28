@@ -24,34 +24,39 @@ void main() {
       final ProviderContainer container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final ControlledExtensionRuntimeApi api =
-          container.read(extensionRuntimeApiProvider);
+      final ControlledExtensionRuntimeApi api = container.read(
+        extensionRuntimeApiProvider,
+      );
 
-      expect(api.policy.blockPrivateHosts, isTrue,
-          reason: 'release wiring must never ship with host blocking off');
+      expect(
+        api.policy.blockPrivateHosts,
+        isTrue,
+        reason: 'release wiring must never ship with host blocking off',
+      );
       expect(api.policy.allowHttpsToHttpRedirect, isFalse);
       api.dispose();
     });
 
-    test('the default policy refuses loopback by name and by IP literal',
-        () async {
-      const ExtensionRequestPolicy policy = ExtensionRequestPolicy();
-      final RequestPolicyDecision byName = await policy.evaluate(
-        ExtensionRequest(url: 'http://localhost/admin', method: 'GET'),
-      );
-      expect(byName.isDenied, isTrue);
-      expect(byName.reason, RequestDenialReason.privateHostBlocked);
+    test(
+      'the default policy refuses loopback by name and by IP literal',
+      () async {
+        const ExtensionRequestPolicy policy = ExtensionRequestPolicy();
+        final RequestPolicyDecision byName = await policy.evaluate(
+          ExtensionRequest(url: 'http://localhost/admin', method: 'GET'),
+        );
+        expect(byName.isDenied, isTrue);
+        expect(byName.reason, RequestDenialReason.privateHostBlocked);
 
-      final RequestPolicyDecision byLiteral = await policy.evaluate(
-        ExtensionRequest(url: 'http://127.0.0.1/admin', method: 'GET'),
-      );
-      expect(byLiteral.isDenied, isTrue);
-      expect(byLiteral.reason, RequestDenialReason.privateHostBlocked);
-    });
+        final RequestPolicyDecision byLiteral = await policy.evaluate(
+          ExtensionRequest(url: 'http://127.0.0.1/admin', method: 'GET'),
+        );
+        expect(byLiteral.isDenied, isTrue);
+        expect(byLiteral.reason, RequestDenialReason.privateHostBlocked);
+      },
+    );
   });
 
-  group('§37 blocked address families (policy-level, injectable resolver)',
-      () {
+  group('§37 blocked address families (policy-level, injectable resolver)', () {
     test('every blocked IPv4 literal is denied', () async {
       const ExtensionRequestPolicy policy = ExtensionRequestPolicy();
       const List<String> blocked = <String>[
@@ -71,10 +76,16 @@ void main() {
           ExtensionRequest(url: 'http://$ip/x', method: 'GET'),
         );
         expect(decision.isDenied, isTrue, reason: ip);
-        expect(decision.reason, RequestDenialReason.privateHostBlocked,
-            reason: ip);
-        expect(decision.failureType, ExtensionFailureType.unsupported,
-            reason: ip);
+        expect(
+          decision.reason,
+          RequestDenialReason.privateHostBlocked,
+          reason: ip,
+        );
+        expect(
+          decision.failureType,
+          ExtensionFailureType.unsupported,
+          reason: ip,
+        );
       }
     });
 
@@ -95,20 +106,25 @@ void main() {
           ExtensionRequest(url: 'http://[$ip]/x', method: 'GET'),
         );
         expect(decision.isDenied, isTrue, reason: ip);
-        expect(decision.reason, RequestDenialReason.privateHostBlocked,
-            reason: ip);
+        expect(
+          decision.reason,
+          RequestDenialReason.privateHostBlocked,
+          reason: ip,
+        );
       }
     });
 
-    test('a bare IPv6 textual form is not a valid URL host (denied as such)',
-        () async {
-      const ExtensionRequestPolicy policy = ExtensionRequestPolicy();
-      final RequestPolicyDecision decision = await policy.evaluate(
-        ExtensionRequest(url: 'http://::1/x', method: 'GET'),
-      );
-      expect(decision.isDenied, isTrue);
-      expect(decision.reason, RequestDenialReason.invalidUrl);
-    });
+    test(
+      'a bare IPv6 textual form is not a valid URL host (denied as such)',
+      () async {
+        const ExtensionRequestPolicy policy = ExtensionRequestPolicy();
+        final RequestPolicyDecision decision = await policy.evaluate(
+          ExtensionRequest(url: 'http://::1/x', method: 'GET'),
+        );
+        expect(decision.isDenied, isTrue);
+        expect(decision.reason, RequestDenialReason.invalidUrl);
+      },
+    );
 
     test('IPv4-mapped IPv6 forms of blocked ranges are denied', () async {
       const ExtensionRequestPolicy policy = ExtensionRequestPolicy();
@@ -122,8 +138,11 @@ void main() {
           ExtensionRequest(url: 'http://[$ip]/x', method: 'GET'),
         );
         expect(decision.isDenied, isTrue, reason: ip);
-        expect(decision.reason, RequestDenialReason.privateHostBlocked,
-            reason: ip);
+        expect(
+          decision.reason,
+          RequestDenialReason.privateHostBlocked,
+          reason: ip,
+        );
       }
     });
 
@@ -152,31 +171,33 @@ void main() {
     });
 
     test(
-        'a hostname resolving to a blocked address is denied (deterministic)',
-        () async {
-      const ExtensionRequestPolicy policy = ExtensionRequestPolicy(
-        hostResolver: _resolverToLoopback,
-      );
-      final RequestPolicyDecision decision = await policy.evaluate(
-        ExtensionRequest(url: 'http://evil.test/api', method: 'GET'),
-      );
-      expect(decision.isDenied, isTrue);
-      expect(decision.reason, RequestDenialReason.privateHostBlocked);
-    });
+      'a hostname resolving to a blocked address is denied (deterministic)',
+      () async {
+        const ExtensionRequestPolicy policy = ExtensionRequestPolicy(
+          hostResolver: _resolverToLoopback,
+        );
+        final RequestPolicyDecision decision = await policy.evaluate(
+          ExtensionRequest(url: 'http://evil.test/api', method: 'GET'),
+        );
+        expect(decision.isDenied, isTrue);
+        expect(decision.reason, RequestDenialReason.privateHostBlocked);
+      },
+    );
 
-    test('a hostname resolving to a mapped-blocked address is denied',
-        () async {
-      const ExtensionRequestPolicy policy = ExtensionRequestPolicy(
-        hostResolver: _resolverToMappedLoopback,
-      );
-      final RequestPolicyDecision decision = await policy.evaluate(
-        ExtensionRequest(url: 'http://evil.test/api', method: 'GET'),
-      );
-      expect(decision.isDenied, isTrue);
-    });
+    test(
+      'a hostname resolving to a mapped-blocked address is denied',
+      () async {
+        const ExtensionRequestPolicy policy = ExtensionRequestPolicy(
+          hostResolver: _resolverToMappedLoopback,
+        );
+        final RequestPolicyDecision decision = await policy.evaluate(
+          ExtensionRequest(url: 'http://evil.test/api', method: 'GET'),
+        );
+        expect(decision.isDenied, isTrue);
+      },
+    );
 
-    test('a hostname that cannot be resolved is denied, not allowed',
-        () async {
+    test('a hostname that cannot be resolved is denied, not allowed', () async {
       const ExtensionRequestPolicy policy = ExtensionRequestPolicy(
         hostResolver: _resolverFailing,
       );
@@ -187,16 +208,18 @@ void main() {
       expect(decision.reason, RequestDenialReason.hostLookupFailed);
     });
 
-    test('the resolver failure maps to a retryable transport failure',
-        () async {
-      const ExtensionRequestPolicy policy = ExtensionRequestPolicy(
-        hostResolver: _resolverFailing,
-      );
-      final RequestPolicyDecision decision = await policy.evaluate(
-        ExtensionRequest(url: 'http://unresolvable.test/api', method: 'GET'),
-      );
-      expect(decision.failureType, ExtensionFailureType.networkError);
-    });
+    test(
+      'the resolver failure maps to a retryable transport failure',
+      () async {
+        const ExtensionRequestPolicy policy = ExtensionRequestPolicy(
+          hostResolver: _resolverFailing,
+        );
+        final RequestPolicyDecision decision = await policy.evaluate(
+          ExtensionRequest(url: 'http://unresolvable.test/api', method: 'GET'),
+        );
+        expect(decision.failureType, ExtensionFailureType.networkError);
+      },
+    );
   });
 
   group('§37 redirect decisions (policy.evaluateRedirect)', () {
@@ -279,34 +302,55 @@ void main() {
         switch (request.uri.path) {
           case '/loop-301':
             request.response.statusCode = HttpStatus.movedPermanently;
-            request.response.headers.set(HttpHeaders.locationHeader, Uri.parse('/loop-301'));
+            request.response.headers.set(
+              HttpHeaders.locationHeader,
+              Uri.parse('/loop-301'),
+            );
             request.response.headers.set(HttpHeaders.connectionHeader, 'close');
           case '/to-loopback':
             // Absolute redirect to a loopback target — with the production
             // policy this hop would be refused; this server answers it so
             // the override-only behavior is observable.
             request.response.statusCode = HttpStatus.found;
-            request.response.headers.set(HttpHeaders.locationHeader, Uri.parse('http://127.0.0.1:${server.port}/final'));
+            request.response.headers.set(
+              HttpHeaders.locationHeader,
+              Uri.parse('http://127.0.0.1:${server.port}/final'),
+            );
             request.response.headers.set(HttpHeaders.connectionHeader, 'close');
           case '/to-https-downgrade':
             request.response.statusCode = HttpStatus.found;
-            request.response.headers.set(HttpHeaders.locationHeader, Uri.parse('http://example.test/final'));
+            request.response.headers.set(
+              HttpHeaders.locationHeader,
+              Uri.parse('http://example.test/final'),
+            );
             request.response.headers.set(HttpHeaders.connectionHeader, 'close');
           case '/to-localhost':
             request.response.statusCode = HttpStatus.found;
-            request.response.headers.set(HttpHeaders.locationHeader, Uri.parse('http://localhost/final'));
+            request.response.headers.set(
+              HttpHeaders.locationHeader,
+              Uri.parse('http://localhost/final'),
+            );
             request.response.headers.set(HttpHeaders.connectionHeader, 'close');
           case '/relative':
             request.response.statusCode = HttpStatus.found;
-            request.response.headers.set(HttpHeaders.locationHeader, Uri.parse('/final'));
+            request.response.headers.set(
+              HttpHeaders.locationHeader,
+              Uri.parse('/final'),
+            );
             request.response.headers.set(HttpHeaders.connectionHeader, 'close');
           case '/seeother':
             request.response.statusCode = HttpStatus.seeOther;
-            request.response.headers.set(HttpHeaders.locationHeader, Uri.parse('/echo-method'));
+            request.response.headers.set(
+              HttpHeaders.locationHeader,
+              Uri.parse('/echo-method'),
+            );
             request.response.headers.set(HttpHeaders.connectionHeader, 'close');
           case '/preserve':
             request.response.statusCode = HttpStatus.temporaryRedirect;
-            request.response.headers.set(HttpHeaders.locationHeader, Uri.parse('/echo-method'));
+            request.response.headers.set(
+              HttpHeaders.locationHeader,
+              Uri.parse('/echo-method'),
+            );
             request.response.headers.set(HttpHeaders.connectionHeader, 'close');
           case '/echo-method':
             request.response.statusCode = 200;
@@ -381,8 +425,7 @@ void main() {
       expect(result.error, contains('Redirect limit exceeded'));
     });
 
-    test('sensitive headers are not forwarded to a different host',
-        () async {
+    test('sensitive headers are not forwarded to a different host', () async {
       HttpRequest? seen;
       final HttpServer target = await HttpServer.bind(
         InternetAddress.loopbackIPv4,
@@ -436,51 +479,53 @@ void main() {
     });
 
     test(
-        'with the PRODUCTION policy, a redirect to a blocked host is refused',
-        () async {
-      final DartIoHttpTransport strict = DartIoHttpTransport(
-        policy: const ExtensionRequestPolicy(), // blocking ON
-      );
-      addTearDown(strict.close);
+      'with the PRODUCTION policy, a redirect to a blocked host is refused',
+      () async {
+        final DartIoHttpTransport strict = DartIoHttpTransport(
+          policy: const ExtensionRequestPolicy(), // blocking ON
+        );
+        addTearDown(strict.close);
 
-      // Same-host hop first (allowed), landing on a literal-blocked target.
-      // (The transport consults the policy on every redirect hop; the initial
-      // URL is gated by the API layer, proven in the provider group above.)
-      final ExtensionHttpResult result = await strict.send(
-        uri: base.resolve('/to-loopback'),
-        method: 'GET',
-        headers: const <String, String>{},
-        timeout: const Duration(seconds: 10),
-        maxBytes: 65536,
-        maxRedirects: 5,
-      );
-      expect(result.statusCode, isNull);
-      expect(result.failureType, ExtensionFailureType.unsupported);
-      expect(result.error, contains('PRIVATE_HOST_BLOCKED'));
-    });
+        // Same-host hop first (allowed), landing on a literal-blocked target.
+        // (The transport consults the policy on every redirect hop; the initial
+        // URL is gated by the API layer, proven in the provider group above.)
+        final ExtensionHttpResult result = await strict.send(
+          uri: base.resolve('/to-loopback'),
+          method: 'GET',
+          headers: const <String, String>{},
+          timeout: const Duration(seconds: 10),
+          maxBytes: 65536,
+          maxRedirects: 5,
+        );
+        expect(result.statusCode, isNull);
+        expect(result.failureType, ExtensionFailureType.unsupported);
+        expect(result.error, contains('PRIVATE_HOST_BLOCKED'));
+      },
+    );
 
     test(
-        'with the PRODUCTION policy, a redirect to a blocked NAME is refused',
-        () async {
-      // 'localhost' is refused by NAME before any resolver runs, so this
-      // downgrade-shaped hop is refused hermetically (no DNS, no TLS).
-      final DartIoHttpTransport strict = DartIoHttpTransport(
-        policy: const ExtensionRequestPolicy(),
-      );
-      addTearDown(strict.close);
+      'with the PRODUCTION policy, a redirect to a blocked NAME is refused',
+      () async {
+        // 'localhost' is refused by NAME before any resolver runs, so this
+        // downgrade-shaped hop is refused hermetically (no DNS, no TLS).
+        final DartIoHttpTransport strict = DartIoHttpTransport(
+          policy: const ExtensionRequestPolicy(),
+        );
+        addTearDown(strict.close);
 
-      final ExtensionHttpResult result = await strict.send(
-        uri: base.resolve('/to-localhost'),
-        method: 'GET',
-        headers: const <String, String>{},
-        timeout: const Duration(seconds: 10),
-        maxBytes: 65536,
-        maxRedirects: 5,
-      );
-      expect(result.statusCode, isNull);
-      expect(result.failureType, ExtensionFailureType.unsupported);
-      expect(result.error, contains('PRIVATE_HOST_BLOCKED'));
-    });
+        final ExtensionHttpResult result = await strict.send(
+          uri: base.resolve('/to-localhost'),
+          method: 'GET',
+          headers: const <String, String>{},
+          timeout: const Duration(seconds: 10),
+          maxBytes: 65536,
+          maxRedirects: 5,
+        );
+        expect(result.statusCode, isNull);
+        expect(result.failureType, ExtensionFailureType.unsupported);
+        expect(result.error, contains('PRIVATE_HOST_BLOCKED'));
+      },
+    );
   });
 
   group('§36.2 request({query}) is merged into the URL', () {
@@ -491,29 +536,35 @@ void main() {
     });
 
     ControlledExtensionRuntimeApi api() => ControlledExtensionRuntimeApi(
-          transport: transport,
-          policy: const ExtensionRequestPolicy(blockPrivateHosts: false),
-        );
+      transport: transport,
+      policy: const ExtensionRequestPolicy(blockPrivateHosts: false),
+    );
 
     test('query entries are appended to a URL with no query', () async {
       final ControlledExtensionRuntimeApi a = api();
-      await a.request(ExtensionRequest(
-        url: 'https://example.test/search',
-        method: 'GET',
-        queryParameters: const <String, String>{'q': 'batman'},
-      ));
-      expect(transport.sent.single.toString(),
-          'https://example.test/search?q=batman');
+      await a.request(
+        ExtensionRequest(
+          url: 'https://example.test/search',
+          method: 'GET',
+          queryParameters: const <String, String>{'q': 'batman'},
+        ),
+      );
+      expect(
+        transport.sent.single.toString(),
+        'https://example.test/search?q=batman',
+      );
       a.dispose();
     });
 
     test('query entries merge with a URL that already has a query', () async {
       final ControlledExtensionRuntimeApi a = api();
-      await a.request(ExtensionRequest(
-        url: 'https://example.test/search?page=2',
-        method: 'GET',
-        queryParameters: const <String, String>{'q': 'batman'},
-      ));
+      await a.request(
+        ExtensionRequest(
+          url: 'https://example.test/search?page=2',
+          method: 'GET',
+          queryParameters: const <String, String>{'q': 'batman'},
+        ),
+      );
       final Uri sent = transport.sent.single;
       expect(sent.queryParameters['page'], '2');
       expect(sent.queryParameters['q'], 'batman');
@@ -522,28 +573,34 @@ void main() {
 
     test('an explicit query entry overrides a same-named URL entry', () async {
       final ControlledExtensionRuntimeApi a = api();
-      await a.request(ExtensionRequest(
-        url: 'https://example.test/search?q=old',
-        method: 'GET',
-        queryParameters: const <String, String>{'q': 'new'},
-      ));
+      await a.request(
+        ExtensionRequest(
+          url: 'https://example.test/search?q=old',
+          method: 'GET',
+          queryParameters: const <String, String>{'q': 'new'},
+        ),
+      );
       final Uri sent = transport.sent.single;
-      expect(sent.queryParametersAll['q'], <String>['old', 'new'],
-          reason: 'the explicit value is appended; servers take the last '
-              'occurrence, so "new" wins — documented in the API');
+      expect(
+        sent.queryParametersAll['q'],
+        <String>['old', 'new'],
+        reason:
+            'the explicit value is appended; servers take the last '
+            'occurrence, so "new" wins — documented in the API',
+      );
       expect(sent.queryParametersAll['q']!.last, 'new');
       a.dispose();
     });
 
     test('special and non-ASCII characters are percent-encoded', () async {
       final ControlledExtensionRuntimeApi a = api();
-      await a.request(ExtensionRequest(
-        url: 'https://example.test/search',
-        method: 'GET',
-        queryParameters: const <String, String>{
-          'q': 'one two&three=四?',
-        },
-      ));
+      await a.request(
+        ExtensionRequest(
+          url: 'https://example.test/search',
+          method: 'GET',
+          queryParameters: const <String, String>{'q': 'one two&three=四?'},
+        ),
+      );
       final String url = transport.sent.single.toString();
       expect(url, isNot(contains(' ')));
       expect(url, contains('q=one+two%26three%3D%E5%9B%9B%3F'));
@@ -559,13 +616,13 @@ void main() {
         ),
       );
       final String longValue = 'a' * 100;
-      final ExtensionResponse response = await a.request(ExtensionRequest(
-        url: 'https://example.test/search',
-        method: 'GET',
-        queryParameters: <String, String>{
-          'q': longValue,
-        },
-      ));
+      final ExtensionResponse response = await a.request(
+        ExtensionRequest(
+          url: 'https://example.test/search',
+          method: 'GET',
+          queryParameters: <String, String>{'q': longValue},
+        ),
+      );
       expect(response.ok, isFalse);
       expect(response.errorType, ExtensionFailureType.invalidResult.code);
       expect(response.error, contains('URL_TOO_LONG'));
@@ -573,8 +630,7 @@ void main() {
       a.dispose();
     });
 
-    test('redacted logging is unchanged: host only, never the query',
-        () async {
+    test('redacted logging is unchanged: host only, never the query', () async {
       final List<(ExtensionLogLevel, String)> logs =
           <(ExtensionLogLevel, String)>[];
       final ControlledExtensionRuntimeApi a = ControlledExtensionRuntimeApi(
@@ -583,14 +639,16 @@ void main() {
         logSink: (ExtensionLogLevel level, String message) =>
             logs.add((level, message)),
       );
-      await a.request(ExtensionRequest(
-        url: 'https://example.test/search',
-        method: 'GET',
-        queryParameters: const <String, String>{'token': 'supersecret'},
-      ));
-      final String all = logs.map(((ExtensionLogLevel, String) l) => l.$2).join(
-        '\n',
+      await a.request(
+        ExtensionRequest(
+          url: 'https://example.test/search',
+          method: 'GET',
+          queryParameters: const <String, String>{'token': 'supersecret'},
+        ),
       );
+      final String all = logs
+          .map(((ExtensionLogLevel, String) l) => l.$2)
+          .join('\n');
       expect(all, contains('example.test'));
       expect(all, isNot(contains('supersecret')));
       expect(all, isNot(contains('/search')));
@@ -612,52 +670,53 @@ void main() {
     });
 
     test(
-        'a slow-drip response aborts at the OVERALL deadline, not per chunk',
-        () async {
-      // Sends one byte every 200 ms for a long time. Under the old
-      // per-chunk Stream.timeout this would keep the request alive almost
-      // forever; under the overall deadline it must abort at ~1 s.
-      final HttpServer drip = await HttpServer.bind(
-        InternetAddress.loopbackIPv4,
-        0,
-      );
-      addTearDown(drip.close);
-      final StreamSubscription<HttpRequest> sub = drip.listen((
-        HttpRequest request,
-      ) async {
-        request.response.statusCode = 200;
-        request.response.bufferOutput = false;
-        for (int i = 0; i < 1000; i++) {
-          request.response.add(<int>[0x61]);
-          await request.response.flush();
-          await Future<void>.delayed(const Duration(milliseconds: 200));
-        }
-        await request.response.close();
-      });
-      addTearDown(sub.cancel);
+      'a slow-drip response aborts at the OVERALL deadline, not per chunk',
+      () async {
+        // Sends one byte every 200 ms for a long time. Under the old
+        // per-chunk Stream.timeout this would keep the request alive almost
+        // forever; under the overall deadline it must abort at ~1 s.
+        final HttpServer drip = await HttpServer.bind(
+          InternetAddress.loopbackIPv4,
+          0,
+        );
+        addTearDown(drip.close);
+        final StreamSubscription<HttpRequest> sub = drip.listen((
+          HttpRequest request,
+        ) async {
+          request.response.statusCode = 200;
+          request.response.bufferOutput = false;
+          for (int i = 0; i < 1000; i++) {
+            request.response.add(<int>[0x61]);
+            await request.response.flush();
+            await Future<void>.delayed(const Duration(milliseconds: 200));
+          }
+          await request.response.close();
+        });
+        addTearDown(sub.cancel);
 
-      final DartIoHttpTransport transport = DartIoHttpTransport();
-      addTearDown(transport.close);
+        final DartIoHttpTransport transport = DartIoHttpTransport();
+        addTearDown(transport.close);
 
-      final Stopwatch watch = Stopwatch()..start();
-      final ExtensionHttpResult result = await transport.send(
-        uri: Uri.parse('http://127.0.0.1:${drip.port}/drip'),
-        method: 'GET',
-        headers: const <String, String>{},
-        timeout: const Duration(seconds: 1),
-        maxBytes: 1024 * 1024,
-        maxRedirects: 0,
-      );
-      watch.stop();
+        final Stopwatch watch = Stopwatch()..start();
+        final ExtensionHttpResult result = await transport.send(
+          uri: Uri.parse('http://127.0.0.1:${drip.port}/drip'),
+          method: 'GET',
+          headers: const <String, String>{},
+          timeout: const Duration(seconds: 1),
+          maxBytes: 1024 * 1024,
+          maxRedirects: 0,
+        );
+        watch.stop();
 
-      expect(result.statusCode, isNull);
-      expect(result.failureType, ExtensionFailureType.timeout);
-      // The deadline (1 s) must cut the exchange well before the drip would
-      // naturally finish (1000 × 200 ms = 200 s) and well before any
-      // per-chunk reset could accumulate that total. Generous bounds keep
-      // the test deterministic on a loaded CI box.
-      expect(watch.elapsed, lessThan(const Duration(seconds: 8)));
-    });
+        expect(result.statusCode, isNull);
+        expect(result.failureType, ExtensionFailureType.timeout);
+        // The deadline (1 s) must cut the exchange well before the drip would
+        // naturally finish (1000 × 200 ms = 200 s) and well before any
+        // per-chunk reset could accumulate that total. Generous bounds keep
+        // the test deterministic on a loaded CI box.
+        expect(watch.elapsed, lessThan(const Duration(seconds: 8)));
+      },
+    );
 
     test('the size cap still aborts a large body', () async {
       server.listen((HttpRequest request) async {
@@ -731,8 +790,7 @@ void main() {
       expect(result.failureType, ExtensionFailureType.timeout);
     });
 
-    test('a timed-out request does not keep the connection running',
-        () async {
+    test('a timed-out request does not keep the connection running', () async {
       int openConnections = 0;
       server.listen((HttpRequest request) async {
         openConnections++;
@@ -753,8 +811,11 @@ void main() {
 
       transport.close(); // force-closes pooled sockets
       await Future<void>.delayed(const Duration(milliseconds: 50));
-      expect(openConnections, 1,
-          reason: 'exactly one connection was made for one request');
+      expect(
+        openConnections,
+        1,
+        reason: 'exactly one connection was made for one request',
+      );
     });
   });
 }

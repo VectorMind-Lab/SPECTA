@@ -7,6 +7,7 @@ import '../../app/platform/form_factor.dart';
 import '../../app/theme/specta_colors.dart';
 import '../../core/discovery/discovery_models.dart';
 import '../../core/extensions/contract/result_models.dart';
+import '../../ui/widgets/specta_artwork.dart';
 import '../../ui/widgets/specta_empty_state.dart';
 import '../../ui/widgets/specta_focus_wrapper.dart';
 import '../details/details_state.dart';
@@ -25,10 +26,9 @@ class SpectaSearchQueryNotifier extends Notifier<String> {
 }
 
 final NotifierProvider<SpectaSearchQueryNotifier, String>
-spectaSearchQueryProvider =
-    NotifierProvider<SpectaSearchQueryNotifier, String>(
-      SpectaSearchQueryNotifier.new,
-    );
+spectaSearchQueryProvider = NotifierProvider<SpectaSearchQueryNotifier, String>(
+  SpectaSearchQueryNotifier.new,
+);
 
 /// Search view for discovering movies and series.
 ///
@@ -106,9 +106,7 @@ class _SearchViewState extends ConsumerState<SearchView> {
                       icon: const Icon(Icons.close_rounded),
                       onPressed: () {
                         _controller.clear();
-                        ref
-                            .read(searchSessionProvider.notifier)
-                            .reset();
+                        ref.read(searchSessionProvider.notifier).reset();
                       },
                     ),
             ),
@@ -117,31 +115,38 @@ class _SearchViewState extends ConsumerState<SearchView> {
         Expanded(
           child: switch (state.status) {
             SearchStatus.idle => const SpectaEmptyState(
-                icon: Icons.travel_explore_rounded,
-                message: 'Search across your enabled extensions',
-              ),
+              icon: Icons.travel_explore_rounded,
+              message: 'Search across your enabled extensions',
+            ),
             SearchStatus.loading => const Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: CircularProgressIndicator(),
+            ),
             SearchStatus.results ||
-            SearchStatus.partialFailure =>
-              _ResultList(state: state),
+            SearchStatus.partialFailure => _ResultList(state: state),
             SearchStatus.empty => const SpectaEmptyState(
-                icon: Icons.search_off_rounded,
-                message: 'No results found',
-              ),
+              icon: Icons.search_off_rounded,
+              message: 'No results found',
+            ),
             SearchStatus.allFailed => const SpectaEmptyState(
-                icon: Icons.cloud_off_rounded,
-                message:
-                    'Search failed — your extensions could not be reached. '
-                    'Check your connection and try again.',
-              ),
-            SearchStatus.noExtensions => const SpectaEmptyState(
-                icon: Icons.extension_off_rounded,
-                message:
-                    'No search-capable extensions are installed and enabled. '
-                    'Install one from the Extensions screen.',
-              ),
+              icon: Icons.cloud_off_rounded,
+              message:
+                  'Search failed — your extensions could not be reached. '
+                  'Check your connection and try again.',
+            ),
+            // The extension status alone must not decide what is on screen.
+            // A catalogue result (anime from AniList) is real content the user
+            // asked for, so it renders even with no extension installed; the
+            // notice explains why nothing is playable yet. Only when there is
+            // genuinely nothing at all do we show the install prompt.
+            SearchStatus.noExtensions =>
+              state.catalogueItems.isEmpty
+                  ? const SpectaEmptyState(
+                      icon: Icons.extension_off_rounded,
+                      message:
+                          'No search-capable extensions are installed and enabled. '
+                          'Install one from the Extensions screen.',
+                    )
+                  : _ResultList(state: state),
           },
         ),
       ],
@@ -166,23 +171,35 @@ class _ResultList extends StatelessWidget {
             color: SpectaColors.warning.withValues(alpha: 0.12),
             child: ListTile(
               dense: true,
-              leading: Icon(Icons.warning_amber_rounded,
-                  size: 18, color: SpectaColors.warning),
+              leading: Icon(
+                Icons.warning_amber_rounded,
+                size: 18,
+                color: SpectaColors.warning,
+              ),
               title: Text(
                 'Some extensions failed to respond; showing available '
                 'results',
-                style: TextStyle(fontSize: 12, color: SpectaColors.textSecondary),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: SpectaColors.textSecondary,
+                ),
               ),
             ),
           ),
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            itemCount: state.items.length,
+            // Catalogue-originated anime identities are appended after the
+            // extension results, using the same card. They are metadata, not
+            // sources, and the card says so.
+            itemCount: state.allItems.length,
             separatorBuilder: (BuildContext context, int index) =>
                 const SizedBox(height: 8),
             itemBuilder: (BuildContext context, int index) {
-              return _DiscoveryCard(item: state.items[index], accent: accent);
+              return _DiscoveryCard(
+                item: state.allItems[index],
+                accent: accent,
+              );
             },
           ),
         ),
@@ -200,7 +217,8 @@ class _DiscoveryCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool isLarge = MediaQuery.sizeOf(context).width >= SpectaBreakpoints.television;
+    final bool isLarge =
+        MediaQuery.sizeOf(context).width >= SpectaBreakpoints.television;
     final double posterSize = isLarge ? 84 : 64;
 
     return SpectaFocusWrapper(
@@ -211,7 +229,9 @@ class _DiscoveryCard extends ConsumerWidget {
         // stale card tap can never render fabricated data.
         ref.read(detailsSessionProvider.notifier).open(item);
         Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (BuildContext _) => const DetailsView()),
+          MaterialPageRoute<void>(
+            builder: (BuildContext _) => const DetailsView(),
+          ),
         );
       },
       child: Container(
@@ -223,26 +243,11 @@ class _DiscoveryCard extends ConsumerWidget {
         ),
         child: Row(
           children: <Widget>[
-            // Poster / fallback
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: posterSize,
-                height: posterSize * 1.5,
-                color: SpectaColors.surfaceElevated,
-                child: item.cover != null
-                    ? Image.network(
-                        item.cover!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (
-                          BuildContext context,
-                          Object error,
-                          StackTrace? stackTrace,
-                        ) =>
-                            _fallback(accent),
-                      )
-                    : _fallback(accent),
-              ),
+            SpectaArtwork(
+              url: item.cover,
+              width: posterSize,
+              height: posterSize * 1.5,
+              fallbackIcon: _iconFor(item.type),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -262,7 +267,7 @@ class _DiscoveryCard extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     <String>[
-                      item.type == MediaType.movie ? 'Movie' : 'Series',
+                      _typeLabel(item.type),
                       if (item.year != null) '${item.year}',
                     ].join(' · '),
                     style: const TextStyle(
@@ -271,11 +276,15 @@ class _DiscoveryCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  // Provenance: how many extensions discovered this work.
+                  // Provenance, stated honestly. A catalogue result has NO
+                  // extension reference, so it must not claim to be
+                  // "found on 1 extension".
                   Text(
-                    item.isCrossExtension
-                        ? 'Found on ${item.references.length} extensions'
-                        : 'Found on 1 extension',
+                    item.references.isEmpty
+                        ? 'Anime catalogue — no streaming source yet'
+                        : (item.isCrossExtension
+                              ? 'Found on ${item.references.length} extensions'
+                              : 'Found on 1 extension'),
                     style: TextStyle(
                       fontSize: 11,
                       color: accent.withValues(alpha: 0.8),
@@ -285,24 +294,23 @@ class _DiscoveryCard extends ConsumerWidget {
                 ],
               ),
             ),
-            Icon(
-              item.type == MediaType.movie
-                  ? Icons.movie_rounded
-                  : Icons.tv_rounded,
-              size: 20,
-              color: SpectaColors.textMuted,
-            ),
+            Icon(_iconFor(item.type), size: 20, color: SpectaColors.textMuted),
           ],
         ),
       ),
     );
   }
 
-  Widget _fallback(Color accent) {
-    return Icon(
-      item.type == MediaType.movie ? Icons.movie_rounded : Icons.tv_rounded,
-      size: 28,
-      color: accent.withValues(alpha: 0.35),
-    );
-  }
+  /// User-facing content-type label. Anime is its own label, not "Series".
+  static String _typeLabel(MediaType type) => switch (type) {
+    MediaType.movie => 'Movie',
+    MediaType.series => 'Series',
+    MediaType.anime => 'Anime',
+  };
+
+  static IconData _iconFor(MediaType type) => switch (type) {
+    MediaType.movie => Icons.movie_rounded,
+    MediaType.series => Icons.tv_rounded,
+    MediaType.anime => Icons.animation_rounded,
+  };
 }

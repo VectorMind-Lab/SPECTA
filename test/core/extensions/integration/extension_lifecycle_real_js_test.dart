@@ -127,139 +127,135 @@ void main() {
   }
 
   group('Phase 2H real engine lifecycle — QuickJS', () {
-    test(
-      'installs, loads, runs search/details/getSources and shuts down',
-      () async {
-        final InMemoryExtensionRegistry registry = InMemoryExtensionRegistry();
-        final ExtensionManager manager = buildManager(registry);
-        final File file = await install(dir, fixtureSource, 'fixture.js');
+    test('installs, loads, runs search/details/getSources and shuts down', () async {
+      final InMemoryExtensionRegistry registry = InMemoryExtensionRegistry();
+      final ExtensionManager manager = buildManager(registry);
+      final File file = await install(dir, fixtureSource, 'fixture.js');
 
-        // --- installation boundary ---
-        final SpectaResult<ExtensionRecord> installResult = await manager
-            .importExtension(filePath: file.path);
-        expect(
-          installResult.isOk,
-          isTrue,
-          reason: installResult.failureOrNull?.message,
-        );
-        final ExtensionRecord record = installResult.valueOrNull!;
-        expect(record.id, _fixtureId);
-        expect(record.name, 'Lifecycle Fixture');
-        expect(record.apiVersion, 2);
-        expect(record.contentType, 'movies_series');
-        expect(
-          record.trustLevel,
-          TrustLevel.unverified,
-          reason: 'the fixture is unsigned and must never be Official',
-        );
+      // --- installation boundary ---
+      final SpectaResult<ExtensionRecord> installResult = await manager
+          .importExtension(filePath: file.path);
+      expect(
+        installResult.isOk,
+        isTrue,
+        reason: installResult.failureOrNull?.message,
+      );
+      final ExtensionRecord record = installResult.valueOrNull!;
+      expect(record.id, _fixtureId);
+      expect(record.name, 'Lifecycle Fixture');
+      expect(record.apiVersion, 2);
+      expect(record.contentType, 'movies_series');
+      expect(
+        record.trustLevel,
+        TrustLevel.unverified,
+        reason: 'the fixture is unsigned and must never be Official',
+      );
 
-        // --- load through the real engine ---
-        final SpectaResult<ExtensionRuntime> loaded = await manager.loadRuntime(
-          record.id,
-        );
-        expect(loaded.isOk, isTrue, reason: loaded.failureOrNull?.message);
-        final ExtensionRuntime runtime = loaded.valueOrNull!;
+      // --- load through the real engine ---
+      final SpectaResult<ExtensionRuntime> loaded = await manager.loadRuntime(
+        record.id,
+      );
+      expect(loaded.isOk, isTrue, reason: loaded.failureOrNull?.message);
+      final ExtensionRuntime runtime = loaded.valueOrNull!;
 
-        // Manifest capabilities are what the runtime granted — nothing extra.
-        expect(
-          runtime.grantedCapabilities,
-          containsAll(<ExtensionCapability>[
-            ExtensionCapability.search,
-            ExtensionCapability.latest,
-            ExtensionCapability.details,
-            ExtensionCapability.sources,
-            ExtensionCapability.network,
-            ExtensionCapability.logging,
-          ]),
-        );
+      // Manifest capabilities are what the runtime granted — nothing extra.
+      expect(
+        runtime.grantedCapabilities,
+        containsAll(<ExtensionCapability>[
+          ExtensionCapability.search,
+          ExtensionCapability.latest,
+          ExtensionCapability.details,
+          ExtensionCapability.sources,
+          ExtensionCapability.network,
+          ExtensionCapability.logging,
+        ]),
+      );
 
-        // load() ran and its log() reached the host sink through the real bridge.
-        expect(logs, contains('info:lifecycle fixture loaded'));
+      // load() ran and its log() reached the host sink through the real bridge.
+      expect(logs, contains('info:lifecycle fixture loaded'));
 
-        // --- capabilities() ---
-        final SpectaResult<ExtensionCapabilities> caps = await runtime
-            .capabilities();
-        expect(caps.isOk, isTrue);
-        expect(caps.valueOrNull!.search, isTrue);
-        expect(caps.valueOrNull!.details, isTrue);
-        expect(caps.valueOrNull!.mp4Sources, isTrue);
+      // --- capabilities() ---
+      final SpectaResult<ExtensionCapabilities> caps = await runtime
+          .capabilities();
+      expect(caps.isOk, isTrue);
+      expect(caps.valueOrNull!.search, isTrue);
+      expect(caps.valueOrNull!.details, isTrue);
+      expect(caps.valueOrNull!.mp4Sources, isTrue);
 
-        // --- search() ---
-        final SpectaResult<List<SearchResult>> search = await manager
-            .callOperation<List<SearchResult>>(
-              record.id,
-              (ExtensionRuntime r) => r.search(query: 'matrix', page: 1),
-            );
-        expect(search.isOk, isTrue, reason: search.failureOrNull?.message);
-        expect(search.valueOrNull!.length, 2);
-        expect(
-          search.valueOrNull!.map((SearchResult s) => s.type),
-          containsAll(<MediaType>[MediaType.movie, MediaType.series]),
-        );
+      // --- search() ---
+      final SpectaResult<List<SearchResult>> search = await manager
+          .callOperation<List<SearchResult>>(
+            record.id,
+            (ExtensionRuntime r) => r.search(query: 'matrix', page: 1),
+          );
+      expect(search.isOk, isTrue, reason: search.failureOrNull?.message);
+      expect(search.valueOrNull!.length, 2);
+      expect(
+        search.valueOrNull!.map((SearchResult s) => s.type),
+        containsAll(<MediaType>[MediaType.movie, MediaType.series]),
+      );
 
-        // --- latest() ---
-        final SpectaResult<List<SearchResult>> latest = await manager
-            .callOperation<List<SearchResult>>(
-              record.id,
-              (ExtensionRuntime r) => r.latest(page: 1),
-            );
-        expect(latest.isOk, isTrue);
-        expect(latest.valueOrNull!.single.title, 'Fixture Latest');
+      // --- latest() ---
+      final SpectaResult<List<SearchResult>> latest = await manager
+          .callOperation<List<SearchResult>>(
+            record.id,
+            (ExtensionRuntime r) => r.latest(page: 1),
+          );
+      expect(latest.isOk, isTrue);
+      expect(latest.valueOrNull!.single.title, 'Fixture Latest');
 
-        // --- details(): movie ---
-        final SpectaResult<MediaDetails> movie = await manager
-            .callOperation<MediaDetails>(
-              record.id,
-              (ExtensionRuntime r) =>
-                  r.details(url: 'specta://fixture/movie/1'),
-            );
-        expect(movie.isOk, isTrue, reason: movie.failureOrNull?.message);
-        expect(movie.valueOrNull!.type, MediaType.movie);
-        expect(movie.valueOrNull!.seasons, isEmpty);
+      // --- details(): movie ---
+      final SpectaResult<MediaDetails> movie = await manager
+          .callOperation<MediaDetails>(
+            record.id,
+            (ExtensionRuntime r) => r.details(url: 'specta://fixture/movie/1'),
+          );
+      expect(movie.isOk, isTrue, reason: movie.failureOrNull?.message);
+      expect(movie.valueOrNull!.type, MediaType.movie);
+      expect(movie.valueOrNull!.seasons, isEmpty);
 
-        // --- details(): series with seasons and episodes ---
-        final SpectaResult<MediaDetails> series = await manager
-            .callOperation<MediaDetails>(
-              record.id,
-              (ExtensionRuntime r) =>
-                  r.details(url: 'specta://fixture/series/1'),
-            );
-        expect(series.isOk, isTrue, reason: series.failureOrNull?.message);
-        expect(series.valueOrNull!.type, MediaType.series);
-        expect(series.valueOrNull!.seasons.single.seasonNumber, 1);
-        expect(series.valueOrNull!.seasons.single.episodes.length, 2);
-        expect(
-          series.valueOrNull!.seasons.single.episodes.first.url,
-          'specta://fixture/series/1/s1e1',
-        );
+      // --- details(): series with seasons and episodes ---
+      final SpectaResult<MediaDetails> series = await manager
+          .callOperation<MediaDetails>(
+            record.id,
+            (ExtensionRuntime r) => r.details(url: 'specta://fixture/series/1'),
+          );
+      expect(series.isOk, isTrue, reason: series.failureOrNull?.message);
+      expect(series.valueOrNull!.type, MediaType.series);
+      expect(series.valueOrNull!.seasons.single.seasonNumber, 1);
+      expect(series.valueOrNull!.seasons.single.episodes.length, 2);
+      expect(
+        series.valueOrNull!.seasons.single.episodes.first.url,
+        'specta://fixture/series/1/s1e1',
+      );
 
-        // --- getSources() ---
-        final SpectaResult<List<ExtensionSource>> sources = await manager
-            .callOperation<List<ExtensionSource>>(
-              record.id,
-              (ExtensionRuntime r) =>
-                  r.getSources(reference: 'specta://fixture/movie/1'),
-            );
-        expect(sources.isOk, isTrue, reason: sources.failureOrNull?.message);
-        expect(sources.valueOrNull!.single.type, SourceType.mp4);
-        expect(
-          sources.valueOrNull!.single.url,
-          'https://media.example.com/fixture.mp4',
-        );
-        expect(sources.valueOrNull!.single.quality, '1080p');
+      // --- getSources() ---
+      final SpectaResult<List<ExtensionSource>> sources = await manager
+          .callOperation<List<ExtensionSource>>(
+            record.id,
+            (ExtensionRuntime r) =>
+                r.getSources(reference: 'specta://fixture/movie/1'),
+          );
+      expect(sources.isOk, isTrue, reason: sources.failureOrNull?.message);
+      expect(sources.valueOrNull!.single.type, SourceType.mp4);
+      expect(
+        sources.valueOrNull!.single.url,
+        'https://media.example.com/fixture.mp4',
+      );
+      expect(sources.valueOrNull!.single.quality, '1080p');
 
-        // --- healthCheck() ---
-        expect(await manager.healthCheck(record.id), isTrue);
+      // --- healthCheck() ---
+      expect(await manager.healthCheck(record.id), isTrue);
 
-        // --- shutdown() ---
-        await manager.shutdown(record.id);
-        final SpectaResult<bool> afterShutdown = await manager.callOperation<bool>(
-          record.id,
-          (ExtensionRuntime r) => r.healthCheck(),
-        );
-        expect(afterShutdown.isErr, isTrue);
-      },
-    );
+      // --- shutdown() ---
+      await manager.shutdown(record.id);
+      final SpectaResult<bool> afterShutdown = await manager
+          .callOperation<bool>(
+            record.id,
+            (ExtensionRuntime r) => r.healthCheck(),
+          );
+      expect(afterShutdown.isErr, isTrue);
+    });
 
     test('disable retires the runtime; re-enable recreates it', () async {
       final InMemoryExtensionRegistry registry = InMemoryExtensionRegistry();
@@ -338,47 +334,44 @@ class Extension extends SpectaExtension { this is not valid js }
       },
     );
 
-    test(
-      'request() from the fixture round-trips through the controlled API',
-      () async {
-        final InMemoryExtensionRegistry registry = InMemoryExtensionRegistry();
-        final ExtensionManager manager = buildManager(registry);
-        final File file = await install(dir, fixtureSource, 'fixture.js');
-        await manager.importExtension(filePath: file.path);
+    test('request() from the fixture round-trips through the controlled API', () async {
+      final InMemoryExtensionRegistry registry = InMemoryExtensionRegistry();
+      final ExtensionManager manager = buildManager(registry);
+      final File file = await install(dir, fixtureSource, 'fixture.js');
+      await manager.importExtension(filePath: file.path);
 
-        // Drive the fixture's own ping() through a directly-held sandbox, so the
-        // request path is exercised by real JavaScript from the fixture.
-        final FlutterJsSandbox sandbox = FlutterJsSandbox();
-        final ExtensionRuntime runtime = ExtensionRuntime(
-          sandbox: sandbox,
-          api: ControlledExtensionRuntimeApi(
-            transport: transport,
-            policy: const ExtensionRequestPolicy(blockPrivateHosts: false),
-          ),
-          capabilities: <ExtensionCapability>{
-            ExtensionCapability.network,
-            ExtensionCapability.logging,
-          },
-        );
-        final SpectaResult<void> loaded = await runtime.loadExtension(
-          extensionId: _fixtureId,
-          jsCode: fixtureSource,
-        );
-        expect(loaded.isOk, isTrue, reason: loaded.failureOrNull?.message);
+      // Drive the fixture's own ping() through a directly-held sandbox, so the
+      // request path is exercised by real JavaScript from the fixture.
+      final FlutterJsSandbox sandbox = FlutterJsSandbox();
+      final ExtensionRuntime runtime = ExtensionRuntime(
+        sandbox: sandbox,
+        api: ControlledExtensionRuntimeApi(
+          transport: transport,
+          policy: const ExtensionRequestPolicy(blockPrivateHosts: false),
+        ),
+        capabilities: <ExtensionCapability>{
+          ExtensionCapability.network,
+          ExtensionCapability.logging,
+        },
+      );
+      final SpectaResult<void> loaded = await runtime.loadExtension(
+        extensionId: _fixtureId,
+        jsCode: fixtureSource,
+      );
+      expect(loaded.isOk, isTrue, reason: loaded.failureOrNull?.message);
 
-        final String raw = await sandbox.evaluateAsync(
-          'JSON.stringify(await _spectaInstance.ping())',
-        );
-        final Map<String, dynamic> received =
-            jsonDecode(raw) as Map<String, dynamic>;
+      final String raw = await sandbox.evaluateAsync(
+        'JSON.stringify(await _spectaInstance.ping())',
+      );
+      final Map<String, dynamic> received =
+          jsonDecode(raw) as Map<String, dynamic>;
 
-        expect(transport.calls, 1);
-        expect(transport.lastUri.toString(), 'https://api.example.com/ping');
-        expect(received['ok'], isTrue);
+      expect(transport.calls, 1);
+      expect(transport.lastUri.toString(), 'https://api.example.com/ping');
+      expect(received['ok'], isTrue);
 
-        await runtime.shutdown();
-      },
-    );
+      await runtime.shutdown();
+    });
 
     test(
       'the lifecycle service reports the installed fixture with its health',

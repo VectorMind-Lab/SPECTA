@@ -82,12 +82,13 @@ typedef MetadataLookup = Future<MetadataItem?> Function(DiscoveryItem item);
 
 final Provider<MetadataLookup> metadataLookupProvider =
     Provider<MetadataLookup>((Ref ref) {
-  return (DiscoveryItem item) async {
-    final MetadataResult result =
-        await ref.read(metadataServiceProvider).metadataFor(item);
-    return result.item;
-  };
-});
+      return (DiscoveryItem item) async {
+        final MetadataResult result = await ref
+            .read(metadataServiceProvider)
+            .metadataFor(item);
+        return result.item;
+      };
+    });
 
 /// Starts playback of an already-resolved item. Injected by the caller so the
 /// production path uses the real [startPlayback] (which owns navigation) while
@@ -127,16 +128,15 @@ final class ResumeResult {
 
   /// User-facing, non-technical explanation. Honest: nothing is fabricated.
   String get message => switch (status) {
-        ResumeStatus.started => 'Resuming…',
-        ResumeStatus.noReferences =>
-          'This item can no longer be resolved. Open it from Search again.',
-        ResumeStatus.invalidIdentity =>
-          'This item cannot be resumed right now.',
-        ResumeStatus.metadataUnavailable =>
-          'Its provider could not supply details right now. Try again later.',
-        ResumeStatus.episodeMissing =>
-          'That episode is no longer available from its provider.',
-      };
+    ResumeStatus.started => 'Resuming…',
+    ResumeStatus.noReferences =>
+      'This item can no longer be resolved. Open it from Search again.',
+    ResumeStatus.invalidIdentity => 'This item cannot be resumed right now.',
+    ResumeStatus.metadataUnavailable =>
+      'Its provider could not supply details right now. Try again later.',
+    ResumeStatus.episodeMissing =>
+      'That episode is no longer available from its provider.',
+  };
 
   @override
   String toString() => 'ResumeResult(${status.name})';

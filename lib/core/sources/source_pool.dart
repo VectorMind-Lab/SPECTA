@@ -45,16 +45,16 @@ final class SourcePool {
       !outcomes.any(
         (ExtensionSourceOutcome o) => o.isSuccess && o.candidates.isNotEmpty,
       ) &&
-      outcomes.any(
-        (ExtensionSourceOutcome o) => o.isFailed || o.isInvalid,
-      );
+      outcomes.any((ExtensionSourceOutcome o) => o.isFailed || o.isInvalid);
 
   /// True when no extension could be queried (nothing enabled with `sources`).
   bool get noExtensionAvailable =>
-      outcomes.isEmpty || outcomes.every((ExtensionSourceOutcome o) => o.isSkipped);
+      outcomes.isEmpty ||
+      outcomes.every((ExtensionSourceOutcome o) => o.isSkipped);
 
   @override
-  String toString() => 'SourcePool(reference: $reference, '
+  String toString() =>
+      'SourcePool(reference: $reference, '
       'ranked: ${ranked.length}, outcomes: ${outcomes.length})';
 }
 

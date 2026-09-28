@@ -23,7 +23,8 @@ class SpectaBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color bgColor = backgroundColor ?? SpectaColors.surfaceElevated;
     final Color fgColor = textColor ?? SpectaColors.textSecondary;
-    final Color borderClr = borderColor ?? SpectaColors.outline.withValues(alpha: 0.5);
+    final Color borderClr =
+        borderColor ?? SpectaColors.outline.withValues(alpha: 0.5);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

@@ -102,9 +102,10 @@ abstract final class SourceManager {
     try {
       final SpectaResult<List<ExtensionSource>> response = await manager
           .callOperation<List<ExtensionSource>>(
-        extensionId,
-        (ExtensionRuntime r) => r.getSources(reference: reference),
-      ).timeout(timeout);
+            extensionId,
+            (ExtensionRuntime r) => r.getSources(reference: reference),
+          )
+          .timeout(timeout);
 
       if (response.isErr) {
         return ExtensionSourceOutcome.failed(
@@ -116,10 +117,10 @@ abstract final class SourceManager {
 
       // Defensive limit: take only the first N candidates before validation
       // so a hostile/buggy response cannot waste unbounded work.
-      final List<ExtensionSource> raw = (response.valueOrNull ??
-              const <ExtensionSource>[])
-          .take(maxSourcesPerExtension)
-          .toList(growable: false);
+      final List<ExtensionSource> raw =
+          (response.valueOrNull ?? const <ExtensionSource>[])
+              .take(maxSourcesPerExtension)
+              .toList(growable: false);
 
       final List<ExtensionSource> valid = <ExtensionSource>[];
       int dropped = 0;
@@ -237,13 +238,15 @@ abstract final class SourceManager {
     try {
       final SpectaResult<ExtensionSource> response = await manager
           .callOperation<ExtensionSource>(
-        extensionId,
-        (ExtensionRuntime r) => r.refreshSource(reference: reference),
-      ).timeout(perExtensionTimeout);
+            extensionId,
+            (ExtensionRuntime r) => r.refreshSource(reference: reference),
+          )
+          .timeout(perExtensionTimeout);
 
       if (response.isErr) return null;
-      final ValidatedSource verdict =
-          SourceValidator.validate(response.valueOrNull!);
+      final ValidatedSource verdict = SourceValidator.validate(
+        response.valueOrNull!,
+      );
       return verdict.isDropped ? null : verdict.source;
     } on Object {
       return null;
@@ -276,22 +279,20 @@ final class SourceService {
     required String reference,
     required Map<String, String> extensions,
     QualityPreference preference = QualityPreference.auto,
-  }) =>
-      SourceManager.resolve(
-        reference: reference,
-        extensions: extensions,
-        manager: manager,
-        preference: preference,
-      );
+  }) => SourceManager.resolve(
+    reference: reference,
+    extensions: extensions,
+    manager: manager,
+    preference: preference,
+  );
 
   /// Requests a refreshed candidate through the existing contract operation.
   Future<ExtensionSource?> refresh({
     required String extensionId,
     required String reference,
-  }) =>
-      SourceManager.refresh(
-        extensionId: extensionId,
-        reference: reference,
-        manager: manager,
-      );
+  }) => SourceManager.refresh(
+    extensionId: extensionId,
+    reference: reference,
+    manager: manager,
+  );
 }

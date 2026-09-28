@@ -1,12 +1,19 @@
-import 'dart:async';
+﻿import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/anilist/anilist_client.dart';
+import '../../core/anilist/anilist_dto.dart';
+import '../../core/anilist/anilist_normalizer.dart';
+import '../../core/anilist/anilist_providers.dart';
+import '../../core/database/database_capabilities.dart';
 import '../../core/discovery/discovery_coordinator.dart';
 import '../../core/discovery/discovery_models.dart';
+import '../../core/errors/specta_result.dart';
 
-/// User-facing search status. Distinguishes the states the brief requires —
-/// idle, loading, results, honest empty, partial failure, total failure —
+/// User-facing search status. Distinguishes the states the brief requires Ã¢â‚¬â€
+/// idle, loading, results, honest empty, partial failure, total failure Ã¢â‚¬â€
 /// without exposing raw internal exceptions.
 enum SearchStatus {
   /// No search submitted yet.
@@ -40,20 +47,21 @@ final class SearchState {
     this.failedExtensions = const <String>[],
     this.droppedCount = 0,
     this.page = 1,
+    this.catalogueItems = const <DiscoveryItem>[],
   });
 
   final SearchStatus status;
 
   /// Monotonic round counter. A response from an older generation is
-  /// discarded — "bat" → "batm" → "batman" can never interleave.
+  /// discarded Ã¢â‚¬â€ "bat" Ã¢â€ â€™ "batm" Ã¢â€ â€™ "batman" can never interleave.
   final int generation;
 
   /// Unified, deduplicated discovery items (Phase 2B output). The UI renders
-  /// these — never per-extension raw results, which would re-duplicate what
+  /// these Ã¢â‚¬â€ never per-extension raw results, which would re-duplicate what
   /// deduplication merged.
   final List<DiscoveryItem> items;
 
-  /// Extensions that failed in the latest round (ids only — no raw errors in
+  /// Extensions that failed in the latest round (ids only Ã¢â‚¬â€ no raw errors in
   /// the UI layer).
   final List<String> failedExtensions;
 
@@ -62,6 +70,21 @@ final class SearchState {
 
   /// The page the latest round requested.
   final int page;
+
+  /// Catalogue-originated results (C4.2) — currently AniList-backed ANIME,
+  /// which no extension can discover because no extension serves anime yet.
+  ///
+  /// These are METADATA identities, not sources. They are kept separate from
+  /// [items] on purpose: extension discovery remains the authority for what is
+  /// playable, and a catalogue result never silently joins that list.
+  final List<DiscoveryItem> catalogueItems;
+
+  /// Everything the round found: extension results first, catalogue metadata
+  /// after. The UI renders these in one list and labels each honestly.
+  List<DiscoveryItem> get allItems => <DiscoveryItem>[
+    ...items,
+    ...catalogueItems,
+  ];
 
   static const SearchState initial = SearchState(
     status: SearchStatus.idle,
@@ -75,6 +98,7 @@ final class SearchState {
     List<String>? failedExtensions,
     int? droppedCount,
     int? page,
+    List<DiscoveryItem>? catalogueItems,
   }) {
     return SearchState(
       status: status ?? this.status,
@@ -83,9 +107,18 @@ final class SearchState {
       failedExtensions: failedExtensions ?? this.failedExtensions,
       droppedCount: droppedCount ?? this.droppedCount,
       page: page ?? this.page,
+      catalogueItems: catalogueItems ?? this.catalogueItems,
     );
   }
 }
+
+/// Overridable capability probe, so a test can declare that the database is
+/// available and then exercise the real catalogue path.
+final Provider<bool> catalogueDatabaseUsableProvider = Provider<bool>((
+  Ref ref,
+) {
+  return catalogueDatabaseUsable();
+});
 
 /// Drives discovery rounds over the existing query provider from 2A.
 ///
@@ -95,7 +128,7 @@ final class SearchState {
 /// resolve to the newest query's results, in order, with no interleaving.
 ///
 /// Pagination: page-based rounds are supported at the service boundary
-/// ([SearchRequest.page]); the load-more UI is deliberately deferred — the
+/// ([SearchRequest.page]); the load-more UI is deliberately deferred Ã¢â‚¬â€ the
 /// extension contract's `searchPagination` capability is honoured by the
 /// runtime, and page 1 covers the Phase 2B surface.
 class SearchSessionNotifier extends Notifier<SearchState> {
@@ -142,12 +175,70 @@ class SearchSessionNotifier extends Notifier<SearchState> {
     if (_disposed) return;
 
     _applyIfCurrent(gen, _stateFrom(outcome, gen, page));
+
+    // Catalogue discovery (C4.2). AniList supplies ANIME metadata identities
+    // that no extension can discover, because no extension serves anime yet.
+    //
+    // Strictly additive and strictly best-effort: an AniList outage must never
+    // change the extension results or the round's status, and the results are
+    // kept in a separate list so extension discovery stays the sole authority
+    // on what is playable.
+    final List<DiscoveryItem> anime = await _searchAnime(query);
+    if (_disposed) return;
+    if (gen != _generation) return; // a newer round won
+    if (anime.isEmpty) return;
+
+    final SearchState current = state;
+    if (current.generation != gen) return;
+    state = current.copyWith(catalogueItems: anime);
+  }
+
+  /// AniList-backed anime identities for [query]. Never throws.
+  ///
+  /// The catalogue client reads through the shared metadata cache, and that
+  /// cache needs the local database, which needs platform services. Where those
+  /// are unavailable (a headless unit test) the step is skipped rather than
+  /// attempted, because the resulting failure would surface as an unhandled
+  /// asynchronous error and could not be contained here.
+  Future<List<DiscoveryItem>> _searchAnime(String query) async {
+    // The catalogue client reads through the shared metadata cache, which needs
+    // the local database. Where that cannot be opened — a headless unit test, or
+    // a widget test with no storage plugin — the step is skipped rather than
+    // attempted, because the resulting failure surfaces asynchronously and
+    // could not be contained here.
+    if (!ref.read(catalogueDatabaseUsableProvider)) {
+      return const <DiscoveryItem>[];
+    }
+    try {
+      final AniListClient client = ref.read(anilistClientProvider);
+      final SpectaResult<List<AniListMedia>> result = await client.searchMedia(
+        query,
+      );
+      if (result.isErr) return const <DiscoveryItem>[];
+      return <DiscoveryItem>[
+        for (final AniListMedia media in result.valueOrNull!)
+          AniListNormalizer.toDiscoveryItem(media),
+      ];
+    } on Object {
+      return const <DiscoveryItem>[];
+    }
   }
 
   /// Applies a completed round only if it is still the newest one.
   void _applyIfCurrent(int gen, SearchState next) {
     if (_disposed) return;
-    if (gen != _generation) return; // stale round — reject
+    if (gen != _generation) return; // stale round, rejected
+    state = next;
+  }
+
+  /// Test-only seam: installs [next] as the current state.
+  ///
+  /// Some presentation states a real round can produce are awkward to reach in
+  /// a widget test — `noExtensions` together with catalogue results, for
+  /// example. They still have to be renderable, so they must be testable.
+  /// Production code never calls this.
+  @visibleForTesting
+  void debugSetResults(SearchState next) {
     state = next;
   }
 
@@ -190,7 +281,6 @@ class SearchSessionNotifier extends Notifier<SearchState> {
 
 /// The current search session state.
 final NotifierProvider<SearchSessionNotifier, SearchState>
-searchSessionProvider =
-    NotifierProvider<SearchSessionNotifier, SearchState>(
-      SearchSessionNotifier.new,
-    );
+searchSessionProvider = NotifierProvider<SearchSessionNotifier, SearchState>(
+  SearchSessionNotifier.new,
+);

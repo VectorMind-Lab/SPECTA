@@ -24,6 +24,8 @@ class LibraryDao implements LibraryStore {
         .insertOnConflictUpdate(
           WatchProgressEntriesCompanion.insert(
             id: progress.id,
+            canonicalId: Value<String?>(progress.canonicalId),
+            identityVersion: Value<int>(progress.identityVersion),
             mediaKey: progress.mediaKey,
             mediaType: progress.mediaType.code,
             title: progress.title,
@@ -54,8 +56,7 @@ class LibraryDao implements LibraryStore {
         await (_db.select(_db.watchProgressEntries)
               ..where(
                 ($WatchProgressEntriesTable t) =>
-                    t.completed.equals(0) &
-                    t.positionMs.isBiggerThanValue(0),
+                    t.completed.equals(0) & t.positionMs.isBiggerThanValue(0),
               )
               ..orderBy(<OrderingTerm Function($WatchProgressEntriesTable)>[
                 ($WatchProgressEntriesTable t) =>
@@ -81,9 +82,9 @@ class LibraryDao implements LibraryStore {
 
   @override
   Future<void> remove(String id) async {
-    await (_db.delete(_db.watchProgressEntries)
-          ..where(($WatchProgressEntriesTable t) => t.id.equals(id)))
-        .go();
+    await (_db.delete(
+      _db.watchProgressEntries,
+    )..where(($WatchProgressEntriesTable t) => t.id.equals(id))).go();
   }
 
   @override
@@ -94,17 +95,23 @@ class LibraryDao implements LibraryStore {
   @override
   Future<void> saveReferences(
     String mediaKey,
-    List<DiscoveryReference> references,
-  ) async {
+    List<DiscoveryReference> references, {
+    String? canonicalId,
+    int identityVersion = 1,
+  }) async {
     await _db.transaction(() async {
-      await (_db.delete(_db.mediaReferences)
-            ..where(($MediaReferencesTable t) => t.mediaKey.equals(mediaKey)))
-          .go();
+      await (_db.delete(
+        _db.mediaReferences,
+      )..where(($MediaReferencesTable t) => t.mediaKey.equals(mediaKey))).go();
       for (int i = 0; i < references.length; i++) {
         final DiscoveryReference ref = references[i];
-        await _db.into(_db.mediaReferences).insert(
+        await _db
+            .into(_db.mediaReferences)
+            .insert(
               MediaReferencesCompanion.insert(
                 mediaKey: mediaKey,
+                canonicalId: Value<String?>(canonicalId),
+                identityVersion: Value<int>(identityVersion),
                 ordinal: i,
                 extensionId: ref.extensionId,
                 referenceUrl: ref.url,
@@ -134,22 +141,24 @@ class LibraryDao implements LibraryStore {
   }
 
   WatchProgress _toModel(WatchProgressRow row) => WatchProgress(
-        id: row.id,
-        mediaKey: row.mediaKey,
-        // Rows are only ever written by SPECTA with a valid code; an
-        // unrecognised value is treated as a movie rather than crashing a
-        // library screen for one bad row.
-        mediaType: MediaType.fromCode(row.mediaType) ?? MediaType.movie,
-        title: row.title,
-        subtitleLine: row.subtitleLine,
-        seasonNumber: row.seasonNumber,
-        episodeNumber: row.episodeNumber,
-        position: Duration(milliseconds: row.positionMs),
-        duration: row.durationMs == null
-            ? null
-            : Duration(milliseconds: row.durationMs!),
-        elapsed: Duration(milliseconds: row.elapsedMs),
-        completed: row.completed != 0,
-        updatedAt: row.updatedAt,
-      );
+    id: row.id,
+    canonicalId: row.canonicalId,
+    identityVersion: row.identityVersion,
+    mediaKey: row.mediaKey,
+    // Rows are only ever written by SPECTA with a valid code; an
+    // unrecognised value is treated as a movie rather than crashing a
+    // library screen for one bad row.
+    mediaType: MediaType.fromCode(row.mediaType) ?? MediaType.movie,
+    title: row.title,
+    subtitleLine: row.subtitleLine,
+    seasonNumber: row.seasonNumber,
+    episodeNumber: row.episodeNumber,
+    position: Duration(milliseconds: row.positionMs),
+    duration: row.durationMs == null
+        ? null
+        : Duration(milliseconds: row.durationMs!),
+    elapsed: Duration(milliseconds: row.elapsedMs),
+    completed: row.completed != 0,
+    updatedAt: row.updatedAt,
+  );
 }

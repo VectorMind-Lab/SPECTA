@@ -63,9 +63,11 @@ class ExtensionManager {
       return Err<ExtensionRecord>(
         _buildFailure(
           type: ExtensionFailureType.parseError,
-          message: 'Cannot read extension file: $filePath',
+          // PRE-F §15: the message reaches a SnackBar, so it must never carry
+          // a filesystem path. The path stays in `detail` for diagnostics only.
+          message: 'That extension file could not be read.',
           extensionId: unidentifiedExtension,
-          detail: e.toString(),
+          detail: 'Cannot read extension file: $filePath (${e.runtimeType})',
           operation: 'import',
         ),
       );
@@ -103,20 +105,22 @@ class ExtensionManager {
       return Err<ExtensionRecord>(
         _buildFailure(
           type: ExtensionFailureType.invalidResult,
-          message: 'Manifest parsing failed: ${e.message}',
+          message: describeUnimportableSource(jsCode, e),
           extensionId: recordId ?? unidentifiedExtension,
+          detail: e.message,
           operation: 'import',
         ),
       );
     }
 
-    if (!manifest.isApiCompatible) {
+    if (!manifest.isCompatible) {
       return Err<ExtensionRecord>(
         _buildFailure(
           type: ExtensionFailureType.unsupported,
           message:
-              'Extension API version ${manifest.apiVersion} is not supported. '
-              'SPECTA requires API version ${SpectaApiVersion.current}.',
+              'Extension API version ${manifest.apiVersion} / contract '
+              '${manifest.effectiveContractVersion} is not supported by this '
+              'SPECTA build.',
           extensionId: manifest.id,
           operation: 'import',
         ),
@@ -139,18 +143,42 @@ class ExtensionManager {
     //   2. The user's enable/disable choice and original install time are
     //      carried forward. Re-importing a file is not an implicit re-enable:
     //      an extension the user switched off stays off until they turn it on.
+    final DateTime now = DateTime.now().toUtc();
     final ExtensionRecord? existing = await _registry.getById(id);
     if (existing != null) {
+      // Phase D (D7): snapshot the OUTGOING version before it is replaced.
+      // `rollback()` reads `getRollbackVersion`, but nothing ever wrote one,
+      // so rollback could never fire. The snapshot is taken only after every
+      // gate above has passed, and it records the file that is about to stop
+      // being current — so a rollback restores a file that still exists on
+      // disk rather than one already overwritten.
+      //
+      // Nothing here overwrites the previous snapshot: each replacement adds a
+      // row, and `getRollbackVersion` returns the most recent one. A failed
+      // replacement never reaches this point at all, because the manifest,
+      // compatibility and trust checks all run first.
+      await _registry.saveVersion(
+        ExtensionVersionRecord(
+          id: '${id}_${now.millisecondsSinceEpoch}',
+          extensionId: id,
+          version: existing.version,
+          filePath: existing.filePath,
+          isCurrent: false,
+          isRollbackPoint: true,
+          createdAt: now,
+          contractVersion: existing.contractVersion,
+        ),
+      );
       await _retireRuntime(id);
     }
 
-    final DateTime now = DateTime.now().toUtc();
     final ExtensionRecord record = ExtensionRecord(
       id: id,
       name: manifest.name,
       version: manifest.version,
       author: manifest.author,
       apiVersion: manifest.apiVersion,
+      contractVersion: manifest.effectiveContractVersion,
       contentType: manifest.type.code,
       signature: manifest.signature,
       trustLevel: trustLevel,
@@ -288,9 +316,12 @@ class ExtensionManager {
       return Err<ExtensionRuntime>(
         _buildFailure(
           type: ExtensionFailureType.runtimeError,
-          message: 'Cannot read extension file: ${record.filePath}',
+          // PRE-F §15: no filesystem path in a user-facing message.
+          message: 'That extension could not be loaded.',
           extensionId: id,
-          detail: e.toString(),
+          detail:
+              'Cannot read extension file: ${record.filePath} '
+              '(${e.runtimeType})',
           operation: 'load',
         ),
       );
@@ -465,9 +496,31 @@ class ExtensionManager {
     }
   }
 
+  /// Whether a rollback point would actually CHANGE [id] right now.
+  ///
+  /// Exposed so the UI offers the control only when it can do something real.
+  /// A snapshot that is identical to the current version is not an available
+  /// rollback: after a restore, the snapshot becomes the current version, and
+  /// offering "restore" again would be a no-op button.
+  Future<bool> isRollbackAvailable(String id) async {
+    final ExtensionVersionRecord? previous = await _registry.getRollbackVersion(
+      id,
+    );
+    if (previous == null) return false;
+    final ExtensionRecord? current = await _registry.getById(id);
+    if (current == null) return false;
+    return previous.version != current.version;
+  }
+
   /// Rolls back an extension to its previous known-good version.
   ///
-  /// Returns true if a rollback version was found and restored.
+  /// Returns true only when a snapshot that would actually CHANGE the installed
+  /// version was found and restored.
+  ///
+  /// The snapshot row is intentionally left in place — it is the historical
+  /// record of what was replaced — so idempotence comes from refusing a
+  /// rollback whose target is already the current version. Without that guard a
+  /// second rollback would report success while reinstalling the same file.
   Future<bool> rollback(String id) async {
     final ExtensionVersionRecord? previous = await _registry.getRollbackVersion(
       id,
@@ -476,6 +529,7 @@ class ExtensionManager {
 
     final ExtensionRecord? current = await _registry.getById(id);
     if (current == null) return false;
+    if (previous.version == current.version) return false;
 
     final DateTime now = DateTime.now().toUtc();
     await _registry.install(
@@ -563,4 +617,34 @@ class ExtensionManager {
       detail: detail,
     );
   }
+}
+
+/// Explains, in plain user-facing terms, why a picked or downloaded file is not
+/// a SPECTA extension.
+///
+/// The dominant real-world case is a repository CATALOGUE — a JSON index of
+/// addons belonging to some other provider ecosystem — pasted into "Install
+/// from a link". SPECTA extensions are single-file JavaScript carrying a
+/// `// ==SpectaExtension==` manifest header. The two formats are not
+/// interchangeable, and a link that looks perfectly valid was previously refused
+/// with nothing more specific than a raw parser message, leaving users with no
+/// idea what they had pasted or what to do next.
+///
+/// This changes only the EXPLANATION. Nothing here relaxes validation: a
+/// catalogue is still not installable as an extension, and the signature and
+/// trust gates are untouched.
+String describeUnimportableSource(String jsCode, ManifestParseException cause) {
+  final String head = jsCode.trimLeft();
+  final bool looksLikeJson =
+      head.startsWith('{') || head.startsWith('[') || head.startsWith('{');
+  if (looksLikeJson) {
+    return 'That link is a repository catalogue — a JSON index of addons — not '
+        'a single SPECTA extension. Browse the catalogue to install from it, '
+        'or link the .js file of one provider directly.';
+  }
+  if (!head.startsWith('//')) {
+    return 'That file is not a SPECTA extension. A SPECTA extension is a '
+        '.js file that starts with a // ==SpectaExtension== manifest header.';
+  }
+  return 'That file is not a valid SPECTA extension: ${cause.message}';
 }

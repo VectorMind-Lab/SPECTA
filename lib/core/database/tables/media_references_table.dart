@@ -17,6 +17,12 @@ class MediaReferences extends Table {
   @override
   String get tableName => 'media_references';
 
+  /// Canonical work identity when identity_version = 2, otherwise null.
+  TextColumn get canonicalId => text().nullable()();
+
+  /// Identity scheme: 1 = legacy title key, 2 = provider canonical key.
+  IntColumn get identityVersion => integer().withDefault(const Constant(1))();
+
   /// The work's canonical metadata key (the same identity watch progress uses).
   TextColumn get mediaKey => text()();
 

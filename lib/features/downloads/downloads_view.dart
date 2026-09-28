@@ -31,8 +31,9 @@ class DownloadsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncValue<List<DownloadRecord>> downloads =
-        ref.watch(allDownloadsProvider);
+    final AsyncValue<List<DownloadRecord>> downloads = ref.watch(
+      allDownloadsProvider,
+    );
 
     if (downloads.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -44,7 +45,8 @@ class DownloadsView extends ConsumerWidget {
       );
     }
 
-    final List<DownloadRecord> records = downloads.value ?? const <DownloadRecord>[];
+    final List<DownloadRecord> records =
+        downloads.value ?? const <DownloadRecord>[];
     if (records.isEmpty) {
       return const SpectaEmptyState(
         icon: Icons.download_outlined,
@@ -102,15 +104,12 @@ class _QueueSummary extends ConsumerWidget {
     final String text = status.queuedCount == 0
         ? '${status.activeCount} of ${status.concurrency} downloading'
         : '${status.activeCount} of ${status.concurrency} downloading · '
-            '${status.queuedCount} waiting';
+              '${status.queuedCount} waiting';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Text(
         text,
-        style: const TextStyle(
-          fontSize: 12,
-          color: SpectaColors.textSecondary,
-        ),
+        style: const TextStyle(fontSize: 12, color: SpectaColors.textSecondary),
       ),
     );
   }
@@ -232,7 +231,8 @@ class _DownloadTile extends ConsumerWidget {
                   _ActionButton(
                     label: downloadActionLabel(action),
                     icon: _iconFor(action),
-                    primary: action == DownloadAction.play ||
+                    primary:
+                        action == DownloadAction.play ||
                         action == DownloadAction.retry,
                     onPressed: () => _run(context, ref, action),
                   ),
@@ -245,13 +245,13 @@ class _DownloadTile extends ConsumerWidget {
   }
 
   IconData _iconFor(DownloadAction action) => switch (action) {
-        DownloadAction.pause => Icons.pause_rounded,
-        DownloadAction.resume => Icons.play_arrow_rounded,
-        DownloadAction.retry => Icons.refresh_rounded,
-        DownloadAction.cancel => Icons.close_rounded,
-        DownloadAction.remove => Icons.delete_outline_rounded,
-        DownloadAction.play => Icons.play_circle_outline_rounded,
-      };
+    DownloadAction.pause => Icons.pause_rounded,
+    DownloadAction.resume => Icons.play_arrow_rounded,
+    DownloadAction.retry => Icons.refresh_rounded,
+    DownloadAction.cancel => Icons.close_rounded,
+    DownloadAction.remove => Icons.delete_outline_rounded,
+    DownloadAction.play => Icons.play_circle_outline_rounded,
+  };
 
   /// Executes one action through the existing manager. A refusal (`false`)
   /// means the state moved between the paint and the tap; it is reported
@@ -313,9 +313,7 @@ class _ActionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: primary ? accent : Colors.transparent,
           borderRadius: BorderRadius.circular(SpectaMetrics.buttonRadius),
-          border: Border.all(
-            color: primary ? accent : SpectaColors.outline,
-          ),
+          border: Border.all(color: primary ? accent : SpectaColors.outline),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -323,7 +321,9 @@ class _ActionButton extends StatelessWidget {
             Icon(
               icon,
               size: 17,
-              color: primary ? SpectaColors.background : SpectaColors.textPrimary,
+              color: primary
+                  ? SpectaColors.background
+                  : SpectaColors.textPrimary,
             ),
             const SizedBox(width: 6),
             Text(

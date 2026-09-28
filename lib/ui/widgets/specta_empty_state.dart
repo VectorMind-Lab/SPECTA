@@ -22,37 +22,39 @@ class SpectaEmptyState extends StatelessWidget {
     final Color accent = Theme.of(context).colorScheme.primary;
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(
-              icon,
-              size: 64,
-              color: SpectaColors.textMuted.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: SpectaColors.textMuted,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                icon,
+                size: 64,
+                color: SpectaColors.textMuted.withValues(alpha: 0.5),
               ),
-            ),
-            if (action != null && actionLabel != null) ...<Widget>[
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: action,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accent,
-                  foregroundColor: SpectaColors.background,
+              const SizedBox(height: 16),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: SpectaColors.textMuted,
                 ),
-                child: Text(actionLabel!),
               ),
+              if (action != null && actionLabel != null) ...<Widget>[
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: action,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: SpectaColors.background,
+                  ),
+                  child: Text(actionLabel!),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

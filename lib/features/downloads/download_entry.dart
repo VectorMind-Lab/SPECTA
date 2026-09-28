@@ -43,12 +43,12 @@ Future<void> startMovieDownload(
 
   final ({DownloadRequest? request, String? failure}) resolved =
       await _resolveRequest(
-    ref: ref,
-    metadata: metadata,
-    references: item.references,
-    extensions: extensions,
-    reference: item.references.first.url,
-  );
+        ref: ref,
+        metadata: metadata,
+        references: item.references,
+        extensions: extensions,
+        reference: item.references.first.url,
+      );
   if (resolved.failure != null) {
     if (!context.mounted) return;
     _notice(context, resolved.failure!);
@@ -56,8 +56,9 @@ Future<void> startMovieDownload(
   }
   final DownloadRequest request = resolved.request!;
 
-  final EnqueueResult result =
-      await ref.read(downloadManagerProvider).enqueue(request);
+  final EnqueueResult result = await ref
+      .read(downloadManagerProvider)
+      .enqueue(request);
   if (!context.mounted) return;
   _notice(context, _enqueueMessage(result.action));
 }
@@ -99,13 +100,13 @@ Future<void> startEpisodeDownload(
 
   final ({DownloadRequest? request, String? failure}) resolved =
       await _resolveRequest(
-    ref: ref,
-    metadata: metadata,
-    references: item.references,
-    extensions: extensions,
-    reference: episode.referenceUrl,
-    episode: episode,
-  );
+        ref: ref,
+        metadata: metadata,
+        references: item.references,
+        extensions: extensions,
+        reference: episode.referenceUrl,
+        episode: episode,
+      );
   if (resolved.failure != null) {
     if (!context.mounted) return;
     _notice(context, resolved.failure!);
@@ -113,8 +114,9 @@ Future<void> startEpisodeDownload(
   }
   final DownloadRequest request = resolved.request!;
 
-  final EnqueueResult result =
-      await ref.read(downloadManagerProvider).enqueue(request);
+  final EnqueueResult result = await ref
+      .read(downloadManagerProvider)
+      .enqueue(request);
   if (!context.mounted) return;
   _notice(context, _enqueueMessage(result.action));
 }
@@ -133,10 +135,9 @@ Future<({DownloadRequest? request, String? failure})> _resolveRequest({
   required String reference,
   SeriesEpisode? episode,
 }) async {
-  await ref.read(sourceSessionProvider.notifier).resolve(
-        reference: reference,
-        extensions: extensions,
-      );
+  await ref
+      .read(sourceSessionProvider.notifier)
+      .resolve(reference: reference, extensions: extensions);
 
   final SourceSessionState session = ref.read(sourceSessionProvider);
   if (session.status != SourceSessionStatus.ready || session.pool == null) {
@@ -151,7 +152,10 @@ Future<({DownloadRequest? request, String? failure})> _resolveRequest({
 
   if (episode == null) {
     return (
-      request: buildMovieDownloadRequest(metadata: adapter, pool: session.pool!),
+      request: buildMovieDownloadRequest(
+        metadata: adapter,
+        pool: session.pool!,
+      ),
       failure: null,
     );
   }
@@ -168,24 +172,20 @@ Future<({DownloadRequest? request, String? failure})> _resolveRequest({
 /// Every enqueue outcome is a fact about the queue, so it is stated plainly
 /// rather than shown as an error.
 String _enqueueMessage(DownloadEnqueueAction action) => switch (action) {
-      DownloadEnqueueAction.created => 'Added to Downloads.',
-      DownloadEnqueueAction.createdFailed =>
-        'This item has no downloadable file.',
-      DownloadEnqueueAction.alreadyQueued => 'Already in Downloads.',
-      DownloadEnqueueAction.alreadyDownloading => 'Already downloading.',
-      DownloadEnqueueAction.alreadyPaused => 'Already in Downloads (paused).',
-      DownloadEnqueueAction.alreadyCompleted => 'Already downloaded.',
-      DownloadEnqueueAction.requeuedFailed => 'Retrying the download.',
-      DownloadEnqueueAction.requeuedCancelled => 'Added back to Downloads.',
-    };
+  DownloadEnqueueAction.created => 'Added to Downloads.',
+  DownloadEnqueueAction.createdFailed => 'This item has no downloadable file.',
+  DownloadEnqueueAction.alreadyQueued => 'Already in Downloads.',
+  DownloadEnqueueAction.alreadyDownloading => 'Already downloading.',
+  DownloadEnqueueAction.alreadyPaused => 'Already in Downloads (paused).',
+  DownloadEnqueueAction.alreadyCompleted => 'Already downloaded.',
+  DownloadEnqueueAction.requeuedFailed => 'Retrying the download.',
+  DownloadEnqueueAction.requeuedCancelled => 'Added back to Downloads.',
+};
 
 void _notice(BuildContext context, String message) {
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(message),
-    ),
+    SnackBar(behavior: SnackBarBehavior.floating, content: Text(message)),
   );
 }
 

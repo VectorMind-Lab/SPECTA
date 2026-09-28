@@ -113,72 +113,89 @@ void main() {
   });
 
   DownloadRequest request(String id, {SourcePool? pool}) => DownloadRequest(
-        id: id,
-        mediaKey: id,
-        mediaType: MediaType.movie,
-        title: 'Title $id',
-        extensions: const <String, String>{'extA': 'ref-a'},
-        pool: pool ?? _mp4Pool(),
-      );
+    id: id,
+    mediaKey: id,
+    mediaType: MediaType.movie,
+    title: 'Title $id',
+    extensions: const <String, String>{'extA': 'ref-a'},
+    pool: pool ?? _mp4Pool(),
+  );
 
   Future<DownloadRecord> recordOf(String id) async =>
       (await manager.store.recordFor(id))!;
 
   group('queue + concurrency', () {
-    test('default concurrency is the agreed 3 and clamping never disables it',
-        () async {
-      expect(DownloadManager.defaultConcurrency, 3);
-      expect(DownloadManager.maxConcurrency, 9);
-      expect(manager.concurrency, 3);
+    test(
+      'default concurrency is the agreed 3 and clamping never disables it',
+      () async {
+        expect(DownloadManager.defaultConcurrency, 3);
+        expect(DownloadManager.maxConcurrency, 9);
+        expect(manager.concurrency, 3);
 
-      await manager.updateConcurrency(0);
-      expect(manager.concurrency, 3,
-          reason: '0 clamps to the default, never to unlimited');
-      await manager.updateConcurrency(-5);
-      expect(manager.concurrency, 3);
-      await manager.updateConcurrency(99);
-      expect(manager.concurrency, 9, reason: 'the 9 ceiling is enforced');
-      await manager.updateConcurrency(5);
-      expect(manager.concurrency, 5);
-      await manager.updateConcurrency(3);
-    });
+        await manager.updateConcurrency(0);
+        expect(
+          manager.concurrency,
+          3,
+          reason: '0 clamps to the default, never to unlimited',
+        );
+        await manager.updateConcurrency(-5);
+        expect(manager.concurrency, 3);
+        await manager.updateConcurrency(99);
+        expect(manager.concurrency, 9, reason: 'the 9 ceiling is enforced');
+        await manager.updateConcurrency(5);
+        expect(manager.concurrency, 5);
+        await manager.updateConcurrency(3);
+      },
+    );
 
-    test('FIFO: the queue starts oldest-first up to the concurrency limit',
-        () async {
-      // Nothing settles until told: a, b, c occupy all 3 slots.
-      await manager.enqueue(request('a|movie|1'));
-      await manager.enqueue(request('b|movie|1'));
-      await manager.enqueue(request('c|movie|1'));
-      await manager.enqueue(request('d|movie|1'));
-      await manager.enqueue(request('e|movie|1'));
-      await manager.debugIdle;
+    test(
+      'FIFO: the queue starts oldest-first up to the concurrency limit',
+      () async {
+        // Nothing settles until told: a, b, c occupy all 3 slots.
+        await manager.enqueue(request('a|movie|1'));
+        await manager.enqueue(request('b|movie|1'));
+        await manager.enqueue(request('c|movie|1'));
+        await manager.enqueue(request('d|movie|1'));
+        await manager.enqueue(request('e|movie|1'));
+        await manager.debugIdle;
 
-      expect(engine.startedCount, 3,
-          reason: 'concurrency=3 → exactly 3 attempts, never 5');
-      expect(
-        engine.startedInputs.map((DownloadAttemptInput i) => i.downloadId),
-        <String>['a|movie|1', 'b|movie|1', 'c|movie|1'],
-      );
-      expect(manager.activeCount, 3);
+        expect(
+          engine.startedCount,
+          3,
+          reason: 'concurrency=3 → exactly 3 attempts, never 5',
+        );
+        expect(
+          engine.startedInputs.map((DownloadAttemptInput i) => i.downloadId),
+          <String>['a|movie|1', 'b|movie|1', 'c|movie|1'],
+        );
+        expect(manager.activeCount, 3);
 
-      final DownloadRecord d = await recordOf('d|movie|1');
-      expect(d.status, DownloadStatus.queued);
-      expect(d.waitReason, DownloadWaitReason.waitingForSlot);
-      final DownloadRecord e = await recordOf('e|movie|1');
-      expect(e.status, DownloadStatus.queued);
-      expect(e.waitReason, DownloadWaitReason.waitingForSlot);
-    });
+        final DownloadRecord d = await recordOf('d|movie|1');
+        expect(d.status, DownloadStatus.queued);
+        expect(d.waitReason, DownloadWaitReason.waitingForSlot);
+        final DownloadRecord e = await recordOf('e|movie|1');
+        expect(e.status, DownloadStatus.queued);
+        expect(e.waitReason, DownloadWaitReason.waitingForSlot);
+      },
+    );
 
     test('a freed slot advances the queue exactly one job', () async {
-      for (final String id in <String>['a|movie|1', 'b|movie|1', 'c|movie|1', 'd|movie|1']) {
+      for (final String id in <String>[
+        'a|movie|1',
+        'b|movie|1',
+        'c|movie|1',
+        'd|movie|1',
+      ]) {
         await manager.enqueue(request(id));
       }
       await manager.debugIdle;
       expect(engine.startedCount, 3);
 
       // A completes → D starts; B and C stay running.
-      engine.settle('a|movie|1',
-          const DownloadAttemptResult.completed(1000, totalBytes: 1000));
+      engine.settle(
+        'a|movie|1',
+        const DownloadAttemptResult.completed(1000, totalBytes: 1000),
+      );
       await manager.debugIdle;
 
       expect(engine.startedCount, 4);
@@ -188,27 +205,34 @@ void main() {
       expect(manager.activeCount, 3);
     });
 
-    test('simultaneous duplicate enqueues produce exactly ONE attempt',
-        () async {
-      // Three overlapping triggers for the same identity — the §16 scenario.
-      final List<EnqueueResult> results = await Future.wait(<Future<EnqueueResult>>[
-        manager.enqueue(request('a|movie|1')),
-        manager.enqueue(request('a|movie|1')),
-        manager.enqueue(request('a|movie|1')),
-      ]);
-      await manager.debugIdle;
+    test(
+      'simultaneous duplicate enqueues produce exactly ONE attempt',
+      () async {
+        // Three overlapping triggers for the same identity — the §16 scenario.
+        final List<EnqueueResult> results = await Future.wait(
+          <Future<EnqueueResult>>[
+            manager.enqueue(request('a|movie|1')),
+            manager.enqueue(request('a|movie|1')),
+            manager.enqueue(request('a|movie|1')),
+          ],
+        );
+        await manager.debugIdle;
 
-      expect(
-        results
-            .where((EnqueueResult r) => r.action == DownloadEnqueueAction.created)
-            .length,
-        1,
-        reason: 'serialized scheduling: one creation, the rest are duplicates',
-      );
-      expect(engine.startedCount, 1);
-      expect(engine.startedInputs.single.downloadId, 'a|movie|1');
-      expect((await manager.store.all()).length, 1);
-    });
+        expect(
+          results
+              .where(
+                (EnqueueResult r) => r.action == DownloadEnqueueAction.created,
+              )
+              .length,
+          1,
+          reason:
+              'serialized scheduling: one creation, the rest are duplicates',
+        );
+        expect(engine.startedCount, 1);
+        expect(engine.startedInputs.single.downloadId, 'a|movie|1');
+        expect((await manager.store.all()).length, 1);
+      },
+    );
   });
 
   group('duplicate requests (§28 semantics)', () {
@@ -266,53 +290,68 @@ void main() {
       expect((await manager.store.all()).length, 1);
     });
 
-    test('failed duplicate → explicit re-queue as a NEW run (budget reset)',
-        () async {
-      engine.failWith(
-        DownloadFailure(
+    test(
+      'failed duplicate → explicit re-queue as a NEW run (budget reset)',
+      () async {
+        engine.failWith(
+          DownloadFailure(
             type: DownloadFailureType.httpError,
-            message: 'The server refused this download (source unavailable).'),
-        100,
-      );
-      await manager.enqueue(request('a|movie|1'));
-      await manager.debugIdle;
-      expect((await recordOf('a|movie|1')).attempt, 1);
+            message: 'The server refused this download (source unavailable).',
+          ),
+          100,
+        );
+        await manager.enqueue(request('a|movie|1'));
+        await manager.debugIdle;
+        expect((await recordOf('a|movie|1')).attempt, 1);
 
-      final EnqueueResult again = await manager.enqueue(request('a|movie|1'));
-      await manager.debugIdle;
+        final EnqueueResult again = await manager.enqueue(request('a|movie|1'));
+        await manager.debugIdle;
 
-      expect(again.action, DownloadEnqueueAction.requeuedFailed);
-      expect(again.record.attempt, 0,
-          reason: 'the requeue snapshot starts a fresh budget');
-      // The pump immediately starts the new run: attempt becomes 1 again —
-      // of the NEW run, not the old one.
-      expect((await recordOf('a|movie|1')).status, DownloadStatus.downloading);
-      expect((await recordOf('a|movie|1')).attempt, 1);
-      expect(engine.startedCount, 2);
-    });
+        expect(again.action, DownloadEnqueueAction.requeuedFailed);
+        expect(
+          again.record.attempt,
+          0,
+          reason: 'the requeue snapshot starts a fresh budget',
+        );
+        // The pump immediately starts the new run: attempt becomes 1 again —
+        // of the NEW run, not the old one.
+        expect(
+          (await recordOf('a|movie|1')).status,
+          DownloadStatus.downloading,
+        );
+        expect((await recordOf('a|movie|1')).attempt, 1);
+        expect(engine.startedCount, 2);
+      },
+    );
 
-    test('cancelled duplicate → explicit re-request re-queues as a new run',
-        () async {
-      await manager.enqueue(request('a|movie|1'));
-      await manager.debugIdle;
-      await manager.cancel('a|movie|1');
-      await manager.debugIdle;
+    test(
+      'cancelled duplicate → explicit re-request re-queues as a new run',
+      () async {
+        await manager.enqueue(request('a|movie|1'));
+        await manager.debugIdle;
+        await manager.cancel('a|movie|1');
+        await manager.debugIdle;
 
-      final EnqueueResult again = await manager.enqueue(request('a|movie|1'));
-      await manager.debugIdle;
+        final EnqueueResult again = await manager.enqueue(request('a|movie|1'));
+        await manager.debugIdle;
 
-      expect(again.action, DownloadEnqueueAction.requeuedCancelled);
-      expect((await recordOf('a|movie|1')).status, DownloadStatus.downloading);
-      expect(engine.startedCount, 2);
-    });
+        expect(again.action, DownloadEnqueueAction.requeuedCancelled);
+        expect(
+          (await recordOf('a|movie|1')).status,
+          DownloadStatus.downloading,
+        );
+        expect(engine.startedCount, 2);
+      },
+    );
 
     test('re-request after failure re-resolves against the FRESH pool, not '
         'the stale one captured at first enqueue', () async {
       // First run: a dead server, non-retryable → honestly failed.
       engine.failWith(
         DownloadFailure(
-            type: DownloadFailureType.httpError,
-            message: 'The server refused this download (source unavailable).'),
+          type: DownloadFailureType.httpError,
+          message: 'The server refused this download (source unavailable).',
+        ),
         0,
       );
       await manager.enqueue(request('a|movie|1'));
@@ -321,8 +360,9 @@ void main() {
 
       // The user asks again — this time SPECTA resolved a DIFFERENT server.
       const String freshUrl = 'https://mirror.example/video.mp4';
-      final EnqueueResult again =
-          await manager.enqueue(request('a|movie|1', pool: _poolWith(freshUrl)));
+      final EnqueueResult again = await manager.enqueue(
+        request('a|movie|1', pool: _poolWith(freshUrl)),
+      );
       await manager.debugIdle;
 
       expect(again.action, DownloadEnqueueAction.requeuedFailed);
@@ -339,31 +379,41 @@ void main() {
 
       expect(await manager.pause('absent|movie|1'), isFalse);
       expect(await manager.cancel('absent|movie|1'), isFalse);
-      expect(await manager.retry('a|movie|1'), isFalse,
-          reason: 'downloading is not a retryable state');
-      expect(await manager.resume('a|movie|1'), isFalse,
-          reason: 'downloading is not paused');
       expect(
-          (await recordOf('a|movie|1')).status, DownloadStatus.downloading);
+        await manager.retry('a|movie|1'),
+        isFalse,
+        reason: 'downloading is not a retryable state',
+      );
+      expect(
+        await manager.resume('a|movie|1'),
+        isFalse,
+        reason: 'downloading is not paused',
+      );
+      expect((await recordOf('a|movie|1')).status, DownloadStatus.downloading);
       expect(engine.startedCount, 1);
     });
 
-    test('manager operations cannot move a completed record (terminal)',
-        () async {
-      engine.completeWith(100, totalBytes: 100);
-      await manager.enqueue(request('a|movie|1'));
-      await manager.debugIdle;
-      expect((await recordOf('a|movie|1')).status, DownloadStatus.completed);
+    test(
+      'manager operations cannot move a completed record (terminal)',
+      () async {
+        engine.completeWith(100, totalBytes: 100);
+        await manager.enqueue(request('a|movie|1'));
+        await manager.debugIdle;
+        expect((await recordOf('a|movie|1')).status, DownloadStatus.completed);
 
-      // Any leftover engine event is structurally a no-op (nothing is in
-      // flight any more), and manager operations are refused by the machine.
-      expect(await manager.pause('a|movie|1'), isFalse);
-      expect(await manager.retry('a|movie|1'), isFalse,
-          reason: 'completed is terminal; removal is the explicit path');
-      expect(await manager.cancel('a|movie|1'), isFalse);
-      expect((await recordOf('a|movie|1')).status, DownloadStatus.completed);
-      expect(engine.startedCount, 1);
-    });
+        // Any leftover engine event is structurally a no-op (nothing is in
+        // flight any more), and manager operations are refused by the machine.
+        expect(await manager.pause('a|movie|1'), isFalse);
+        expect(
+          await manager.retry('a|movie|1'),
+          isFalse,
+          reason: 'completed is terminal; removal is the explicit path',
+        );
+        expect(await manager.cancel('a|movie|1'), isFalse);
+        expect((await recordOf('a|movie|1')).status, DownloadStatus.completed);
+        expect(engine.startedCount, 1);
+      },
+    );
 
     test('a LATE result from a superseded attempt cannot resurrect or mutate '
         'the current state (genuine stale-callback race)', () async {
@@ -388,20 +438,32 @@ void main() {
       expect((await recordOf('a|movie|1')).status, DownloadStatus.downloading);
 
       // 4. Attempt 1's OLD result finally arrives: completed(999).
-      engine.settle('a|movie|1',
-          const DownloadAttemptResult.completed(999, totalBytes: 999));
+      engine.settle(
+        'a|movie|1',
+        const DownloadAttemptResult.completed(999, totalBytes: 999),
+      );
       await manager.debugIdle;
 
       // The stale result belongs to a dead generation: ignored entirely.
       final DownloadRecord record = await recordOf('a|movie|1');
-      expect(record.status, DownloadStatus.downloading,
-          reason: '§18: a stale completion must not complete the new attempt');
-      expect(record.bytesDownloaded, 0, reason: 'no bytes leak from the dead '
-          'attempt into the live one');
+      expect(
+        record.status,
+        DownloadStatus.downloading,
+        reason: '§18: a stale completion must not complete the new attempt',
+      );
+      expect(
+        record.bytesDownloaded,
+        0,
+        reason:
+            'no bytes leak from the dead '
+            'attempt into the live one',
+      );
 
       // 5. The LIVE attempt completes properly.
-      engine.settle('a|movie|1',
-          const DownloadAttemptResult.completed(500, totalBytes: 500));
+      engine.settle(
+        'a|movie|1',
+        const DownloadAttemptResult.completed(500, totalBytes: 500),
+      );
       await manager.debugIdle;
       final DownloadRecord finished = await recordOf('a|movie|1');
       expect(finished.status, DownloadStatus.completed);
@@ -409,40 +471,52 @@ void main() {
       expect(finished.completedAt, isNotNull);
     });
 
-    test('a cancelled record stays cancelled against a late engine result',
-        () async {
-      await manager.enqueue(request('a|movie|1'));
-      await manager.debugIdle;
+    test(
+      'a cancelled record stays cancelled against a late engine result',
+      () async {
+        await manager.enqueue(request('a|movie|1'));
+        await manager.debugIdle;
 
-      engine.settleOnControl = false; // hold the attempt in flight
-      expect(await manager.cancel('a|movie|1'), isTrue);
-      expect((await recordOf('a|movie|1')).status, DownloadStatus.cancelled);
+        engine.settleOnControl = false; // hold the attempt in flight
+        expect(await manager.cancel('a|movie|1'), isTrue);
+        expect((await recordOf('a|movie|1')).status, DownloadStatus.cancelled);
 
-      // The old attempt settles LATE with a completion — must be ignored.
-      engine.settle('a|movie|1',
-          const DownloadAttemptResult.completed(999, totalBytes: 999));
-      await manager.debugIdle;
+        // The old attempt settles LATE with a completion — must be ignored.
+        engine.settle(
+          'a|movie|1',
+          const DownloadAttemptResult.completed(999, totalBytes: 999),
+        );
+        await manager.debugIdle;
 
-      final DownloadRecord record = await recordOf('a|movie|1');
-      expect(record.status, DownloadStatus.cancelled);
-      expect(record.bytesDownloaded, isNot(999));
-      expect(manager.activeCount, 0, reason: 'no slot leaked by the late '
-          'settlement');
-    });
+        final DownloadRecord record = await recordOf('a|movie|1');
+        expect(record.status, DownloadStatus.cancelled);
+        expect(record.bytesDownloaded, isNot(999));
+        expect(
+          manager.activeCount,
+          0,
+          reason:
+              'no slot leaked by the late '
+              'settlement',
+        );
+      },
+    );
   });
 
   group('pause / resume', () {
-    test('pause persists before the engine is asked (§24 ordering)',
-        () async {
+    test('pause persists before the engine is asked (§24 ordering)', () async {
       await manager.enqueue(request('a|movie|1'));
       await manager.debugIdle;
 
       engine.settleOnControl = false; // hold the engine acknowledgement
       final bool ok = await manager.pause('a|movie|1');
       expect(ok, isTrue);
-      expect((await recordOf('a|movie|1')).status, DownloadStatus.paused,
-          reason: 'the user-visible state is SPECTA-persisted immediately, '
-              'whatever the engine does next');
+      expect(
+        (await recordOf('a|movie|1')).status,
+        DownloadStatus.paused,
+        reason:
+            'the user-visible state is SPECTA-persisted immediately, '
+            'whatever the engine does next',
+      );
       expect(engine.pauseCalls, <String>['a|movie|1']);
 
       // The engine settles late; reconciliation only settles bytes.
@@ -466,10 +540,16 @@ void main() {
 
       final DownloadRecord record = await recordOf('a|movie|1');
       expect(record.status, DownloadStatus.downloading);
-      expect(engine.startedCount, attemptsBefore + 1,
-          reason: 'resume starts a fresh attempt');
-      expect(record.attempt, 1,
-          reason: '§21: resume is NOT a failure retry — budget unchanged');
+      expect(
+        engine.startedCount,
+        attemptsBefore + 1,
+        reason: 'resume starts a fresh attempt',
+      );
+      expect(
+        record.attempt,
+        1,
+        reason: '§21: resume is NOT a failure retry — budget unchanged',
+      );
       expect(record.waitReason, isNull);
     });
 
@@ -491,12 +571,20 @@ void main() {
       expect(await manager.resume('a|movie|1'), isTrue);
       await manager.debugIdle;
       final DownloadRecord record = await recordOf('a|movie|1');
-      expect(record.status, DownloadStatus.queued,
-          reason: 'no free slot → fair FIFO queue, never exceeding the limit');
+      expect(
+        record.status,
+        DownloadStatus.queued,
+        reason: 'no free slot → fair FIFO queue, never exceeding the limit',
+      );
       expect(record.waitReason, DownloadWaitReason.waitingForSlot);
       expect(manager.activeCount, 3);
-      expect(engine.startedCount, 4, reason: 'a, b, c, d — A was NOT started '
-          'again');
+      expect(
+        engine.startedCount,
+        4,
+        reason:
+            'a, b, c, d — A was NOT started '
+            'again',
+      );
     });
   });
 
@@ -518,62 +606,80 @@ void main() {
       expect(await manager.cancel('b|movie|1'), isTrue);
       await manager.debugIdle;
       expect((await recordOf('b|movie|1')).status, DownloadStatus.cancelled);
-      expect(engine.cancelCalls, isNot(contains('b|movie|1')),
-          reason: 'a queued job has no transfer to cancel');
-      expect(engine.startedCount, 3,
-          reason: 'the cancelled job never started');
-      expect((await recordOf('x|movie|1')).status, DownloadStatus.downloading,
-          reason: 'unrelated active downloads are untouched');
+      expect(
+        engine.cancelCalls,
+        isNot(contains('b|movie|1')),
+        reason: 'a queued job has no transfer to cancel',
+      );
+      expect(engine.startedCount, 3, reason: 'the cancelled job never started');
+      expect(
+        (await recordOf('x|movie|1')).status,
+        DownloadStatus.downloading,
+        reason: 'unrelated active downloads are untouched',
+      );
     });
 
-    test('active cancellation: persisted state first, then the engine',
-        () async {
-      await manager.enqueue(request('a|movie|1'));
-      await manager.debugIdle;
+    test(
+      'active cancellation: persisted state first, then the engine',
+      () async {
+        await manager.enqueue(request('a|movie|1'));
+        await manager.debugIdle;
 
-      engine.settleOnControl = false;
-      expect(await manager.cancel('a|movie|1'), isTrue);
-      expect((await recordOf('a|movie|1')).status, DownloadStatus.cancelled);
-      expect(engine.cancelCalls, <String>['a|movie|1']);
-      expect(manager.activeCount, 0);
+        engine.settleOnControl = false;
+        expect(await manager.cancel('a|movie|1'), isTrue);
+        expect((await recordOf('a|movie|1')).status, DownloadStatus.cancelled);
+        expect(engine.cancelCalls, <String>['a|movie|1']);
+        expect(manager.activeCount, 0);
 
-      // Late engine acknowledgement is a no-op against the terminal state.
-      engine.settle('a|movie|1', const DownloadAttemptResult.cancelled(250));
-      await manager.debugIdle;
-      expect((await recordOf('a|movie|1')).status, DownloadStatus.cancelled);
-    });
+        // Late engine acknowledgement is a no-op against the terminal state.
+        engine.settle('a|movie|1', const DownloadAttemptResult.cancelled(250));
+        await manager.debugIdle;
+        expect((await recordOf('a|movie|1')).status, DownloadStatus.cancelled);
+      },
+    );
 
     test('cancellation is idempotent', () async {
       await manager.enqueue(request('a|movie|1'));
       await manager.debugIdle;
       expect(await manager.cancel('a|movie|1'), isTrue);
-      expect(await manager.cancel('a|movie|1'), isFalse,
-          reason: 'the second call is an honest no-op');
+      expect(
+        await manager.cancel('a|movie|1'),
+        isFalse,
+        reason: 'the second call is an honest no-op',
+      );
       expect(engine.cancelCalls.length, 1);
       expect((await recordOf('a|movie|1')).status, DownloadStatus.cancelled);
     });
 
-    test('cancel-vs-completion race serializes to one consistent outcome',
-        () async {
-      await manager.enqueue(request('a|movie|1'));
-      await manager.debugIdle;
+    test(
+      'cancel-vs-completion race serializes to one consistent outcome',
+      () async {
+        await manager.enqueue(request('a|movie|1'));
+        await manager.debugIdle;
 
-      engine.settleOnControl = false;
-      // Interleaved without awaiting: both enter the serialized section in
-      // call order — cancel first.
-      final Future<bool> cancelled = manager.cancel('a|movie|1');
-      engine.settle('a|movie|1',
-          const DownloadAttemptResult.completed(800, totalBytes: 800));
-      final bool result = await cancelled;
-      await manager.debugIdle;
+        engine.settleOnControl = false;
+        // Interleaved without awaiting: both enter the serialized section in
+        // call order — cancel first.
+        final Future<bool> cancelled = manager.cancel('a|movie|1');
+        engine.settle(
+          'a|movie|1',
+          const DownloadAttemptResult.completed(800, totalBytes: 800),
+        );
+        final bool result = await cancelled;
+        await manager.debugIdle;
 
-      final DownloadRecord record = await recordOf('a|movie|1');
-      expect(result, isTrue);
-      expect(record.status, DownloadStatus.cancelled,
-          reason: 'the manager serialized cancel first; the completion was '
-              'stale by definition');
-      expect(record.bytesDownloaded, isNot(800));
-    });
+        final DownloadRecord record = await recordOf('a|movie|1');
+        expect(result, isTrue);
+        expect(
+          record.status,
+          DownloadStatus.cancelled,
+          reason:
+              'the manager serialized cancel first; the completion was '
+              'stale by definition',
+        );
+        expect(record.bytesDownloaded, isNot(800));
+      },
+    );
 
     test('cancelled records never automatically retry', () async {
       await manager.enqueue(request('a|movie|1'));
@@ -591,42 +697,51 @@ void main() {
   });
 
   group('retry policy + backoff (§19/§20/§21)', () {
-    test('a retryable failure auto-retries after backoff, keeping the budget',
-        () async {
-      await manager.enqueue(request('a|movie|1'));
-      await manager.debugIdle;
+    test(
+      'a retryable failure auto-retries after backoff, keeping the budget',
+      () async {
+        await manager.enqueue(request('a|movie|1'));
+        await manager.debugIdle;
 
-      // The attempt is already in flight — settle it with the failure.
-      engine.settle(
-        'a|movie|1',
-        DownloadAttemptResult.failed(
-          DownloadFailure(
+        // The attempt is already in flight — settle it with the failure.
+        engine.settle(
+          'a|movie|1',
+          DownloadAttemptResult.failed(
+            DownloadFailure(
               type: DownloadFailureType.networkError,
-              message: 'The network dropped during the download.'),
-          300,
-        ),
-      );
-      await manager.debugIdle;
+              message: 'The network dropped during the download.',
+            ),
+            300,
+          ),
+        );
+        await manager.debugIdle;
 
-      DownloadRecord record = await recordOf('a|movie|1');
-      expect(record.status, DownloadStatus.failed);
-      expect(record.attempt, 1);
-      expect(record.failure!.type, DownloadFailureType.networkError);
-      expect(record.failure!.isRetryable, isTrue);
-      expect(record.bytesDownloaded, 300, reason: 'partial progress is kept');
-      expect(clock.pendingDelayCount, 1, reason: 'backoff scheduled');
+        DownloadRecord record = await recordOf('a|movie|1');
+        expect(record.status, DownloadStatus.failed);
+        expect(record.attempt, 1);
+        expect(record.failure!.type, DownloadFailureType.networkError);
+        expect(record.failure!.isRetryable, isTrue);
+        expect(record.bytesDownloaded, 300, reason: 'partial progress is kept');
+        expect(clock.pendingDelayCount, 1, reason: 'backoff scheduled');
 
-      clock.advance(const Duration(seconds: 2)); // the base delay
-      await manager.debugIdle;
+        clock.advance(const Duration(seconds: 2)); // the base delay
+        await manager.debugIdle;
 
-      record = await recordOf('a|movie|1');
-      expect(record.status, DownloadStatus.downloading,
-          reason: 'the auto-retry re-queued and started');
-      expect(record.attempt, 2,
-          reason: '§21: the budget is NOT reset by the automatic path');
-      expect(record.failure, isNull);
-      expect(engine.startedCount, 2);
-    });
+        record = await recordOf('a|movie|1');
+        expect(
+          record.status,
+          DownloadStatus.downloading,
+          reason: 'the auto-retry re-queued and started',
+        );
+        expect(
+          record.attempt,
+          2,
+          reason: '§21: the budget is NOT reset by the automatic path',
+        );
+        expect(record.failure, isNull);
+        expect(engine.startedCount, 2);
+      },
+    );
 
     test('backoff grows exponentially and is hard-capped', () {
       const DownloadRetryPolicy policy = DownloadRetryPolicy();
@@ -634,10 +749,16 @@ void main() {
       expect(policy.backoffAfter(1), const Duration(seconds: 2));
       expect(policy.backoffAfter(2), const Duration(seconds: 4));
       expect(policy.backoffAfter(3), const Duration(seconds: 8));
-      expect(policy.backoffAfter(10), const Duration(minutes: 1),
-          reason: 'capped at maxDelay');
-      expect(policy.backoffAfter(1000), const Duration(minutes: 1),
-          reason: 'no overflow, no unbounded delay');
+      expect(
+        policy.backoffAfter(10),
+        const Duration(minutes: 1),
+        reason: 'capped at maxDelay',
+      );
+      expect(
+        policy.backoffAfter(1000),
+        const Duration(minutes: 1),
+        reason: 'no overflow, no unbounded delay',
+      );
       expect(
         policy.backoffAfter(15),
         lessThanOrEqualTo(const Duration(minutes: 1)),
@@ -645,8 +766,9 @@ void main() {
       expect(
         policy.shouldAutoRetry(
           DownloadFailure(
-              type: DownloadFailureType.networkError,
-              message: 'The network dropped during the download.'),
+            type: DownloadFailureType.networkError,
+            message: 'The network dropped during the download.',
+          ),
           2,
         ),
         isTrue,
@@ -654,8 +776,9 @@ void main() {
       expect(
         policy.shouldAutoRetry(
           DownloadFailure(
-              type: DownloadFailureType.networkError,
-              message: 'The network dropped during the download.'),
+            type: DownloadFailureType.networkError,
+            message: 'The network dropped during the download.',
+          ),
           3,
         ),
         isFalse,
@@ -664,8 +787,9 @@ void main() {
       expect(
         policy.shouldAutoRetry(
           DownloadFailure(
-              type: DownloadFailureType.httpError,
-              message: 'The server refused this download (source unavailable).'),
+            type: DownloadFailureType.httpError,
+            message: 'The server refused this download (source unavailable).',
+          ),
           0,
         ),
         isFalse,
@@ -684,8 +808,9 @@ void main() {
           'a|movie|1',
           DownloadAttemptResult.failed(
             DownloadFailure(
-                type: DownloadFailureType.serverError,
-                message: 'The server had a problem while serving the file.'),
+              type: DownloadFailureType.serverError,
+              message: 'The server had a problem while serving the file.',
+            ),
             100 * (i + 1),
           ),
         );
@@ -697,8 +822,11 @@ void main() {
       final DownloadRecord record = await recordOf('a|movie|1');
       expect(record.status, DownloadStatus.failed);
       expect(record.attempt, 3);
-      expect(clock.pendingDelayCount, 0,
-          reason: 'budget exhausted → no more automatic retries');
+      expect(
+        clock.pendingDelayCount,
+        0,
+        reason: 'budget exhausted → no more automatic retries',
+      );
       expect(engine.startedCount, 3);
     });
 
@@ -710,8 +838,9 @@ void main() {
         'a|movie|1',
         DownloadAttemptResult.failed(
           DownloadFailure(
-              type: DownloadFailureType.httpError,
-              message: 'The server refused this download (source unavailable).'),
+            type: DownloadFailureType.httpError,
+            message: 'The server refused this download (source unavailable).',
+          ),
           0,
         ),
       );
@@ -723,45 +852,53 @@ void main() {
       expect(engine.startedCount, 1);
     });
 
-    test('a contract-violating engine throw becomes honest engineFailure data',
-        () async {
-      engine.throwOnStart = true;
-      await manager.enqueue(request('a|movie|1'));
-      await manager.debugIdle;
+    test(
+      'a contract-violating engine throw becomes honest engineFailure data',
+      () async {
+        engine.throwOnStart = true;
+        await manager.enqueue(request('a|movie|1'));
+        await manager.debugIdle;
 
-      final DownloadRecord record = await recordOf('a|movie|1');
-      expect(record.status, DownloadStatus.failed);
-      expect(record.failure!.type, DownloadFailureType.engineFailure);
-      expect(record.failure!.isRetryable, isFalse);
-      expect(manager.activeCount, 0, reason: 'no slot leak on a throw');
-      expect(clock.pendingDelayCount, 0);
-    });
+        final DownloadRecord record = await recordOf('a|movie|1');
+        expect(record.status, DownloadStatus.failed);
+        expect(record.failure!.type, DownloadFailureType.engineFailure);
+        expect(record.failure!.isRetryable, isFalse);
+        expect(manager.activeCount, 0, reason: 'no slot leak on a throw');
+        expect(clock.pendingDelayCount, 0);
+      },
+    );
 
-    test('an auto-retry is cancelled by an explicit user cancel meanwhile',
-        () async {
-      await manager.enqueue(request('a|movie|1'));
-      await manager.debugIdle;
-      engine.settle(
-        'a|movie|1',
-        DownloadAttemptResult.failed(
-          DownloadFailure(
+    test(
+      'an auto-retry is cancelled by an explicit user cancel meanwhile',
+      () async {
+        await manager.enqueue(request('a|movie|1'));
+        await manager.debugIdle;
+        engine.settle(
+          'a|movie|1',
+          DownloadAttemptResult.failed(
+            DownloadFailure(
               type: DownloadFailureType.timeout,
-              message: 'The download stalled for too long.'),
-          10,
-        ),
-      );
-      await manager.debugIdle;
-      expect(clock.pendingDelayCount, 1);
+              message: 'The download stalled for too long.',
+            ),
+            10,
+          ),
+        );
+        await manager.debugIdle;
+        expect(clock.pendingDelayCount, 1);
 
-      await manager.cancel('a|movie|1');
-      await manager.debugIdle;
-      clock.advance(const Duration(minutes: 5));
-      await manager.debugIdle;
+        await manager.cancel('a|movie|1');
+        await manager.debugIdle;
+        clock.advance(const Duration(minutes: 5));
+        await manager.debugIdle;
 
-      expect((await recordOf('a|movie|1')).status, DownloadStatus.cancelled,
-          reason: 'backoff expiry must not resurrect a cancelled record');
-      expect(engine.startedCount, 1);
-    });
+        expect(
+          (await recordOf('a|movie|1')).status,
+          DownloadStatus.cancelled,
+          reason: 'backoff expiry must not resurrect a cancelled record',
+        );
+        expect(engine.startedCount, 1);
+      },
+    );
   });
 
   group('source recovery seam (§23)', () {
@@ -780,15 +917,23 @@ void main() {
       await isolated.enqueue(request('a|movie|1'));
       await isolated.debugIdle;
 
-      final DownloadRecord record =
-          (await isolated.store.recordFor('a|movie|1'))!;
+      final DownloadRecord record = (await isolated.store.recordFor(
+        'a|movie|1',
+      ))!;
       expect(record.status, DownloadStatus.failed);
       expect(record.failure!.type, DownloadFailureType.sourcesExhausted);
-      expect(record.failure!.isRetryable, isFalse,
-          reason: 're-resolution is not retried blindly — 2G-C adds the '
-              'real recovery policy');
-      expect(engine.startedCount, 0,
-          reason: 'the engine was never asked without a source');
+      expect(
+        record.failure!.isRetryable,
+        isFalse,
+        reason:
+            're-resolution is not retried blindly — 2G-C adds the '
+            'real recovery policy',
+      );
+      expect(
+        engine.startedCount,
+        0,
+        reason: 'the engine was never asked without a source',
+      );
       expect(clock.pendingDelayCount, 0);
       await isolated.dispose();
     });
@@ -808,8 +953,7 @@ void main() {
 
       await recovering.enqueue(request('a|movie|1'));
       await recovering.debugIdle;
-      DownloadRecord record =
-          (await recovering.store.recordFor('a|movie|1'))!;
+      DownloadRecord record = (await recovering.store.recordFor('a|movie|1'))!;
       expect(record.status, DownloadStatus.failed);
       expect(record.failure!.type, DownloadFailureType.sourcesExhausted);
 
@@ -821,8 +965,11 @@ void main() {
 
       record = (await recovering.store.recordFor('a|movie|1'))!;
       expect(record.status, DownloadStatus.completed);
-      expect(record.id, 'a|movie|1',
-          reason: 'recovery never changes the download identity');
+      expect(
+        record.id,
+        'a|movie|1',
+        reason: 'recovery never changes the download identity',
+      );
       expect(record.mediaKey, 'a|movie|1');
       await recovering.dispose();
     });
@@ -842,8 +989,10 @@ void main() {
       await manager.enqueue(request('dying|movie|1'));
       await manager.debugIdle;
 
-      expect((await recordOf('dying|movie|1')).status,
-          DownloadStatus.downloading);
+      expect(
+        (await recordOf('dying|movie|1')).status,
+        DownloadStatus.downloading,
+      );
       await manager.dispose();
       await db.close();
 
@@ -870,12 +1019,16 @@ void main() {
       await manager2.initialize();
       await manager2.debugIdle;
 
-      expect((await manager2.store.recordFor('done|movie|1'))!.status,
-          DownloadStatus.completed,
-          reason: 'terminal state untouched by reconciliation');
-      expect((await manager2.store.recordFor('live|movie|1'))!.status,
-          DownloadStatus.paused,
-          reason: 'paused state untouched by reconciliation');
+      expect(
+        (await manager2.store.recordFor('done|movie|1'))!.status,
+        DownloadStatus.completed,
+        reason: 'terminal state untouched by reconciliation',
+      );
+      expect(
+        (await manager2.store.recordFor('live|movie|1'))!.status,
+        DownloadStatus.paused,
+        reason: 'paused state untouched by reconciliation',
+      );
 
       // `dying` was classified interrupted (failed, retryable) and the
       // bounded auto-retry re-queued + re-attempted it. The re-attempt then
@@ -885,20 +1038,35 @@ void main() {
       clock2.advance(const Duration(seconds: 2));
       await manager2.debugIdle;
 
-      final DownloadRecord dying =
-          (await manager2.store.recordFor('dying|movie|1'))!;
-      expect(dying.status, DownloadStatus.failed,
-          reason: 'the re-attempt fails honestly: no resolvable source yet');
+      final DownloadRecord dying = (await manager2.store.recordFor(
+        'dying|movie|1',
+      ))!;
+      expect(
+        dying.status,
+        DownloadStatus.failed,
+        reason: 'the re-attempt fails honestly: no resolvable source yet',
+      );
       expect(dying.failure!.type, DownloadFailureType.sourcesExhausted);
-      expect(dying.attempt, 2,
-          reason: 'the attempt count survived restart AND the re-attempt '
-              'spent exactly one budget unit');
-      expect(engine2.startedCount, 0,
-          reason: 'the re-attempt never reached the engine: resolution fails '
-              'before any transfer because the 2G-B resolver holds no pool '
-              'after restart — the engine seam is untouched');
-      expect(clock2.pendingDelayCount, 0,
-          reason: 'sourcesExhausted is not retryable: the chain stops honestly');
+      expect(
+        dying.attempt,
+        2,
+        reason:
+            'the attempt count survived restart AND the re-attempt '
+            'spent exactly one budget unit',
+      );
+      expect(
+        engine2.startedCount,
+        0,
+        reason:
+            'the re-attempt never reached the engine: resolution fails '
+            'before any transfer because the 2G-B resolver holds no pool '
+            'after restart — the engine seam is untouched',
+      );
+      expect(
+        clock2.pendingDelayCount,
+        0,
+        reason: 'sourcesExhausted is not retryable: the chain stops honestly',
+      );
     });
 
     test('queue order, identity and provenance survive recreation', () async {
@@ -912,10 +1080,13 @@ void main() {
       final DownloadDao dao = DownloadDao(db2);
       addTearDown(db2.close);
 
-      final List<String> ids =
-          (await dao.all()).map((DownloadRecord r) => r.id).toList();
-      expect(ids, <String>['z|movie|1', 'y|movie|1'],
-          reason: 'FIFO creation order is the persisted queue order');
+      final List<String> ids = (await dao.all())
+          .map((DownloadRecord r) => r.id)
+          .toList();
+      expect(ids, <String>[
+        'z|movie|1',
+        'y|movie|1',
+      ], reason: 'FIFO creation order is the persisted queue order');
       final DownloadRecord z = (await dao.recordFor('z|movie|1'))!;
       expect(z.sourceExtensionId, 'extA');
       expect(z.sourceReference, 'ref-a');
@@ -937,8 +1108,11 @@ void main() {
       engine.emitProgress('a|movie|1', 100, totalBytes: 10000);
       engine.emitProgress('a|movie|1', 200, totalBytes: 10000);
       await manager.debugIdle;
-      expect((await recordOf('a|movie|1')).bytesDownloaded, 0,
-          reason: 'below 256 KiB delta and inside the 2 s window');
+      expect(
+        (await recordOf('a|movie|1')).bytesDownloaded,
+        0,
+        reason: 'below 256 KiB delta and inside the 2 s window',
+      );
 
       // The interval path persists meaningful progress.
       clock.advance(const Duration(seconds: 3));
@@ -962,8 +1136,11 @@ void main() {
       engine.emitProgress('a|movie|1', 999999);
       await manager.debugIdle;
 
-      expect((await recordOf('a|movie|1')).bytesDownloaded, pausedBytes,
-          reason: 'a transient tick cannot mutate a paused record');
+      expect(
+        (await recordOf('a|movie|1')).bytesDownloaded,
+        pausedBytes,
+        reason: 'a transient tick cannot mutate a paused record',
+      );
       expect((await recordOf('a|movie|1')).status, DownloadStatus.paused);
     });
   });
@@ -976,37 +1153,51 @@ void main() {
       await manager.debugIdle;
 
       expect(await manager.remove('a|movie|1'), isTrue);
-      expect(await manager.remove('a|movie|1'), isFalse,
-          reason: 'removal of an absent record is an honest no-op');
+      expect(
+        await manager.remove('a|movie|1'),
+        isFalse,
+        reason: 'removal of an absent record is an honest no-op',
+      );
       expect(await manager.store.recordFor('a|movie|1'), isNull);
       expect(await manager.store.all(), isEmpty);
-      expect(Directory(mediaDir).listSync().whereType<File>().length, 0,
-          reason: '2G-B never deletes files — the storage layer owns that');
+      expect(
+        Directory(mediaDir).listSync().whereType<File>().length,
+        0,
+        reason: '2G-B never deletes files — the storage layer owns that',
+      );
     });
 
-    test('removing an active download cancels the attempt and frees the slot',
-        () async {
-      for (final String id in <String>['a|movie|1', 'b|movie|1', 'c|movie|1', 'd|movie|1']) {
-        await manager.enqueue(request(id));
-      }
-      await manager.debugIdle;
-      expect(engine.startedCount, 3);
+    test(
+      'removing an active download cancels the attempt and frees the slot',
+      () async {
+        for (final String id in <String>[
+          'a|movie|1',
+          'b|movie|1',
+          'c|movie|1',
+          'd|movie|1',
+        ]) {
+          await manager.enqueue(request(id));
+        }
+        await manager.debugIdle;
+        expect(engine.startedCount, 3);
 
-      await manager.remove('a|movie|1');
-      await manager.debugIdle;
+        await manager.remove('a|movie|1');
+        await manager.debugIdle;
 
-      expect(engine.startedCount, 4);
-      expect(engine.startedInputs.last.downloadId, 'd|movie|1');
-      expect(await manager.store.recordFor('a|movie|1'), isNull);
-      expect(manager.activeCount, 3);
-    });
+        expect(engine.startedCount, 4);
+        expect(engine.startedInputs.last.downloadId, 'd|movie|1');
+        expect(await manager.store.recordFor('a|movie|1'), isNull);
+        expect(manager.activeCount, 3);
+      },
+    );
   });
 
   group('pool classification (§38 boundary)', () {
     test('an HLS-only pool fails honestly as unsupportedSource — no attempt, '
         'no budget spent, no retry loop', () async {
-      final EnqueueResult result =
-          await manager.enqueue(request('a|movie|1', pool: _hlsPool()));
+      final EnqueueResult result = await manager.enqueue(
+        request('a|movie|1', pool: _hlsPool()),
+      );
       await manager.debugIdle;
 
       expect(result.action, DownloadEnqueueAction.createdFailed);
@@ -1015,8 +1206,11 @@ void main() {
       expect(record.failure!.type, DownloadFailureType.unsupportedSource);
       expect(record.attempt, 0, reason: 'no attempt was ever started');
       expect(engine.startedCount, 0);
-      expect(clock.pendingDelayCount, 0,
-          reason: 'an unsupported source is not retryable');
+      expect(
+        clock.pendingDelayCount,
+        0,
+        reason: 'an unsupported source is not retryable',
+      );
     });
 
     test('the first direct-file candidate in SPECTA ranking order is consumed '
@@ -1035,68 +1229,68 @@ void main() {
 }
 
 SourcePool _poolWith(String url) => SourcePool(
-      ranked: <RankedSource>[
-        RankedSource(
-          extensionId: 'extA',
-          reference: 'ref-a',
-          source: ExtensionSource(
-            url: url,
-            type: SourceType.mp4,
-            quality: '1080p',
-            label: 'Server 2',
-          ),
-          score: 100,
-        ),
-      ],
-      outcomes: const <ExtensionSourceOutcome>[],
+  ranked: <RankedSource>[
+    RankedSource(
+      extensionId: 'extA',
       reference: 'ref-a',
-    );
+      source: ExtensionSource(
+        url: url,
+        type: SourceType.mp4,
+        quality: '1080p',
+        label: 'Server 2',
+      ),
+      score: 100,
+    ),
+  ],
+  outcomes: const <ExtensionSourceOutcome>[],
+  reference: 'ref-a',
+);
 
 SourcePool _mp4Pool() => _poolWith('https://cdn.example/video.mp4');
 
 SourcePool _hlsPool() => SourcePool(
-      ranked: <RankedSource>[
-        RankedSource(
-          extensionId: 'extA',
-          reference: 'ref-a',
-          source: const ExtensionSource(
-            url: 'https://cdn.example/playlist.m3u8',
-            type: SourceType.hls,
-            quality: '1080p',
-            label: 'Server 1',
-          ),
-          score: 100,
-        ),
-      ],
-      outcomes: const <ExtensionSourceOutcome>[],
+  ranked: <RankedSource>[
+    RankedSource(
+      extensionId: 'extA',
       reference: 'ref-a',
-    );
+      source: const ExtensionSource(
+        url: 'https://cdn.example/playlist.m3u8',
+        type: SourceType.hls,
+        quality: '1080p',
+        label: 'Server 1',
+      ),
+      score: 100,
+    ),
+  ],
+  outcomes: const <ExtensionSourceOutcome>[],
+  reference: 'ref-a',
+);
 
 SourcePool _mixedPool() => SourcePool(
-      ranked: <RankedSource>[
-        RankedSource(
-          extensionId: 'extA',
-          reference: 'ref-a',
-          source: const ExtensionSource(
-            url: 'https://cdn.example/playlist.m3u8',
-            type: SourceType.hls,
-            quality: '4K',
-            label: 'Server 1',
-          ),
-          score: 200,
-        ),
-        RankedSource(
-          extensionId: 'extA',
-          reference: 'ref-a',
-          source: const ExtensionSource(
-            url: 'https://cdn.example/video.mp4',
-            type: SourceType.mp4,
-            quality: '1080p',
-            label: 'Server 2',
-          ),
-          score: 150,
-        ),
-      ],
-      outcomes: const <ExtensionSourceOutcome>[],
+  ranked: <RankedSource>[
+    RankedSource(
+      extensionId: 'extA',
       reference: 'ref-a',
-    );
+      source: const ExtensionSource(
+        url: 'https://cdn.example/playlist.m3u8',
+        type: SourceType.hls,
+        quality: '4K',
+        label: 'Server 1',
+      ),
+      score: 200,
+    ),
+    RankedSource(
+      extensionId: 'extA',
+      reference: 'ref-a',
+      source: const ExtensionSource(
+        url: 'https://cdn.example/video.mp4',
+        type: SourceType.mp4,
+        quality: '1080p',
+        label: 'Server 2',
+      ),
+      score: 150,
+    ),
+  ],
+  outcomes: const <ExtensionSourceOutcome>[],
+  reference: 'ref-a',
+);

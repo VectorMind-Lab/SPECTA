@@ -1,0 +1,100 @@
+﻿00:00 +0: loading C:/Users/PORTCR/Music/SPECTA APK/SPECTA/integration_test/phase2gc_device_verification_test.dart
+Running Gradle task 'assembleDebug'...                          
+flutter.bat : WARNING: Your app uses the 
+following plugins that apply Kotlin Gradle 
+Plugin (KGP): cryptography_flutter, flutter_js
+At line:1 char:47
++ ... PK\SPECTA'; & 
+'H:\flutter\bin\flutter.bat' test 
+integration_test/phas ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (WA 
+   RNING: Your a...ter, flutter_js:String) [],  
+   RemoteException
+    + FullyQualifiedErrorId : NativeCommandErro 
+   r
+ 
+Future versions of Flutter will fail to build 
+if your app uses plugins that apply KGP.
+
+Please check the changelogs of these plugins 
+and upgrade to a version that supports Built-in 
+Kotlin.
+If no such version exists, report the issue to 
+the plugin. If necessary, here is a guide on 
+filing
+an issue against a plugin: https://docs.flutter.
+dev/release/breaking-changes/migrate-to-built-in
+-kotlin/for-app-developers#report-incompatible-k
+otlin-gradle-plugin-usage-to-plugin-authors
+
+If you are a plugin author, please migrate your 
+plugin to Built-in Kotlin using this guide: http
+s://docs.flutter.dev/release/breaking-changes/mi
+grate-to-built-in-kotlin/for-plugin-authors
+Running Gradle task 'assembleDebug'...                             31.4s
+ΓêÜ Built build\app\outputs\flutter-apk\app-debug.apk
+Installing build\app\outputs\flutter-apk\app-debug.apk...          15.1s
+00:00 +0: P2GC-1: enqueue ΓåÆ real device transfer ΓåÆ completion gate ΓåÆ COMPLETED
+[SPECTA-P2GC] enqueue action=created status=queued
+[SPECTA-P2GC] final status=completed bytes=2097176/2097176
+[SPECTA-P2GC] engine progress events=3 first=8192/2097176 last=2029792/2097176
+[SPECTA-P2GC] gate file bytes=2097176 partExists=false
+[SPECTA-P2GC] P2GC-1 artifact cleaned
+00:08 +1: P2GC-2: cancellation during transfer never completes the record
+[SPECTA-P2GC] cancel requested=true
+[SPECTA-P2GC] part file after cancel: false
+[SPECTA-P2GC] P2GC-2 artifact cleaned
+00:08 +2: P2GC-3: restart reconciliation adopts a surviving transfer
+[SPECTA-P2GC] isTransferActive=true
+WARNING (drift): It looks like you've created the database class SpectaDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$SpectaDatabase (package:specta/core/database/specta_database.g.dart:5258:39)
+#4      new SpectaDatabase (package:specta/core/database/specta_database.dart:37:7)
+#5      spectaDatabaseProvider.<anonymous closure> (package:specta/core/database/database_providers.dart:16:39)
+#6      Provider.create (package:riverpod/src/providers/provider.dart:59:36)
+#7      $ProviderElement.create (package:riverpod/src/providers/provider.dart:343:33)
+#8      ProviderElement.buildState (package:riverpod/src/core/element.dart:751:28)
+#9      ProviderElement.mount (package:riverpod/src/core/element.dart:587:7)
+#10     ProviderElement.flush (package:riverpod/src/core/element.dart:704:9)
+#11     $ProviderBaseImpl._addListener (package:riverpod/src/core/provider/provider.dart:119:24)
+#12     ProviderElement.listen (package:riverpod/src/core/element.dart:991:28)
+#13     Ref.watch (package:riverpod/src/core/ref.dart:726:20)
+#14     downloadStoreProvider.<anonymous closure> (package:specta/core/downloads/download_providers.dart:28:26)
+#15     Provider.create (package:riverpod/src/providers/provider.dart:59:36)
+#16     $ProviderElement.create (package:riverpod/src/providers/provider.dart:343:33)
+#17     ProviderElement.buildState (package:riverpod/src/core/element.dart:751:28)
+#18     ProviderElement.mount (package:riverpod/src/core/element.dart:587:7)
+#19     ProviderElement.flush (package:riverpod/src/core/element.dart:704:9)
+#20     $ProviderBaseImpl._addListener (package:riverpod/src/core/provider/provider.dart:119:24)
+#21     ProviderElement.listen (package:riverpod/src/core/element.dart:991:28)
+#22     Ref.watch (package:riverpod/src/core/ref.dart:726:20)
+#23     downloadManagerProvider.<anonymous closure> (package:specta/core/downloads/download_providers.dart:97:20)
+#24     Provider.create (package:riverpod/src/providers/provider.dart:59:36)
+#25     $ProviderElement.create (package:riverpod/src/providers/provider.dart:343:33)
+#26     ProviderElement.buildState (package:riverpod/src/core/element.dart:751:28)
+#27     ProviderElement.mount (package:riverpod/src/core/element.dart:587:7)
+#28     ProviderElement.flush (package:riverpod/src/core/element.dart:704:9)
+#29     $ProviderBaseImpl._addListener (package:riverpod/src/core/provider/provider.dart:119:24)
+#30     ProviderContainer.listen (package:riverpod/src/core/provider_container.dart:1141:26)
+#31     ProviderContainer.read (package:riverpod/src/core/provider_container.dart:1068:17)
+#32     main.wired (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase2gc_device_verification_test.dart:110:47)
+#33     main.<anonymous closure> (file:///C:/Users/PORTCR/Music/SPECTA%20APK/SPECTA/integration_test/phase2gc_device_verification_test.dart:370:70)
+<asynchronous suspension>
+#34     testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#35     TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+#36     StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+[SPECTA-P2GC] manager recreated; adoption decided
+[SPECTA-P2GC] post-restart status=completed bytes=2097176
+[SPECTA-P2GC] P2GC-3 artifact cleaned
+00:10 +3: (tearDownAll)
+00:11 +3: All tests passed!

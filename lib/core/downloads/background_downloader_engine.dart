@@ -74,7 +74,7 @@ import 'download_models.dart';
 /// for diagnostics. Raw plugin exceptions never escape into SPECTA layers.
 final class BackgroundDownloaderEngine implements DownloadEngine {
   BackgroundDownloaderEngine({@visibleForTesting FileDownloader? downloader})
-      : _downloader = downloader ?? FileDownloader();
+    : _downloader = downloader ?? FileDownloader();
 
   final FileDownloader _downloader;
 
@@ -119,8 +119,7 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
 
   static DateTime _nextAttemptCreationTime() {
     final int now = DateTime.now().millisecondsSinceEpoch;
-    final int next =
-        now > _attemptClockMillis ? now : _attemptClockMillis + 1;
+    final int next = now > _attemptClockMillis ? now : _attemptClockMillis + 1;
     _attemptClockMillis = next;
     return DateTime.fromMillisecondsSinceEpoch(next);
   }
@@ -138,18 +137,16 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
       <FileDownloader, StreamController<TaskUpdate>>{};
 
   static Stream<TaskUpdate> _tappedUpdates(FileDownloader downloader) {
-    return _taps
-        .putIfAbsent(downloader, () {
-          final StreamController<TaskUpdate> controller =
-              StreamController<TaskUpdate>.broadcast();
-          downloader.updates.listen(
-            controller.add,
-            onError: controller.addError,
-            cancelOnError: false,
-          );
-          return controller;
-        })
-        .stream;
+    return _taps.putIfAbsent(downloader, () {
+      final StreamController<TaskUpdate> controller =
+          StreamController<TaskUpdate>.broadcast();
+      downloader.updates.listen(
+        controller.add,
+        onError: controller.addError,
+        cancelOnError: false,
+      );
+      return controller;
+    }).stream;
   }
 
   /// Whether [start]/[attach]/[cancel]/[isTransferActive] has initialized the
@@ -187,9 +184,11 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
     if (_updatesSubscription != null) return;
     _updatesSubscription = _tappedUpdates(_downloader).listen(
       _onPluginUpdate,
-      onError: (Object _) {/* the plugin stream never carries SPECTA state;
+      onError: (Object _) {
+        /* the plugin stream never carries SPECTA state;
         an update-stream error cannot settle attempts — those reconcile via
-        their own terminal status or the manager's epochs. */},
+        their own terminal status or the manager's epochs. */
+      },
       cancelOnError: false,
     );
   }
@@ -306,8 +305,9 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
           case TaskStatus.complete:
             return DownloadAttemptResult.completed(
               _bytesFromRecord(record),
-              totalBytes:
-                  record.expectedFileSize > 0 ? record.expectedFileSize : null,
+              totalBytes: record.expectedFileSize > 0
+                  ? record.expectedFileSize
+                  : null,
             );
           case TaskStatus.notFound:
             // The source is gone — precisely the expired/unusable-source
@@ -412,10 +412,10 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
   void _onPluginUpdate(TaskUpdate update) {
     switch (update) {
       case TaskProgressUpdate(
-            task: final Task task,
-            progress: final double progress,
-            expectedFileSize: final int expected,
-          ):
+        task: final Task task,
+        progress: final double progress,
+        expectedFileSize: final int expected,
+      ):
         if (task case final DownloadTask downloadTask) {
           // Attempt-identity gate (D-3): an update carrying an EARLIER
           // attempt's task must not advance this attempt's byte count.
@@ -424,10 +424,10 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
           }
         }
       case TaskStatusUpdate(
-          task: final Task task,
-          status: final TaskStatus status,
-          exception: final TaskException? exception,
-        ):
+        task: final Task task,
+        status: final TaskStatus status,
+        exception: final TaskException? exception,
+      ):
         if (task case final DownloadTask downloadTask) {
           // Attempt-identity gate (D-3): an update carrying an EARLIER
           // attempt's task must not settle this attempt.
@@ -529,8 +529,7 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
   /// math as progress updates; 0 when the size was never declared).
   static int _bytesFromRecord(TaskRecord? record) {
     if (record == null || record.expectedFileSize <= 0) return 0;
-    return (record.progress.clamp(0.0, 1.0) * record.expectedFileSize)
-        .round();
+    return (record.progress.clamp(0.0, 1.0) * record.expectedFileSize).round();
   }
 
   void _settle(String downloadId, DownloadAttemptResult result) {
@@ -647,10 +646,10 @@ final class BackgroundDownloaderEngine implements DownloadEngine {
   }
 
   DownloadFailure _networkish(String detail) => DownloadFailure(
-        type: DownloadFailureType.networkError,
-        message: DownloadFailureType.networkError.message,
-        detail: detail,
-      );
+    type: DownloadFailureType.networkError,
+    message: DownloadFailureType.networkError.message,
+    detail: detail,
+  );
 
   /// Test-only teardown: closes the event controller and the update
   /// subscription. Production engines live for the app's lifetime and are

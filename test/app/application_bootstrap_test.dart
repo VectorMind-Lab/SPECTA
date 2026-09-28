@@ -44,29 +44,29 @@ class _StubFinalizer implements DownloadCompletionFinalizer {
 }
 
 SourcePool _mp4Pool() => SourcePool(
-      ranked: <RankedSource>[
-        RankedSource(
-          extensionId: 'extA',
-          reference: 'ref-a',
-          source: const ExtensionSource(
-            url: 'https://cdn.example/video.mp4',
-            type: SourceType.mp4,
-          ),
-          score: 100,
-        ),
-      ],
-      outcomes: const <ExtensionSourceOutcome>[],
+  ranked: <RankedSource>[
+    RankedSource(
+      extensionId: 'extA',
       reference: 'ref-a',
-    );
+      source: const ExtensionSource(
+        url: 'https://cdn.example/video.mp4',
+        type: SourceType.mp4,
+      ),
+      score: 100,
+    ),
+  ],
+  outcomes: const <ExtensionSourceOutcome>[],
+  reference: 'ref-a',
+);
 
 DownloadRequest _request(String id) => DownloadRequest(
-      id: id,
-      mediaKey: id,
-      mediaType: MediaType.movie,
-      title: 'Title $id',
-      extensions: const <String, String>{'extA': 'ref-a'},
-      pool: _mp4Pool(),
-    );
+  id: id,
+  mediaKey: id,
+  mediaType: MediaType.movie,
+  title: 'Title $id',
+  extensions: const <String, String>{'extA': 'ref-a'},
+  pool: _mp4Pool(),
+);
 
 /// Phase 2L hardening: the launch bootstrap is what turns "queue persistence"
 /// into a real promise. This test drives the WHOLE application-launch path
@@ -94,33 +94,31 @@ void main() {
   List<Override> overrides({
     required FakeDownloadEngine engine,
     SettingsStore? settingsStore,
-  }) =>
-      <Override>[
-        spectaDatabaseProvider.overrideWith((Ref ref) {
-          final SpectaDatabase db =
-              SpectaDatabase(NativeDatabase(File(dbPath)));
-          opened.add(db);
-          ref.onDispose(db.close);
-          return db;
-        }),
-        downloadMediaDirectoryProvider.overrideWithValue(
-          () async => tempDir.path,
-        ),
-        settingsStoreProvider.overrideWithValue(
-          settingsStore ?? InMemorySettingsStore(),
-        ),
-        deviceEnvironmentProvider.overrideWithValue(_WifiEnv()),
-        downloadCompletionFinalizerProvider
-            .overrideWithValue(const _StubFinalizer()),
-        downloadEngineProvider.overrideWithValue(engine),
-      ];
+  }) => <Override>[
+    spectaDatabaseProvider.overrideWith((Ref ref) {
+      final SpectaDatabase db = SpectaDatabase(NativeDatabase(File(dbPath)));
+      opened.add(db);
+      ref.onDispose(db.close);
+      return db;
+    }),
+    downloadMediaDirectoryProvider.overrideWithValue(() async => tempDir.path),
+    settingsStoreProvider.overrideWithValue(
+      settingsStore ?? InMemorySettingsStore(),
+    ),
+    deviceEnvironmentProvider.overrideWithValue(_WifiEnv()),
+    downloadCompletionFinalizerProvider.overrideWithValue(
+      const _StubFinalizer(),
+    ),
+    downloadEngineProvider.overrideWithValue(engine),
+  ];
 
   test('reading the launch bootstrap starts an interrupted download recovery '
       'with no screen involved', () async {
     // ---- Session 1: the user queues a download, then the app dies. ----
     final FakeDownloadEngine engine1 = FakeDownloadEngine();
-    final ProviderContainer session1 =
-        ProviderContainer(overrides: overrides(engine: engine1));
+    final ProviderContainer session1 = ProviderContainer(
+      overrides: overrides(engine: engine1),
+    );
     final DownloadManager manager1 = session1.read(downloadManagerProvider);
     await manager1.debugIdle;
     await manager1.enqueue(_request('queued|movie|2024'));
@@ -137,8 +135,9 @@ void main() {
     // the session-2 assertions unfakeable: session 1 writes NO failure, so an
     // `interrupted` failure can only have been produced by the launch manager.
     final DownloadStore session1Store = session1.read(downloadStoreProvider);
-    final DownloadRecord inFlight =
-        (await session1Store.recordFor('queued|movie|2024'))!;
+    final DownloadRecord inFlight = (await session1Store.recordFor(
+      'queued|movie|2024',
+    ))!;
     expect(inFlight.status, DownloadStatus.downloading);
     expect(inFlight.attempt, 1);
     expect(inFlight.failure, isNull);
@@ -152,8 +151,9 @@ void main() {
     // watch from [applicationBootstrapProvider], nothing would touch the
     // manager and this test would fail.
     final FakeDownloadEngine engine2 = FakeDownloadEngine();
-    final ProviderContainer session2 =
-        ProviderContainer(overrides: overrides(engine: engine2));
+    final ProviderContainer session2 = ProviderContainer(
+      overrides: overrides(engine: engine2),
+    );
     addTearDown(session2.dispose);
 
     session2.read(applicationBootstrapProvider);
@@ -168,8 +168,7 @@ void main() {
     // keeps it as last-attempt provenance — so it is observable deterministically.
     DownloadRecord? reconciled;
     while (elapsed.elapsed < const Duration(seconds: 15)) {
-      final DownloadRecord? record =
-          await store.recordFor('queued|movie|2024');
+      final DownloadRecord? record = await store.recordFor('queued|movie|2024');
       if (record?.failure?.type == DownloadFailureType.interrupted) {
         reconciled = record;
         break;
@@ -179,7 +178,8 @@ void main() {
     expect(
       reconciled,
       isNotNull,
-      reason: 'the launch bootstrap must reconcile the persisted queue with no '
+      reason:
+          'the launch bootstrap must reconcile the persisted queue with no '
           'screen involved. Without it nothing constructs a manager, so the '
           'row stays `downloading` with a null failure — exactly as session 1 '
           'left it.',
@@ -196,8 +196,7 @@ void main() {
     // engine start). The attempt counter is the manager-only proof of resumption.
     DownloadRecord? resumed;
     while (elapsed.elapsed < const Duration(seconds: 30)) {
-      final DownloadRecord? record =
-          await store.recordFor('queued|movie|2024');
+      final DownloadRecord? record = await store.recordFor('queued|movie|2024');
       if (record != null && record.attempt >= 2) {
         resumed = record;
         break;
@@ -207,7 +206,8 @@ void main() {
     expect(
       resumed,
       isNotNull,
-      reason: 'the launch manager must resume the recovered queue, not just '
+      reason:
+          'the launch manager must resume the recovered queue, not just '
           'record that it died (attempt never reached 2)',
     );
   });
@@ -215,38 +215,38 @@ void main() {
   test('the launch bootstrap arms the extension subsystem too', () async {
     final FakeDownloadEngine engine = FakeDownloadEngine();
     addTearDown(engine.dispose);
-    final ProviderContainer container =
-        ProviderContainer(overrides: overrides(engine: engine));
+    final ProviderContainer container = ProviderContainer(
+      overrides: overrides(engine: engine),
+    );
     addTearDown(container.dispose);
 
     // Reading the bootstrap constructs the real manager over the real
     // registry without throwing — the entry point's contract.
     container.read(applicationBootstrapProvider);
 
-    expect(
-      () => container.read(extensionManagerProvider),
-      returnsNormally,
-    );
+    expect(() => container.read(extensionManagerProvider), returnsNormally);
   });
 
-  test('the persisted download concurrency setting is restored at launch',
-      () async {
-    final InMemorySettingsStore store = InMemorySettingsStore();
-    await store.write(SpectaSettingKeys.downloadConcurrency, '5');
+  test(
+    'the persisted download concurrency setting is restored at launch',
+    () async {
+      final InMemorySettingsStore store = InMemorySettingsStore();
+      await store.write(SpectaSettingKeys.downloadConcurrency, '5');
 
-    final FakeDownloadEngine engine = FakeDownloadEngine();
-    addTearDown(engine.dispose);
-    final ProviderContainer container = ProviderContainer(
-      overrides: overrides(engine: engine, settingsStore: store),
-    );
-    addTearDown(container.dispose);
+      final FakeDownloadEngine engine = FakeDownloadEngine();
+      addTearDown(engine.dispose);
+      final ProviderContainer container = ProviderContainer(
+        overrides: overrides(engine: engine, settingsStore: store),
+      );
+      addTearDown(container.dispose);
 
-    container.read(applicationBootstrapProvider);
-    final DownloadManager manager = container.read(downloadManagerProvider);
+      container.read(applicationBootstrapProvider);
+      final DownloadManager manager = container.read(downloadManagerProvider);
 
-    for (int i = 0; i < 50 && manager.concurrency != 5; i++) {
-      await Future<void>.delayed(Duration.zero);
-    }
-    expect(manager.concurrency, 5);
-  });
+      for (int i = 0; i < 50 && manager.concurrency != 5; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(manager.concurrency, 5);
+    },
+  );
 }

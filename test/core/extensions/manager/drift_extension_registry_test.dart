@@ -36,6 +36,7 @@ void main() {
       expect(loaded.version, '1.0.0');
       expect(loaded.author, 'Test Author');
       expect(loaded.apiVersion, 2);
+      expect(loaded.contractVersion, '2.0.0');
       expect(loaded.contentType, 'movies_series');
       expect(loaded.signature, 'ed25519:dGVzdA==');
       expect(loaded.trustLevel, TrustLevel.official);

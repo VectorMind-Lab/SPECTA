@@ -8,14 +8,13 @@ import 'package:specta/core/extensions/contract/result_models.dart';
 /// dropped with a reason. SPECTA never invents missing information and never
 /// destroys provider-specific references.
 abstract final class DiscoveryNormalizer {
-
   /// Turns a raw result into a normalized observation.
   ///
   /// Returns null (drop) when the observation is unusable:
   /// - blank or whitespace-only title or URL,
   /// - title/URL longer than 512 characters (protocol-noise guard),
-  /// - type is not movie/series (the [MediaType] contract only holds these,
-  ///   so this is the safe-ignore path for anything an extension invents).
+  /// - type is not movie/series/anime,
+  /// - an anime result without a positive AniList ID,
   ///
   /// Tolerated (not dropped): missing year, missing cover, missing type —
   /// the type defaults to `movie` per the runtime contract, title casing is
@@ -26,7 +25,12 @@ abstract final class DiscoveryNormalizer {
 
     if (title.isEmpty || url.isEmpty) return null;
     if (title.length > 512 || url.length > 512) return null;
-    if (raw.type != MediaType.movie && raw.type != MediaType.series) {
+    if (raw.type != MediaType.movie &&
+        raw.type != MediaType.series &&
+        raw.type != MediaType.anime) {
+      return null;
+    }
+    if (raw.type == MediaType.anime && raw.externalIds?.anilistId == null) {
       return null;
     }
 
@@ -41,6 +45,7 @@ abstract final class DiscoveryNormalizer {
       cover: raw.cover == null || raw.cover!.trim().isEmpty
           ? null
           : raw.cover!.trim(),
+      externalIds: raw.externalIds,
     );
   }
 
@@ -73,6 +78,7 @@ final class DiscoveryObservation {
     required this.year,
     required this.url,
     required this.cover,
+    this.externalIds,
   });
 
   final SearchResult raw;
@@ -85,4 +91,5 @@ final class DiscoveryObservation {
   final int? year;
   final String url;
   final String? cover;
+  final ExternalIds? externalIds;
 }

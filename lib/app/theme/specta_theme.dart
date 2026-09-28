@@ -134,13 +134,15 @@ abstract final class SpectaTheme {
         }),
         trackOutlineColor: WidgetStateProperty.all(SpectaColors.outline),
       ),
+      // The phone bottom navigation bar lives in SpectaAppShell, which owns the
+      // only NavigationBar in the app. Its labels are sized there per device
+      // (see SpectaNavLabelLayout), because whether a label fits depends on the
+      // screen width and the user's font scale, neither of which a static theme
+      // can know.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: SpectaColors.surface,
-        hintStyle: const TextStyle(
-          color: SpectaColors.textMuted,
-          fontSize: 14,
-        ),
+        hintStyle: const TextStyle(color: SpectaColors.textMuted, fontSize: 14),
         prefixIconColor: SpectaColors.textMuted,
         suffixIconColor: SpectaColors.textMuted,
         contentPadding: const EdgeInsets.symmetric(
@@ -184,10 +186,7 @@ abstract final class SpectaTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(SpectaMetrics.buttonRadius),
           ),
-          textStyle: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         ),
       ),
     );

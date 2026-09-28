@@ -37,21 +37,27 @@ void main() {
 
   test('starts idle', () {
     final ProviderContainer container = buildContainer(DiscoveryTestHarness());
-    expect(container.read(sourceSessionProvider).status,
-        SourceSessionStatus.idle);
+    expect(
+      container.read(sourceSessionProvider).status,
+      SourceSessionStatus.idle,
+    );
   });
 
   test('resolve with candidates ends ready with a selected source', () async {
-    final DiscoveryTestHarness h = DiscoveryTestHarness(
-      sandbox: _Scripted(),
-    );
+    final DiscoveryTestHarness h = DiscoveryTestHarness(sandbox: _Scripted());
     await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
     (_scripted(h)).sourcesScripts['refA'] = jsonEncode(<Object?>[
-      <String, Object?>{'url': 'https://a/720', 'type': 'mp4', 'quality': '720p'},
+      <String, Object?>{
+        'url': 'https://a/720',
+        'type': 'mp4',
+        'quality': '720p',
+      },
     ]);
 
     final ProviderContainer container = buildContainer(h);
-    await container.read(sourceSessionProvider.notifier).resolve(
+    await container
+        .read(sourceSessionProvider.notifier)
+        .resolve(
           reference: 'movie-ref',
           extensions: <String, String>{'extA': 'refA'},
         );
@@ -64,26 +70,26 @@ void main() {
   });
 
   test('all extensions failing ends in failure', () async {
-    final DiscoveryTestHarness h = DiscoveryTestHarness(
-      sandbox: _Scripted(),
-    );
+    final DiscoveryTestHarness h = DiscoveryTestHarness(sandbox: _Scripted());
     await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
     _scripted(h).sourcesScripts['refA'] = Exception('down');
 
     final ProviderContainer container = buildContainer(h);
-    await container.read(sourceSessionProvider.notifier).resolve(
+    await container
+        .read(sourceSessionProvider.notifier)
+        .resolve(
           reference: 'movie-ref',
           extensions: <String, String>{'extA': 'refA'},
         );
 
-    expect(container.read(sourceSessionProvider).status,
-        SourceSessionStatus.failure);
+    expect(
+      container.read(sourceSessionProvider).status,
+      SourceSessionStatus.failure,
+    );
   });
 
   test('a stale slow resolve cannot overwrite a newer resolve', () async {
-    final DiscoveryTestHarness h = DiscoveryTestHarness(
-      sandbox: _Scripted(),
-    );
+    final DiscoveryTestHarness h = DiscoveryTestHarness(sandbox: _Scripted());
     await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
     await h.installExtension(tempDir, 'extB', capabilities: 'search,sources');
     final _Scripted sandbox = _scripted(h);
@@ -97,16 +103,21 @@ void main() {
     ]);
 
     final ProviderContainer container = buildContainer(h);
-    final SourceSessionNotifier notifier =
-        container.read(sourceSessionProvider.notifier);
+    final SourceSessionNotifier notifier = container.read(
+      sourceSessionProvider.notifier,
+    );
 
     h.sandbox.delay = const Duration(milliseconds: 200);
-    final Future<void> slow =
-        notifier.resolve(reference: 'ep1', extensions: <String, String>{'extA': 'ep1'});
+    final Future<void> slow = notifier.resolve(
+      reference: 'ep1',
+      extensions: <String, String>{'extA': 'ep1'},
+    );
     await Future<void>.delayed(const Duration(milliseconds: 30));
     h.sandbox.delay = Duration.zero;
     await notifier.resolve(
-        reference: 'ep2', extensions: <String, String>{'extB': 'ep2'});
+      reference: 'ep2',
+      extensions: <String, String>{'extB': 'ep2'},
+    );
     await slow; // lands late — must be rejected
 
     final SourceSessionState state = container.read(sourceSessionProvider);
@@ -115,30 +126,35 @@ void main() {
   });
 
   test('reset returns to idle and rejects in-flight resolves', () async {
-    final DiscoveryTestHarness h = DiscoveryTestHarness(
-      sandbox: _Scripted(),
-    );
+    final DiscoveryTestHarness h = DiscoveryTestHarness(sandbox: _Scripted());
     await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
     _scripted(h).sourcesScripts['refA'] = jsonEncode(<Object?>[
       <String, Object?>{'url': 'https://a/720', 'type': 'mp4'},
     ]);
 
     final ProviderContainer container = buildContainer(h);
-    final SourceSessionNotifier notifier =
-        container.read(sourceSessionProvider.notifier);
+    final SourceSessionNotifier notifier = container.read(
+      sourceSessionProvider.notifier,
+    );
 
     h.sandbox.delay = const Duration(milliseconds: 150);
-    final Future<void> pending =
-        notifier.resolve(reference: 'refA', extensions: <String, String>{'extA': 'refA'});
+    final Future<void> pending = notifier.resolve(
+      reference: 'refA',
+      extensions: <String, String>{'extA': 'refA'},
+    );
     await Future<void>.delayed(const Duration(milliseconds: 30));
 
     notifier.reset();
-    expect(container.read(sourceSessionProvider).status,
-        SourceSessionStatus.idle);
+    expect(
+      container.read(sourceSessionProvider).status,
+      SourceSessionStatus.idle,
+    );
 
     await pending;
-    expect(container.read(sourceSessionProvider).status,
-        SourceSessionStatus.idle);
+    expect(
+      container.read(sourceSessionProvider).status,
+      SourceSessionStatus.idle,
+    );
   });
 }
 

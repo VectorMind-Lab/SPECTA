@@ -13,19 +13,20 @@ MediaDetails _raw({
   List<MediaSeason> seasons = const <MediaSeason>[],
   String? description = '  A description.  ',
   String? cover = '  https://example.com/cover.jpg  ',
-}) =>
-    MediaDetails(
-      id: 'm1',
-      title: title,
-      type: type,
-      url: url,
-      description: description,
-      cover: cover,
-      seasons: seasons,
-    );
+}) => MediaDetails(
+  id: 'm1',
+  title: title,
+  type: type,
+  url: url,
+  description: description,
+  cover: cover,
+  seasons: seasons,
+);
 
-DiscoveryReference _ref({String extensionId = 'extA'}) =>
-    DiscoveryReference(extensionId: extensionId, url: 'https://example.com/movie/1');
+DiscoveryReference _ref({String extensionId = 'extA'}) => DiscoveryReference(
+  extensionId: extensionId,
+  url: 'https://example.com/movie/1',
+);
 
 void main() {
   t.group('MetadataNormalizer — accepted payloads', () {
@@ -121,14 +122,8 @@ void main() {
             MediaSeason(
               seasonNumber: 1,
               episodes: <MediaEpisode>[
-                MediaEpisode(
-                  episodeNumber: 2,
-                  url: 'https://example.com/e2',
-                ),
-                MediaEpisode(
-                  episodeNumber: 1,
-                  url: 'https://example.com/e1',
-                ),
+                MediaEpisode(episodeNumber: 2, url: 'https://example.com/e2'),
+                MediaEpisode(episodeNumber: 1, url: 'https://example.com/e1'),
                 // Duplicate episode 1 — first occurrence wins after sort.
                 MediaEpisode(
                   episodeNumber: 1,
@@ -145,11 +140,9 @@ void main() {
       );
 
       t.expect(out.isDropped, t.isFalse);
-      final List<SeriesEpisode> episodes = out.normalized!.seasons.single.episodes;
-      t.expect(
-        episodes.map((SeriesEpisode e) => e.episodeNumber),
-        <int>[1, 2],
-      );
+      final List<SeriesEpisode> episodes =
+          out.normalized!.seasons.single.episodes;
+      t.expect(episodes.map((SeriesEpisode e) => e.episodeNumber), <int>[1, 2]);
       t.expect(episodes.first.referenceUrl, 'https://example.com/e1');
     });
 

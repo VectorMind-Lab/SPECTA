@@ -49,16 +49,22 @@ class ScriptedSourcesSandbox extends ScriptedJsSandbox {
 String _sourcesPayload(List<Map<String, Object?>> sources) =>
     jsonEncode(sources);
 
-Map<String, Object?> _mp4(String url, {String? quality}) =>
-    <String, Object?>{'url': url, 'type': 'mp4', 'quality': quality};
+Map<String, Object?> _mp4(String url, {String? quality}) => <String, Object?>{
+  'url': url,
+  'type': 'mp4',
+  'quality': quality,
+};
 
-Map<String, Object?> _hls(String url, {String? quality, bool adaptive = false}) =>
-    <String, Object?>{
-      'url': url,
-      'type': 'hls',
-      'quality': quality,
-      'isAdaptive': adaptive,
-    };
+Map<String, Object?> _hls(
+  String url, {
+  String? quality,
+  bool adaptive = false,
+}) => <String, Object?>{
+  'url': url,
+  'type': 'hls',
+  'quality': quality,
+  'isAdaptive': adaptive,
+};
 
 void main() {
   late Directory tempDir;
@@ -72,19 +78,17 @@ void main() {
     });
   });
 
-  DiscoveryTestHarness harness() => DiscoveryTestHarness(
-        sandbox: ScriptedSourcesSandbox(),
-      );
+  DiscoveryTestHarness harness() =>
+      DiscoveryTestHarness(sandbox: ScriptedSourcesSandbox());
 
   group('SourceManager — resolution and provenance', () {
     test('valid candidates carry their extension provenance', () async {
       final DiscoveryTestHarness h = harness();
-      await h.installExtension(tempDir, 'extA',
-          capabilities: 'search,sources');
+      await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
       (h.sandbox as ScriptedSourcesSandbox).sourcesScripts['refA'] =
           _sourcesPayload(<Map<String, Object?>>[
-        _mp4('https://a/720', quality: '720p'),
-      ]);
+            _mp4('https://a/720', quality: '720p'),
+          ]);
 
       final SourcePool pool = await SourceManager.resolve(
         reference: 'refA',
@@ -99,46 +103,54 @@ void main() {
       expect(pool.selected!.source.type, SourceType.mp4);
     });
 
-    test('two extensions produce identifiable candidates with provenance',
-        () async {
-      final DiscoveryTestHarness h = harness();
-      await h.installExtension(tempDir, 'extA',
-          capabilities: 'search,sources');
-      await h.installExtension(tempDir, 'extB',
-          capabilities: 'search,sources');
-      final ScriptedSourcesSandbox sandbox = h.sandbox as ScriptedSourcesSandbox;
-      sandbox.sourcesScripts['refA'] = _sourcesPayload(<Map<String, Object?>>[
-        _hls('https://a/1080', quality: '1080p'),
-        _mp4('https://a/720', quality: '720p'),
-      ]);
-      sandbox.sourcesScripts['refB'] = _sourcesPayload(<Map<String, Object?>>[
-        _mp4('https://b/1080', quality: '1080p'),
-      ]);
+    test(
+      'two extensions produce identifiable candidates with provenance',
+      () async {
+        final DiscoveryTestHarness h = harness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,sources',
+        );
+        await h.installExtension(
+          tempDir,
+          'extB',
+          capabilities: 'search,sources',
+        );
+        final ScriptedSourcesSandbox sandbox =
+            h.sandbox as ScriptedSourcesSandbox;
+        sandbox.sourcesScripts['refA'] = _sourcesPayload(<Map<String, Object?>>[
+          _hls('https://a/1080', quality: '1080p'),
+          _mp4('https://a/720', quality: '720p'),
+        ]);
+        sandbox.sourcesScripts['refB'] = _sourcesPayload(<Map<String, Object?>>[
+          _mp4('https://b/1080', quality: '1080p'),
+        ]);
 
-      final SourcePool pool = await SourceManager.resolve(
-        reference: 'movie-ref',
-        extensions: <String, String>{'extA': 'refA', 'extB': 'refB'},
-        manager: h.manager,
-      );
+        final SourcePool pool = await SourceManager.resolve(
+          reference: 'movie-ref',
+          extensions: <String, String>{'extA': 'refA', 'extB': 'refB'},
+          manager: h.manager,
+        );
 
-      expect(pool.ranked, hasLength(3));
-      expect(
-        pool.ranked.map((RankedSource r) => r.extensionId).toSet(),
-        <String>{'extA', 'extB'},
-      );
-      // Fallback order preserved: selected + 2 fallbacks.
-      expect(pool.fallbacks, hasLength(2));
-    });
+        expect(pool.ranked, hasLength(3));
+        expect(
+          pool.ranked.map((RankedSource r) => r.extensionId).toSet(),
+          <String>{'extA', 'extB'},
+        );
+        // Fallback order preserved: selected + 2 fallbacks.
+        expect(pool.fallbacks, hasLength(2));
+      },
+    );
   });
 
   group('SourceManager — failure isolation', () {
     test('one extension failing does not stop the healthy one', () async {
       final DiscoveryTestHarness h = harness();
-      await h.installExtension(tempDir, 'extA',
-          capabilities: 'search,sources');
-      await h.installExtension(tempDir, 'extB',
-          capabilities: 'search,sources');
-      final ScriptedSourcesSandbox sandbox = h.sandbox as ScriptedSourcesSandbox;
+      await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
+      await h.installExtension(tempDir, 'extB', capabilities: 'search,sources');
+      final ScriptedSourcesSandbox sandbox =
+          h.sandbox as ScriptedSourcesSandbox;
       sandbox.sourcesScripts['refA'] = Exception('extA exploded');
       sandbox.sourcesScripts['refB'] = _sourcesPayload(<Map<String, Object?>>[
         _mp4('https://b/720', quality: '720p'),
@@ -152,17 +164,18 @@ void main() {
 
       expect(pool.ranked, hasLength(1));
       expect(pool.ranked.single.extensionId, 'extB');
-      expect(pool.outcomes.where((ExtensionSourceOutcome o) => o.isFailed),
-          hasLength(1));
+      expect(
+        pool.outcomes.where((ExtensionSourceOutcome o) => o.isFailed),
+        hasLength(1),
+      );
     });
 
     test('a timeout on one extension is isolated as data', () async {
       final DiscoveryTestHarness h = harness();
-      await h.installExtension(tempDir, 'extA',
-          capabilities: 'search,sources');
-      await h.installExtension(tempDir, 'extB',
-          capabilities: 'search,sources');
-      final ScriptedSourcesSandbox sandbox = h.sandbox as ScriptedSourcesSandbox;
+      await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
+      await h.installExtension(tempDir, 'extB', capabilities: 'search,sources');
+      final ScriptedSourcesSandbox sandbox =
+          h.sandbox as ScriptedSourcesSandbox;
       // extA hangs past the coordinator timeout on its call; extB answers.
       sandbox.sourcesScripts['refB'] = _sourcesPayload(<Map<String, Object?>>[
         _mp4('https://b/720', quality: '720p'),
@@ -180,8 +193,10 @@ void main() {
       h.sandbox.delay = const Duration(seconds: 5);
       final SourcePool pool = await pending;
 
-      expect(pool.outcomes.any((ExtensionSourceOutcome o) => o.isFailed),
-          isTrue);
+      expect(
+        pool.outcomes.any((ExtensionSourceOutcome o) => o.isFailed),
+        isTrue,
+      );
       expect(pool.ranked, isNotEmpty);
     });
 
@@ -202,12 +217,9 @@ void main() {
 
     test('all-invalid candidates are an honest invalid outcome', () async {
       final DiscoveryTestHarness h = harness();
-      await h.installExtension(tempDir, 'extA',
-          capabilities: 'search,sources');
+      await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
       (h.sandbox as ScriptedSourcesSandbox).sourcesScripts['refA'] =
-          _sourcesPayload(<Map<String, Object?>>[
-        _mp4('file:///etc/passwd'),
-      ]);
+          _sourcesPayload(<Map<String, Object?>>[_mp4('file:///etc/passwd')]);
 
       final SourcePool pool = await SourceManager.resolve(
         reference: 'refA',
@@ -221,59 +233,71 @@ void main() {
   });
 
   group('SourceManager — deduplication and limits', () {
-    test('same URL twice from ONE extension collapses to one candidate',
-        () async {
+    test(
+      'same URL twice from ONE extension collapses to one candidate',
+      () async {
+        final DiscoveryTestHarness h = harness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,sources',
+        );
+        (h.sandbox as ScriptedSourcesSandbox).sourcesScripts['refA'] =
+            _sourcesPayload(<Map<String, Object?>>[
+              _mp4('https://a/720', quality: '720p'),
+              _mp4('https://a/720', quality: '720p'),
+            ]);
+
+        final SourcePool pool = await SourceManager.resolve(
+          reference: 'refA',
+          extensions: <String, String>{'extA': 'refA'},
+          manager: h.manager,
+        );
+
+        expect(pool.ranked, hasLength(1));
+      },
+    );
+
+    test(
+      'same URL from DIFFERENT extensions keeps both (distinct CDN risk)',
+      () async {
+        final DiscoveryTestHarness h = harness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,sources',
+        );
+        await h.installExtension(
+          tempDir,
+          'extB',
+          capabilities: 'search,sources',
+        );
+        final ScriptedSourcesSandbox sandbox =
+            h.sandbox as ScriptedSourcesSandbox;
+        sandbox.sourcesScripts['refA'] = _sourcesPayload(<Map<String, Object?>>[
+          _mp4('https://shared/720', quality: '720p'),
+        ]);
+        sandbox.sourcesScripts['refB'] = _sourcesPayload(<Map<String, Object?>>[
+          _mp4('https://shared/720', quality: '720p'),
+        ]);
+
+        final SourcePool pool = await SourceManager.resolve(
+          reference: 'movie-ref',
+          extensions: <String, String>{'extA': 'refA', 'extB': 'refB'},
+          manager: h.manager,
+        );
+
+        expect(pool.ranked, hasLength(2));
+        expect(
+          pool.ranked.map((RankedSource r) => r.extensionId).toSet(),
+          <String>{'extA', 'extB'},
+        );
+      },
+    );
+
+    test('an oversized response is capped at maxSourcesPerExtension', () async {
       final DiscoveryTestHarness h = harness();
-      await h.installExtension(tempDir, 'extA',
-          capabilities: 'search,sources');
-      (h.sandbox as ScriptedSourcesSandbox).sourcesScripts['refA'] =
-          _sourcesPayload(<Map<String, Object?>>[
-        _mp4('https://a/720', quality: '720p'),
-        _mp4('https://a/720', quality: '720p'),
-      ]);
-
-      final SourcePool pool = await SourceManager.resolve(
-        reference: 'refA',
-        extensions: <String, String>{'extA': 'refA'},
-        manager: h.manager,
-      );
-
-      expect(pool.ranked, hasLength(1));
-    });
-
-    test('same URL from DIFFERENT extensions keeps both (distinct CDN risk)',
-        () async {
-      final DiscoveryTestHarness h = harness();
-      await h.installExtension(tempDir, 'extA',
-          capabilities: 'search,sources');
-      await h.installExtension(tempDir, 'extB',
-          capabilities: 'search,sources');
-      final ScriptedSourcesSandbox sandbox = h.sandbox as ScriptedSourcesSandbox;
-      sandbox.sourcesScripts['refA'] = _sourcesPayload(<Map<String, Object?>>[
-        _mp4('https://shared/720', quality: '720p'),
-      ]);
-      sandbox.sourcesScripts['refB'] = _sourcesPayload(<Map<String, Object?>>[
-        _mp4('https://shared/720', quality: '720p'),
-      ]);
-
-      final SourcePool pool = await SourceManager.resolve(
-        reference: 'movie-ref',
-        extensions: <String, String>{'extA': 'refA', 'extB': 'refB'},
-        manager: h.manager,
-      );
-
-      expect(pool.ranked, hasLength(2));
-      expect(
-        pool.ranked.map((RankedSource r) => r.extensionId).toSet(),
-        <String>{'extA', 'extB'},
-      );
-    });
-
-    test('an oversized response is capped at maxSourcesPerExtension',
-        () async {
-      final DiscoveryTestHarness h = harness();
-      await h.installExtension(tempDir, 'extA',
-          capabilities: 'search,sources');
+      await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
       final List<Map<String, Object?>> flood = <Map<String, Object?>>[
         for (int i = 0; i < 5000; i++)
           _mp4('https://a/item/$i', quality: '720p'),
@@ -287,20 +311,17 @@ void main() {
         manager: h.manager,
       );
 
-      expect(
-        pool.ranked.length,
-        SourceManager.maxSourcesPerExtension,
-      );
+      expect(pool.ranked.length, SourceManager.maxSourcesPerExtension);
     });
   });
 
   group('SourceManager — refresh', () {
     test('refresh returns a validated candidate', () async {
       final DiscoveryTestHarness h = harness();
-      await h.installExtension(tempDir, 'extA',
-          capabilities: 'search,sources');
-      (h.sandbox as ScriptedSourcesSandbox).refreshScripts['refA'] =
-          jsonEncode(_mp4('https://a/refreshed', quality: '1080p'));
+      await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
+      (h.sandbox as ScriptedSourcesSandbox).refreshScripts['refA'] = jsonEncode(
+        _mp4('https://a/refreshed', quality: '1080p'),
+      );
 
       final ExtensionSource? refreshed = await SourceManager.refresh(
         extensionId: 'extA',
@@ -314,10 +335,10 @@ void main() {
 
     test('refresh failure is an honest null, not a throw', () async {
       final DiscoveryTestHarness h = harness();
-      await h.installExtension(tempDir, 'extA',
-          capabilities: 'search,sources');
-      (h.sandbox as ScriptedSourcesSandbox).refreshScripts['refA'] =
-          Exception('refresh blew up');
+      await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
+      (h.sandbox as ScriptedSourcesSandbox).refreshScripts['refA'] = Exception(
+        'refresh blew up',
+      );
 
       final ExtensionSource? refreshed = await SourceManager.refresh(
         extensionId: 'extA',
@@ -345,14 +366,13 @@ void main() {
   group('SourceManager — selection', () {
     test('pool exposes selected source and fallback order', () async {
       final DiscoveryTestHarness h = harness();
-      await h.installExtension(tempDir, 'extA',
-          capabilities: 'search,sources');
+      await h.installExtension(tempDir, 'extA', capabilities: 'search,sources');
       (h.sandbox as ScriptedSourcesSandbox).sourcesScripts['refA'] =
           _sourcesPayload(<Map<String, Object?>>[
-        _mp4('https://a/480', quality: '480p'),
-        _mp4('https://a/1080', quality: '1080p'),
-        _mp4('https://a/720', quality: '720p'),
-      ]);
+            _mp4('https://a/480', quality: '480p'),
+            _mp4('https://a/1080', quality: '1080p'),
+            _mp4('https://a/720', quality: '720p'),
+          ]);
 
       final SourcePool pool = await SourceManager.resolve(
         reference: 'refA',

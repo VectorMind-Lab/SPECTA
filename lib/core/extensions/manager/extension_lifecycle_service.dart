@@ -1,4 +1,11 @@
+import 'dart:io';
+
+import 'package:specta/core/errors/specta_failure.dart';
 import 'package:specta/core/errors/specta_result.dart';
+import 'package:specta/core/extensions/catalogue/extension_catalogue.dart';
+import 'package:specta/core/extensions/distribution/dart_io_extension_download_transport.dart';
+import 'package:specta/core/extensions/distribution/extension_downloader.dart';
+import 'package:specta/core/extensions/distribution/extension_storage.dart';
 import 'package:specta/core/extensions/identity/extension_health.dart';
 import 'package:specta/core/extensions/identity/trust_level.dart';
 import 'package:specta/core/extensions/manifest.dart';
@@ -50,9 +57,22 @@ final class ManagedExtension {
 /// reaches the registry (a malformed one is rejected outright; an unsigned or
 /// badly signed one is installed as [TrustLevel.unverified], never Official).
 final class ExtensionLifecycleService {
-  const ExtensionLifecycleService({required this.manager});
+  ExtensionLifecycleService({
+    required this.manager,
+    ExtensionDownloader? downloader,
+    ExtensionStorage? storage,
+  }) : _downloader =
+           downloader ??
+           ExtensionDownloader(DartIoExtensionDownloadTransport()),
+       _storage = storage ?? const AppPrivateExtensionStorage();
 
   final ExtensionManager manager;
+
+  /// Fetches extension bytes. Distribution only — never trust.
+  final ExtensionDownloader _downloader;
+
+  /// Where downloaded bytes are written before import.
+  final ExtensionStorage _storage;
 
   /// Installs (or replaces) an extension from a local `.js` file.
   ///
@@ -61,6 +81,100 @@ final class ExtensionLifecycleService {
   /// untouched unless the file passed every gate.
   Future<SpectaResult<ExtensionRecord>> installFromFile(String filePath) =>
       manager.importExtension(filePath: filePath);
+
+  /// Installs an extension from an HTTPS URL.
+  ///
+  /// The downloaded bytes are written into app-private storage and then handed
+  /// to [installFromFile] — deliberately the SAME entry point the device picker
+  /// uses. That is what makes the three installation paths (device import,
+  /// direct URL, official catalogue) converge on one manifest/compatibility/
+  /// trust pipeline instead of parallel ones.
+  ///
+  /// [expectedSha256] is an optional TRANSPORT checksum published by the
+  /// catalogue. It is not a trust signal: the manifest signature is still
+  /// verified by the manager.
+  Future<SpectaResult<ExtensionRecord>> installFromUrl(
+    String url, {
+    String? expectedSha256,
+    int? expectedSizeBytes,
+  }) async {
+    final SpectaResult<DownloadedExtension> download = await _downloader
+        .download(
+          url,
+          expectedSha256: expectedSha256,
+          expectedSizeBytes: expectedSizeBytes,
+        );
+    if (download.isErr) return Err<ExtensionRecord>(download.failureOrNull!);
+
+    final SpectaResult<Directory> directory = await _storage.resolveDirectory();
+    if (directory.isErr) {
+      return Err<ExtensionRecord>(directory.failureOrNull!);
+    }
+
+    // The id used for the file name is the one the manager will install under.
+    // It is taken from the downloaded manifest, and sanitised before use, so a
+    // hostile id cannot write outside the target directory.
+    final String code = download.valueOrNull!.sourceCode;
+    final String? extensionId = _idFromSource(code);
+    if (extensionId == null) {
+      // The download SUCCEEDED — the bytes arrived. What is missing is a
+      // `// ==SpectaExtension==` manifest, so this file simply is not an
+      // extension. This used to report `tooLarge`, which told the user their
+      // file was too big when it was in fact a 343-byte JSON catalogue: the
+      // overwhelmingly common cause is a repo.json pasted into "Install from a
+      // link". The explanation comes from the same helper the manager uses, so
+      // both routes describe the mistake identically.
+      return Err<ExtensionRecord>(
+        ExtensionDistributionFailure(
+          type: ExtensionDistributionFailureType.notAnExtension,
+          stage: 'verify',
+          message: describeUnimportableSource(
+            code,
+            ManifestParseException(
+              'Downloaded file has no readable manifest id.',
+            ),
+          ),
+          detail: 'Downloaded file has no readable manifest id.',
+        ),
+      );
+    }
+
+    final SpectaResult<String> written = await ExtensionFileStore.write(
+      directory.valueOrNull!,
+      extensionId,
+      code,
+    );
+    if (written.isErr) return Err<ExtensionRecord>(written.failureOrNull!);
+
+    // Converges with the device-import path from here on.
+    return installFromFile(written.valueOrNull!);
+  }
+
+  /// Installs one catalogue entry.
+  ///
+  /// Identical to [installFromUrl] apart from reading the entry's claims. The
+  /// catalogue is NOT trusted: the entry only supplies a URL and an optional
+  /// checksum, and everything else is re-derived by the manager.
+  Future<SpectaResult<ExtensionRecord>> installFromCatalogueEntry(
+    ExtensionCatalogueEntry entry,
+  ) => installFromUrl(
+    entry.downloadUrl,
+    expectedSha256: entry.sha256,
+    expectedSizeBytes: entry.sizeBytes,
+  );
+
+  /// Reads the manifest id out of downloaded source, without validating it.
+  ///
+  /// Used only to choose a file name. A null result (unparseable manifest) is
+  /// rejected here; a WRONG id is caught by the manager, which installs under
+  /// the id in the manifest itself.
+  static String? _idFromSource(String sourceCode) {
+    try {
+      return ManifestParser.parse(sourceCode).id;
+    } on Object {
+      return null;
+    }
+  }
 
   /// Returns every installed extension (enabled and disabled), each with its
   /// derived health, in a deterministic order (name, then id).
@@ -91,6 +205,18 @@ final class ExtensionLifecycleService {
 
   /// Permanently removes an extension and retires its runtime.
   Future<void> uninstall(String id) => manager.uninstall(id);
+
+  /// Whether a rollback point exists for [id] (a previous version was
+  /// snapshotted by an earlier update).
+  Future<bool> isRollbackAvailable(String id) =>
+      manager.isRollbackAvailable(id);
+
+  /// Restores the previous known-good version of an extension.
+  ///
+  /// Returns true when a rollback point existed and was restored. The user's
+  /// enabled/disabled choice is preserved: this replaces the runtime, it does
+  /// not reinstall the extension.
+  Future<bool> rollback(String id) => manager.rollback(id);
 
   /// Shuts down every live runtime. Used when the application is torn down.
   Future<void> shutdownAll() => manager.shutdownAll();

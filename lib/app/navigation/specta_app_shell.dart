@@ -14,6 +14,7 @@ import '../../ui/widgets/specta_status_badge.dart';
 import '../platform/form_factor.dart';
 import '../theme/specta_colors.dart';
 import 'specta_destination.dart';
+import 'specta_nav_label_layout.dart';
 import 'specta_navigation_state.dart';
 
 /// The central responsive application shell for SPECTA.
@@ -70,9 +71,7 @@ class _SpectaAppShellState extends ConsumerState<SpectaAppShell> {
         _buildTvSidebar(context, activeDestination),
 
         // Main content destination
-        Expanded(
-          child: _destinationView(activeDestination),
-        ),
+        Expanded(child: _destinationView(activeDestination)),
       ],
     );
   }
@@ -171,10 +170,7 @@ class _SpectaAppShellState extends ConsumerState<SpectaAppShell> {
                 const SizedBox(height: 2),
                 const Text(
                   'Extensions & Sources',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: SpectaColors.textMuted,
-                  ),
+                  style: TextStyle(fontSize: 10, color: SpectaColors.textMuted),
                 ),
                 const SizedBox(height: 8),
                 const SpectaStatusBadge(
@@ -199,7 +195,9 @@ class _SpectaAppShellState extends ConsumerState<SpectaAppShell> {
       child: SpectaFocusWrapper(
         borderRadius: 8,
         onTap: () {
-          ref.read(spectaNavigationProvider.notifier).selectDestination(destination);
+          ref
+              .read(spectaNavigationProvider.notifier)
+              .selectDestination(destination);
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -243,6 +241,23 @@ class _SpectaAppShellState extends ConsumerState<SpectaAppShell> {
     SpectaDestination activeDestination,
   ) {
     final Color accent = Theme.of(context).colorScheme.primary;
+    final ThemeData theme = Theme.of(context);
+    final int destinationCount = SpectaDestination.values.length;
+
+    // NavigationBar gives every destination an equal share of the bar and
+    // paints each label at its intrinsic width, so the labels are sized here to
+    // the share they actually get. See SpectaNavLabelLayout for why a fixed
+    // size is not enough.
+    final double labelFontSize = SpectaNavLabelLayout.fontSizeFor(
+      slotWidth: MediaQuery.sizeOf(context).width / destinationCount,
+      labels: <String>[
+        for (final SpectaDestination destination in SpectaDestination.values)
+          destination.label,
+      ],
+      textDirection: Directionality.of(context),
+      scaledLabelSize: MediaQuery.textScalerOf(context)
+          .scale(SpectaNavLabelLayout.maxFontSize),
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -251,32 +266,50 @@ class _SpectaAppShellState extends ConsumerState<SpectaAppShell> {
           top: BorderSide(color: SpectaColors.outline, width: 0.8),
         ),
       ),
-      child: NavigationBar(
-        selectedIndex: activeDestination.index,
-        onDestinationSelected: (int index) {
-          ref.read(spectaNavigationProvider.notifier).selectByIndex(index);
-        },
-        backgroundColor: Colors.transparent,
-        indicatorColor: accent.withValues(alpha: 0.2),
-        elevation: 0,
-        height: 62,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: <Widget>[
-          for (final SpectaDestination destination in SpectaDestination.values)
-            NavigationDestination(
-              icon: Icon(
-                destination.icon,
-                size: 20,
-                color: SpectaColors.textMuted,
+      child: Theme(
+        data: theme.copyWith(
+          navigationBarTheme: theme.navigationBarTheme.copyWith(
+            labelTextStyle: WidgetStateProperty.resolveWith((
+              Set<WidgetState> states,
+            ) {
+              final bool selected = states.contains(WidgetState.selected);
+              return TextStyle(
+                fontSize: labelFontSize,
+                letterSpacing: 0,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? accent : SpectaColors.textMuted,
+              );
+            }),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: activeDestination.index,
+          onDestinationSelected: (int index) {
+            ref.read(spectaNavigationProvider.notifier).selectByIndex(index);
+          },
+          backgroundColor: Colors.transparent,
+          indicatorColor: accent.withValues(alpha: 0.2),
+          elevation: 0,
+          height: 62,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: <Widget>[
+            for (final SpectaDestination destination
+                in SpectaDestination.values)
+              NavigationDestination(
+                icon: Icon(
+                  destination.icon,
+                  size: 20,
+                  color: SpectaColors.textMuted,
+                ),
+                selectedIcon: Icon(
+                  destination.selectedIcon,
+                  size: 22,
+                  color: accent,
+                ),
+                label: destination.label,
               ),
-              selectedIcon: Icon(
-                destination.selectedIcon,
-                size: 22,
-                color: accent,
-              ),
-              label: destination.label,
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

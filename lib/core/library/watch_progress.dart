@@ -19,6 +19,8 @@ final class WatchProgress {
     this.duration,
     this.elapsed = Duration.zero,
     this.completed = false,
+    this.canonicalId,
+    this.identityVersion = 1,
     required this.updatedAt,
   });
 
@@ -53,6 +55,12 @@ final class WatchProgress {
 
   /// Whether the player reported playback reached the end.
   final bool completed;
+
+  /// Canonical provider identity, e.g. `anilist:123`.
+  final String? canonicalId;
+
+  /// 1 = legacy title/type/year key; 2 = provider canonical key.
+  final int identityVersion;
 
   /// Last time the player reported progress for this identity.
   final DateTime updatedAt;
@@ -91,22 +99,25 @@ final class WatchProgress {
     Duration? duration,
     Duration? elapsed,
     bool? completed,
+    String? canonicalId,
+    int? identityVersion,
     DateTime? updatedAt,
-  }) =>
-      WatchProgress(
-        id: id ?? this.id,
-        mediaKey: mediaKey ?? this.mediaKey,
-        mediaType: mediaType ?? this.mediaType,
-        title: title ?? this.title,
-        subtitleLine: subtitleLine ?? this.subtitleLine,
-        seasonNumber: seasonNumber ?? this.seasonNumber,
-        episodeNumber: episodeNumber ?? this.episodeNumber,
-        position: position ?? this.position,
-        duration: duration ?? this.duration,
-        elapsed: elapsed ?? this.elapsed,
-        completed: completed ?? this.completed,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  }) => WatchProgress(
+    id: id ?? this.id,
+    mediaKey: mediaKey ?? this.mediaKey,
+    mediaType: mediaType ?? this.mediaType,
+    title: title ?? this.title,
+    subtitleLine: subtitleLine ?? this.subtitleLine,
+    seasonNumber: seasonNumber ?? this.seasonNumber,
+    episodeNumber: episodeNumber ?? this.episodeNumber,
+    position: position ?? this.position,
+    duration: duration ?? this.duration,
+    elapsed: elapsed ?? this.elapsed,
+    completed: completed ?? this.completed,
+    canonicalId: canonicalId ?? this.canonicalId,
+    identityVersion: identityVersion ?? this.identityVersion,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
 
   @override
   String toString() =>

@@ -27,10 +27,12 @@ class LibraryView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncValue<List<WatchProgress>> continueWatching =
-        ref.watch(continueWatchingProvider);
-    final AsyncValue<List<WatchProgress>> history =
-        ref.watch(watchHistoryProvider);
+    final AsyncValue<List<WatchProgress>> continueWatching = ref.watch(
+      continueWatchingProvider,
+    );
+    final AsyncValue<List<WatchProgress>> history = ref.watch(
+      watchHistoryProvider,
+    );
 
     if (continueWatching.isLoading || history.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -86,19 +88,20 @@ class LibraryView extends ConsumerWidget {
     final ResumeResult result = await resumeWatchProgress(
       ref: ref,
       progress: progress,
-      starter: ({
-        required MetadataItem metadata,
-        required DiscoveryItem item,
-        SeriesEpisode? episode,
-        Duration? startPosition,
-      }) => startPlayback(
-        context,
-        ref: ref,
-        metadata: metadata,
-        item: item,
-        episode: episode,
-        startPosition: startPosition,
-      ),
+      starter:
+          ({
+            required MetadataItem metadata,
+            required DiscoveryItem item,
+            SeriesEpisode? episode,
+            Duration? startPosition,
+          }) => startPlayback(
+            context,
+            ref: ref,
+            metadata: metadata,
+            item: item,
+            episode: episode,
+            startPosition: startPosition,
+          ),
     );
     if (!context.mounted || result.started) return;
     ScaffoldMessenger.of(context).showSnackBar(

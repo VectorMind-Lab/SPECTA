@@ -32,8 +32,9 @@ void main() {
       );
       await sink.idle;
 
-      final WatchProgress? row =
-          await store.progressFor('Show|series|2024|s1e2');
+      final WatchProgress? row = await store.progressFor(
+        'Show|series|2024|s1e2',
+      );
       expect(row, isNotNull);
       expect(row!.mediaKey, 'Show|series|2024');
       expect(row.mediaType, MediaType.series);
@@ -67,34 +68,39 @@ void main() {
       expect((await store.history()).length, 1);
     });
 
-    test('an empty target key is ignored — identity is never guessed', () async {
-      final InMemoryLibraryStore store = InMemoryLibraryStore();
-      final PersistentPlaybackProgressSink sink =
-          PersistentPlaybackProgressSink(store);
+    test(
+      'an empty target key is ignored — identity is never guessed',
+      () async {
+        final InMemoryLibraryStore store = InMemoryLibraryStore();
+        final PersistentPlaybackProgressSink sink =
+            PersistentPlaybackProgressSink(store);
 
-      sink.report(
-        targetKey: '',
-        elapsed: const Duration(seconds: 5),
-        completed: false,
-      );
-      await sink.idle;
+        sink.report(
+          targetKey: '',
+          elapsed: const Duration(seconds: 5),
+          completed: false,
+        );
+        await sink.idle;
 
-      expect(await store.history(), isEmpty);
-    });
+        expect(await store.history(), isEmpty);
+      },
+    );
 
-    test('a storage failure never escapes and never blocks later writes',
-        () async {
-      final _FlakyStore store = _FlakyStore();
-      final PersistentPlaybackProgressSink sink =
-          PersistentPlaybackProgressSink(store);
+    test(
+      'a storage failure never escapes and never blocks later writes',
+      () async {
+        final _FlakyStore store = _FlakyStore();
+        final PersistentPlaybackProgressSink sink =
+            PersistentPlaybackProgressSink(store);
 
-      sink.report(targetKey: 'a', elapsed: Duration.zero, completed: false);
-      sink.report(targetKey: 'b', elapsed: Duration.zero, completed: false);
-      await sink.idle; // must complete, not throw
+        sink.report(targetKey: 'a', elapsed: Duration.zero, completed: false);
+        sink.report(targetKey: 'b', elapsed: Duration.zero, completed: false);
+        await sink.idle; // must complete, not throw
 
-      expect(store.attempts, 2);
-      expect(store.written, <String>['b']);
-    });
+        expect(store.attempts, 2);
+        expect(store.written, <String>['b']);
+      },
+    );
 
     test('a report without a title still persists the key', () async {
       final InMemoryLibraryStore store = InMemoryLibraryStore();
@@ -110,7 +116,9 @@ void main() {
       );
       await sink.idle;
 
-      final WatchProgress row = (await store.progressFor('Untitled|movie|2024'))!;
+      final WatchProgress row = (await store.progressFor(
+        'Untitled|movie|2024',
+      ))!;
       expect(row.title, 'Untitled|movie|2024');
     });
 
@@ -118,10 +126,7 @@ void main() {
       final InMemoryLibraryStore store = InMemoryLibraryStore();
       int changes = 0;
       final PersistentPlaybackProgressSink sink =
-          PersistentPlaybackProgressSink(
-        store,
-        onChanged: () => changes++,
-      );
+          PersistentPlaybackProgressSink(store, onChanged: () => changes++);
 
       sink.report(targetKey: 'a', elapsed: Duration.zero, completed: false);
       await sink.idle;
@@ -163,8 +168,10 @@ class _FlakyStore implements LibraryStore {
   @override
   Future<void> saveReferences(
     String mediaKey,
-    List<DiscoveryReference> references,
-  ) async {}
+    List<DiscoveryReference> references, {
+    String? canonicalId,
+    int identityVersion = 1,
+  }) async {}
 
   @override
   Future<List<DiscoveryReference>> referencesFor(String mediaKey) async =>

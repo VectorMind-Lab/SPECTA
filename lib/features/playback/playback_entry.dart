@@ -30,7 +30,9 @@ Future<void> startPlayback(
   SeriesEpisode? episode,
   Duration? startPosition,
 }) async {
-  final SourceSessionNotifier sources = ref.read(sourceSessionProvider.notifier);
+  final SourceSessionNotifier sources = ref.read(
+    sourceSessionProvider.notifier,
+  );
 
   final Map<String, String> extensions;
   final String reference;
@@ -69,10 +71,7 @@ Future<void> startPlayback(
     reference = item.references.first.url;
   }
 
-  await sources.resolve(
-    reference: reference,
-    extensions: extensions,
-  );
+  await sources.resolve(reference: reference, extensions: extensions);
 
   final SourceSessionState session = ref.read(sourceSessionProvider);
   if (session.status != SourceSessionStatus.ready || session.pool == null) {
@@ -97,26 +96,28 @@ Future<void> startPlayback(
   // The session reports through its own state from here; the returned
   // future completes only when the session ends.
   unawaited(
-    ref.read(playbackSessionProvider.notifier).open(
+    ref
+        .read(playbackSessionProvider.notifier)
+        .open(
           PlaybackRequest.fromPool(
-          session.pool!,
-          playbackKey: episode == null
-              ? metadata.key
-              : '${metadata.key}|s${episode.seasonNumber}e${episode.episodeNumber}',
-          title: metadata.title,
-          subtitle: episode == null
-              ? null
-              : 'Season ${episode.seasonNumber}'
-                  ' · Episode ${episode.episodeNumber}',
-          // Persistence identity (2F): the parent key plus the episode
-          // numbers, so an episode's progress can never land on another one.
-          mediaKey: metadata.key,
-          mediaType: metadata.type,
-          seasonNumber: episode?.seasonNumber,
-          episodeNumber: episode?.episodeNumber,
-          startPosition: startPosition,
+            session.pool!,
+            playbackKey: episode == null
+                ? metadata.key
+                : '${metadata.key}|s${episode.seasonNumber}e${episode.episodeNumber}',
+            title: metadata.title,
+            subtitle: episode == null
+                ? null
+                : 'Season ${episode.seasonNumber}'
+                      ' · Episode ${episode.episodeNumber}',
+            // Persistence identity (2F): the parent key plus the episode
+            // numbers, so an episode's progress can never land on another one.
+            mediaKey: metadata.key,
+            mediaType: metadata.type,
+            seasonNumber: episode?.seasonNumber,
+            episodeNumber: episode?.episodeNumber,
+            startPosition: startPosition,
+          ),
         ),
-      ),
   );
 
   if (!context.mounted) return;

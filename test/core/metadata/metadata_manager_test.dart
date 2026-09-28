@@ -11,68 +11,68 @@ import '../../support/discovery_test_harness.dart';
 
 /// A movie [DiscoveryItem] with a single reference.
 DiscoveryItem movieItem(String extensionId, String url) => DiscoveryItem(
-      key: 'test|movie|2020',
-      title: 'Test Movie',
-      type: MediaType.movie,
-      year: 2020,
-      references: <DiscoveryReference>[
-        DiscoveryReference(extensionId: extensionId, url: url),
-      ],
-    );
+  key: 'test|movie|2020',
+  title: 'Test Movie',
+  type: MediaType.movie,
+  year: 2020,
+  references: <DiscoveryReference>[
+    DiscoveryReference(extensionId: extensionId, url: url),
+  ],
+);
 
 /// A series [DiscoveryItem] with a single reference.
 DiscoveryItem seriesItem(String extensionId, String url) => DiscoveryItem(
-      key: 'test|series|2021',
-      title: 'Test Series',
-      type: MediaType.series,
-      year: 2021,
-      references: <DiscoveryReference>[
-        DiscoveryReference(extensionId: extensionId, url: url),
-      ],
-    );
+  key: 'test|series|2021',
+  title: 'Test Series',
+  type: MediaType.series,
+  year: 2021,
+  references: <DiscoveryReference>[
+    DiscoveryReference(extensionId: extensionId, url: url),
+  ],
+);
 
 /// A valid movie details payload.
 Map<String, Object?> moviePayload(String url) => <String, Object?>{
-      'id': 'm1',
-      'title': 'Test Movie',
-      'type': 'movie',
-      'url': url,
-      'year': 2020,
-      'description': 'A test movie.',
-      'genres': <String>['action', 'sci-fi'],
-      'rating': 7.9,
-      'duration': 7200,
-      'cover': 'https://example.com/cover.jpg',
-      'backdrop': 'https://example.com/backdrop.jpg',
-    };
+  'id': 'm1',
+  'title': 'Test Movie',
+  'type': 'movie',
+  'url': url,
+  'year': 2020,
+  'description': 'A test movie.',
+  'genres': <String>['action', 'sci-fi'],
+  'rating': 7.9,
+  'duration': 7200,
+  'cover': 'https://example.com/cover.jpg',
+  'backdrop': 'https://example.com/backdrop.jpg',
+};
 
 /// A valid series details payload with one season and two episodes.
 Map<String, Object?> seriesPayload(String url) => <String, Object?>{
-      'id': 's1',
-      'title': 'Test Series',
-      'type': 'series',
-      'url': url,
-      'year': 2021,
-      'seasons': <Map<String, Object?>>[
+  'id': 's1',
+  'title': 'Test Series',
+  'type': 'series',
+  'url': url,
+  'year': 2021,
+  'seasons': <Map<String, Object?>>[
+    <String, Object?>{
+      'seasonNumber': 1,
+      'title': 'Season One',
+      'episodes': <Map<String, Object?>>[
         <String, Object?>{
-          'seasonNumber': 1,
-          'title': 'Season One',
-          'episodes': <Map<String, Object?>>[
-            <String, Object?>{
-              'episodeNumber': 2,
-              'url': '$url/e2',
-              'title': 'Second',
-            },
-            <String, Object?>{
-              'episodeNumber': 1,
-              'url': '$url/e1',
-              'title': 'Pilot',
-              'duration': 2700,
-            },
-          ],
+          'episodeNumber': 2,
+          'url': '$url/e2',
+          'title': 'Second',
+        },
+        <String, Object?>{
+          'episodeNumber': 1,
+          'url': '$url/e1',
+          'title': 'Pilot',
+          'duration': 2700,
         },
       ],
-    };
+    },
+  ],
+};
 
 void main() {
   late Directory tempDir;
@@ -87,7 +87,10 @@ void main() {
       final DiscoveryTestHarness h = DiscoveryTestHarness();
       await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
       const String url = 'https://example.com/movie/1';
-      h.sandbox.setAsyncResult(detailsExpression(url), jsonEncode(moviePayload(url)));
+      h.sandbox.setAsyncResult(
+        detailsExpression(url),
+        jsonEncode(moviePayload(url)),
+      );
 
       final MetadataResult result = await MetadataManager.metadataFor(
         item: movieItem('extA', url),
@@ -109,126 +112,164 @@ void main() {
       t.expect(item.seasons, t.isEmpty);
     });
 
-    t.test('a timeout on the only reference produces failure data, not a throw',
-        () async {
-      final DiscoveryTestHarness h = DiscoveryTestHarness();
-      await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
-      const String url = 'https://example.com/movie/1';
-      h.sandbox.setAsyncResult(
-        detailsExpression(url),
-        jsonEncode(moviePayload(url)),
-      );
-      h.sandbox.delay = const Duration(seconds: 2);
+    t.test(
+      'a timeout on the only reference produces failure data, not a throw',
+      () async {
+        final DiscoveryTestHarness h = DiscoveryTestHarness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,details',
+        );
+        const String url = 'https://example.com/movie/1';
+        h.sandbox.setAsyncResult(
+          detailsExpression(url),
+          jsonEncode(moviePayload(url)),
+        );
+        h.sandbox.delay = const Duration(seconds: 2);
 
-      final MetadataResult result = await MetadataManager.metadataFor(
-        item: movieItem('extA', url),
-        manager: h.manager,
-        perReferenceTimeoutOverride: const Duration(milliseconds: 50),
-      );
+        final MetadataResult result = await MetadataManager.metadataFor(
+          item: movieItem('extA', url),
+          manager: h.manager,
+          perReferenceTimeoutOverride: const Duration(milliseconds: 50),
+        );
 
-      t.expect(result.hasItem, t.isFalse);
-      t.expect(result.outcomes.single.isFailed, t.isTrue);
-    });
+        t.expect(result.hasItem, t.isFalse);
+        t.expect(result.outcomes.single.isFailed, t.isTrue);
+      },
+    );
 
-    t.test('a runtime error on the only reference is isolated as data',
-        () async {
-      final DiscoveryTestHarness h = DiscoveryTestHarness();
-      await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
-      const String url = 'https://example.com/movie/1';
-      h.sandbox.setAsyncError(detailsExpression(url), 'extension exploded');
+    t.test(
+      'a runtime error on the only reference is isolated as data',
+      () async {
+        final DiscoveryTestHarness h = DiscoveryTestHarness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,details',
+        );
+        const String url = 'https://example.com/movie/1';
+        h.sandbox.setAsyncError(detailsExpression(url), 'extension exploded');
 
-      final MetadataResult result = await MetadataManager.metadataFor(
-        item: movieItem('extA', url),
-        manager: h.manager,
-      );
+        final MetadataResult result = await MetadataManager.metadataFor(
+          item: movieItem('extA', url),
+          manager: h.manager,
+        );
 
-      t.expect(result.hasItem, t.isFalse);
-      t.expect(result.outcomes.single.isFailed, t.isTrue);
-    });
+        t.expect(result.hasItem, t.isFalse);
+        t.expect(result.outcomes.single.isFailed, t.isTrue);
+      },
+    );
 
-    t.test('an extension without the details capability is skipped, not failed',
-        () async {
-      final DiscoveryTestHarness h = DiscoveryTestHarness();
-      await h.installExtension(tempDir, 'extA', capabilities: 'search,latest');
-      const String url = 'https://example.com/movie/1';
+    t.test(
+      'an extension without the details capability is skipped, not failed',
+      () async {
+        final DiscoveryTestHarness h = DiscoveryTestHarness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,latest',
+        );
+        const String url = 'https://example.com/movie/1';
 
-      final MetadataResult result = await MetadataManager.metadataFor(
-        item: movieItem('extA', url),
-        manager: h.manager,
-      );
+        final MetadataResult result = await MetadataManager.metadataFor(
+          item: movieItem('extA', url),
+          manager: h.manager,
+        );
 
-      t.expect(result.hasItem, t.isFalse);
-      t.expect(result.outcomes.single.isSuccess, t.isFalse);
-      t.expect(result.outcomes.single.isFailed, t.isFalse);
-    });
+        t.expect(result.hasItem, t.isFalse);
+        t.expect(result.outcomes.single.isSuccess, t.isFalse);
+        t.expect(result.outcomes.single.isFailed, t.isFalse);
+      },
+    );
 
-    t.test('an invalid payload (type mismatch) is reported as invalid data',
-        () async {
-      final DiscoveryTestHarness h = DiscoveryTestHarness();
-      await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
-      const String url = 'https://example.com/movie/1';
-      // A movie request answered by a series payload.
-      h.sandbox.setAsyncResult(
-        detailsExpression(url),
-        jsonEncode(seriesPayload(url)),
-      );
+    t.test(
+      'an invalid payload (type mismatch) is reported as invalid data',
+      () async {
+        final DiscoveryTestHarness h = DiscoveryTestHarness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,details',
+        );
+        const String url = 'https://example.com/movie/1';
+        // A movie request answered by a series payload.
+        h.sandbox.setAsyncResult(
+          detailsExpression(url),
+          jsonEncode(seriesPayload(url)),
+        );
 
-      final MetadataResult result = await MetadataManager.metadataFor(
-        item: movieItem('extA', url),
-        manager: h.manager,
-      );
+        final MetadataResult result = await MetadataManager.metadataFor(
+          item: movieItem('extA', url),
+          manager: h.manager,
+        );
 
-      t.expect(result.hasItem, t.isFalse);
-      t.expect(result.outcomes.single.isInvalid, t.isTrue);
-      t.expect(result.outcomes.single.dropReason, t.contains('type'));
-    });
+        t.expect(result.hasItem, t.isFalse);
+        t.expect(result.outcomes.single.isInvalid, t.isTrue);
+        t.expect(result.outcomes.single.dropReason, t.contains('type'));
+      },
+    );
   });
 
   t.group('MetadataManager — series, seasons, episodes', () {
-    t.test('seasons and episodes are canonicalized, sorted, and complete',
-        () async {
-      final DiscoveryTestHarness h = DiscoveryTestHarness();
-      await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
-      const String url = 'https://example.com/series/1';
-      h.sandbox.setAsyncResult(
-        detailsExpression(url),
-        jsonEncode(seriesPayload(url)),
-      );
+    t.test(
+      'seasons and episodes are canonicalized, sorted, and complete',
+      () async {
+        final DiscoveryTestHarness h = DiscoveryTestHarness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,details',
+        );
+        const String url = 'https://example.com/series/1';
+        h.sandbox.setAsyncResult(
+          detailsExpression(url),
+          jsonEncode(seriesPayload(url)),
+        );
 
-      final MetadataResult result = await MetadataManager.metadataFor(
-        item: seriesItem('extA', url),
-        manager: h.manager,
-      );
+        final MetadataResult result = await MetadataManager.metadataFor(
+          item: seriesItem('extA', url),
+          manager: h.manager,
+        );
 
-      t.expect(result.hasItem, t.isTrue);
-      final List<SeriesSeason> seasons = result.item!.seasons;
-      t.expect(seasons, t.hasLength(1));
-      t.expect(seasons.single.seasonNumber, 1);
-      // Episodes arrive 2,1 from the payload; SPECTA canonically sorts.
-      t.expect(seasons.single.episodes.map((SeriesEpisode e) => e.episodeNumber),
-          <int>[1, 2]);
-      t.expect(seasons.single.episodes.first.referenceUrl, '$url/e1');
-      t.expect(seasons.single.episodes.first.durationSeconds, 2700);
-    });
+        t.expect(result.hasItem, t.isTrue);
+        final List<SeriesSeason> seasons = result.item!.seasons;
+        t.expect(seasons, t.hasLength(1));
+        t.expect(seasons.single.seasonNumber, 1);
+        // Episodes arrive 2,1 from the payload; SPECTA canonically sorts.
+        t.expect(
+          seasons.single.episodes.map((SeriesEpisode e) => e.episodeNumber),
+          <int>[1, 2],
+        );
+        t.expect(seasons.single.episodes.first.referenceUrl, '$url/e1');
+        t.expect(seasons.single.episodes.first.durationSeconds, 2700);
+      },
+    );
 
-    t.test('an empty season list is a partial-success series, not a failure',
-        () async {
-      final DiscoveryTestHarness h = DiscoveryTestHarness();
-      await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
-      const String url = 'https://example.com/series/1';
-      final Map<String, Object?> payload = seriesPayload(url)
-        ..['seasons'] = <Object?>[];
+    t.test(
+      'an empty season list is a partial-success series, not a failure',
+      () async {
+        final DiscoveryTestHarness h = DiscoveryTestHarness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,details',
+        );
+        const String url = 'https://example.com/series/1';
+        final Map<String, Object?> payload = seriesPayload(url)
+          ..['seasons'] = <Object?>[];
 
-      h.sandbox.setAsyncResult(detailsExpression(url), jsonEncode(payload));
+        h.sandbox.setAsyncResult(detailsExpression(url), jsonEncode(payload));
 
-      final MetadataResult result = await MetadataManager.metadataFor(
-        item: seriesItem('extA', url),
-        manager: h.manager,
-      );
+        final MetadataResult result = await MetadataManager.metadataFor(
+          item: seriesItem('extA', url),
+          manager: h.manager,
+        );
 
-      t.expect(result.hasItem, t.isTrue);
-      t.expect(result.item!.seasons, t.isEmpty);
-    });
+        t.expect(result.hasItem, t.isTrue);
+        t.expect(result.item!.seasons, t.isEmpty);
+      },
+    );
   });
 
   t.group('MetadataManager — multi-reference provenance', () {
@@ -273,50 +314,62 @@ void main() {
         result.item!.details.map((ReferenceMetadata r) => r.extensionId),
         t.containsAllInOrder(<String>['extA', 'extB']),
       );
-      t.expect(result.outcomes.every((ReferenceOutcome o) => o.isSuccess),
-          t.isTrue);
-    });
-
-    t.test('one reference failing does not stop the healthy reference',
-        () async {
-      final DiscoveryTestHarness h = DiscoveryTestHarness();
-      await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
-      await h.installExtension(tempDir, 'extB', capabilities: 'search,details');
-
-      const String urlA = 'https://example.com/a/movie/1';
-      const String urlB = 'https://example.com/b/movie/1';
-
-      h.sandbox.setAsyncError(detailsExpression(urlA), 'extA is down');
-      h.sandbox.setAsyncResult(
-        detailsExpression(urlB),
-        jsonEncode(moviePayload(urlB)),
-      );
-
-      final DiscoveryItem item = DiscoveryItem(
-        key: 'test movie|movie|2020',
-        title: 'Test Movie',
-        type: MediaType.movie,
-        year: 2020,
-        references: <DiscoveryReference>[
-          const DiscoveryReference(extensionId: 'extA', url: urlA),
-          const DiscoveryReference(extensionId: 'extB', url: urlB),
-        ],
-      );
-
-      final MetadataResult result = await MetadataManager.metadataFor(
-        item: item,
-        manager: h.manager,
-      );
-
-      t.expect(result.hasItem, t.isTrue);
-      t.expect(result.item!.details, t.hasLength(1));
-      t.expect(result.item!.details.single.extensionId, 'extB');
-      t.expect(result.outcomes, t.hasLength(2));
       t.expect(
-        result.outcomes.where((ReferenceOutcome o) => o.isFailed).length,
-        1,
+        result.outcomes.every((ReferenceOutcome o) => o.isSuccess),
+        t.isTrue,
       );
     });
+
+    t.test(
+      'one reference failing does not stop the healthy reference',
+      () async {
+        final DiscoveryTestHarness h = DiscoveryTestHarness();
+        await h.installExtension(
+          tempDir,
+          'extA',
+          capabilities: 'search,details',
+        );
+        await h.installExtension(
+          tempDir,
+          'extB',
+          capabilities: 'search,details',
+        );
+
+        const String urlA = 'https://example.com/a/movie/1';
+        const String urlB = 'https://example.com/b/movie/1';
+
+        h.sandbox.setAsyncError(detailsExpression(urlA), 'extA is down');
+        h.sandbox.setAsyncResult(
+          detailsExpression(urlB),
+          jsonEncode(moviePayload(urlB)),
+        );
+
+        final DiscoveryItem item = DiscoveryItem(
+          key: 'test movie|movie|2020',
+          title: 'Test Movie',
+          type: MediaType.movie,
+          year: 2020,
+          references: <DiscoveryReference>[
+            const DiscoveryReference(extensionId: 'extA', url: urlA),
+            const DiscoveryReference(extensionId: 'extB', url: urlB),
+          ],
+        );
+
+        final MetadataResult result = await MetadataManager.metadataFor(
+          item: item,
+          manager: h.manager,
+        );
+
+        t.expect(result.hasItem, t.isTrue);
+        t.expect(result.item!.details, t.hasLength(1));
+        t.expect(result.item!.details.single.extensionId, 'extB');
+        t.expect(result.outcomes, t.hasLength(2));
+        t.expect(
+          result.outcomes.where((ReferenceOutcome o) => o.isFailed).length,
+          1,
+        );
+      },
+    );
 
     t.test('when every reference fails there is no canonical item', () async {
       final DiscoveryTestHarness h = DiscoveryTestHarness();
@@ -355,8 +408,10 @@ void main() {
       );
 
       t.expect(result.hasItem, t.isFalse);
-      t.expect(result.outcomes.every((ReferenceOutcome o) => o.isFailed),
-          t.isTrue);
+      t.expect(
+        result.outcomes.every((ReferenceOutcome o) => o.isFailed),
+        t.isTrue,
+      );
     });
   });
 

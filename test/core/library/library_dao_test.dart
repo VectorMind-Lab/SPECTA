@@ -33,21 +33,20 @@ void main() {
     Duration elapsed = const Duration(seconds: 12),
     bool completed = false,
     DateTime? updatedAt,
-  }) =>
-      WatchProgress(
-        id: id,
-        mediaKey: mediaKey,
-        mediaType: type,
-        title: title,
-        subtitleLine: subtitleLine,
-        seasonNumber: season,
-        episodeNumber: episode,
-        position: position,
-        duration: duration,
-        elapsed: elapsed,
-        completed: completed,
-        updatedAt: updatedAt ?? DateTime(2026, 1, 1),
-      );
+  }) => WatchProgress(
+    id: id,
+    mediaKey: mediaKey,
+    mediaType: type,
+    title: title,
+    subtitleLine: subtitleLine,
+    seasonNumber: season,
+    episodeNumber: episode,
+    position: position,
+    duration: duration,
+    elapsed: elapsed,
+    completed: completed,
+    updatedAt: updatedAt ?? DateTime(2026, 1, 1),
+  );
 
   test('stores and reads one identity back', () async {
     await dao.upsert(progress(id: 'Movie|movie|2024', title: 'Movie'));
@@ -62,13 +61,29 @@ void main() {
     expect(row.fraction, closeTo(10 / 120, 0.0001));
   });
 
+  test('anime progress round-trips canonical identity', () async {
+    await dao.upsert(
+      WatchProgress(
+        id: 'anilist:16498',
+        mediaKey: 'anilist:16498',
+        mediaType: MediaType.anime,
+        title: 'Spirited Away',
+        canonicalId: 'anilist:16498',
+        identityVersion: 2,
+        position: const Duration(seconds: 12),
+        updatedAt: DateTime(2026, 1, 1),
+      ),
+    );
+
+    final WatchProgress? read = await dao.progressFor('anilist:16498');
+    expect(read!.canonicalId, 'anilist:16498');
+    expect(read.identityVersion, 2);
+    expect(read.mediaType, MediaType.anime);
+  });
+
   test('a second write updates in place — one row per identity', () async {
-    await dao.upsert(
-      progress(id: 'm', position: const Duration(seconds: 10)),
-    );
-    await dao.upsert(
-      progress(id: 'm', position: const Duration(seconds: 40)),
-    );
+    await dao.upsert(progress(id: 'm', position: const Duration(seconds: 10)));
+    await dao.upsert(progress(id: 'm', position: const Duration(seconds: 40)));
 
     final List<WatchProgress> all = await dao.history();
     expect(all.length, 1);
@@ -111,45 +126,51 @@ void main() {
     expect(ep2.episodeNumber, 2);
   });
 
-  test('continue watching excludes completed and zero-position rows, newest first',
-      () async {
-    await dao.upsert(
-      progress(
-        id: 'old',
-        position: const Duration(seconds: 30),
-        updatedAt: DateTime(2026, 1, 1),
-      ),
-    );
-    await dao.upsert(
-      progress(
-        id: 'fresh',
-        position: const Duration(seconds: 40),
-        updatedAt: DateTime(2026, 2, 1),
-      ),
-    );
-    await dao.upsert(
-      progress(
-        id: 'done',
-        position: const Duration(seconds: 120),
-        completed: true,
-        updatedAt: DateTime(2026, 3, 1),
-      ),
-    );
-    await dao.upsert(
-      progress(
-        id: 'opened-but-not-started',
-        position: Duration.zero,
-        updatedAt: DateTime(2026, 4, 1),
-      ),
-    );
+  test(
+    'continue watching excludes completed and zero-position rows, newest first',
+    () async {
+      await dao.upsert(
+        progress(
+          id: 'old',
+          position: const Duration(seconds: 30),
+          updatedAt: DateTime(2026, 1, 1),
+        ),
+      );
+      await dao.upsert(
+        progress(
+          id: 'fresh',
+          position: const Duration(seconds: 40),
+          updatedAt: DateTime(2026, 2, 1),
+        ),
+      );
+      await dao.upsert(
+        progress(
+          id: 'done',
+          position: const Duration(seconds: 120),
+          completed: true,
+          updatedAt: DateTime(2026, 3, 1),
+        ),
+      );
+      await dao.upsert(
+        progress(
+          id: 'opened-but-not-started',
+          position: Duration.zero,
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+      );
 
-    final List<WatchProgress> cw = await dao.continueWatching();
-    expect(cw.map((WatchProgress p) => p.id), <String>['fresh', 'old']);
-  });
+      final List<WatchProgress> cw = await dao.continueWatching();
+      expect(cw.map((WatchProgress p) => p.id), <String>['fresh', 'old']);
+    },
+  );
 
   test('history includes completed rows, newest first', () async {
     await dao.upsert(
-      progress(id: 'a', position: const Duration(seconds: 5), updatedAt: DateTime(2026, 1, 1)),
+      progress(
+        id: 'a',
+        position: const Duration(seconds: 5),
+        updatedAt: DateTime(2026, 1, 1),
+      ),
     );
     await dao.upsert(
       progress(
@@ -177,14 +198,17 @@ void main() {
     expect(await dao.history(), isEmpty);
   });
 
-  test('a duration-free row reports no fraction rather than a fake one', () async {
-    await dao.upsert(progress(id: 'n', duration: null));
+  test(
+    'a duration-free row reports no fraction rather than a fake one',
+    () async {
+      await dao.upsert(progress(id: 'n', duration: null));
 
-    final WatchProgress row = (await dao.progressFor('n'))!;
-    expect(row.duration, isNull);
-    expect(row.fraction, isNull);
-    expect(row.remaining, isNull);
-  });
+      final WatchProgress row = (await dao.progressFor('n'))!;
+      expect(row.duration, isNull);
+      expect(row.fraction, isNull);
+      expect(row.remaining, isNull);
+    },
+  );
 
   group('durable resume provenance (media_references)', () {
     test('stores references in first-seen order', () async {
@@ -193,8 +217,9 @@ void main() {
         DiscoveryReference(extensionId: 'extB', url: 'https://b/show'),
       ]);
 
-      final List<DiscoveryReference> refs =
-          await dao.referencesFor('show|series|2020');
+      final List<DiscoveryReference> refs = await dao.referencesFor(
+        'show|series|2020',
+      );
       expect(refs.length, 2);
       expect(refs[0].extensionId, 'extA');
       expect(refs[0].url, 'https://a/show');
@@ -210,8 +235,9 @@ void main() {
         DiscoveryReference(extensionId: 'extC', url: 'https://c/two'),
       ]);
 
-      final List<DiscoveryReference> refs =
-          await dao.referencesFor('m|movie|2020');
+      final List<DiscoveryReference> refs = await dao.referencesFor(
+        'm|movie|2020',
+      );
       expect(refs.length, 1);
       expect(refs.single.extensionId, 'extC');
     });
