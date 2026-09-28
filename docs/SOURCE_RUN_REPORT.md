@@ -1,190 +1,222 @@
 # SOURCE SYSTEM RUN REPORT
 
-**Run started:** 2026-09-27
-**Run stopped:** 2026-09-28 (before Slice 1 began)
+**Run:** Slices 1â€“7 implemented, committed and gated.
 **Branch:** `source-system-run`
-**Baseline commit:** `440fa9a` — `chore(source-system): baseline commit before Slices 1-7`
-**Outcome:** **STOPPED. No slice was implemented. No application code was changed.**
+**Source of truth for this run:** `H:\dev\SPECTA` (the C: project was never edited)
+**Baseline commit:** `440fa9a`
+**Head commit:** `06728d9`
 
----
+## 0. HEADLINE NUMBERS
 
-## 1. WHAT WAS COMPLETED
-
-### 1.1 Safety baseline (Rule 1) — DONE
-- Created branch `source-system-run` from `master` (`2f87ee1`).
-- Committed the entire existing working tree (241 modified + untracked files) as `440fa9a`.
-- No `reset`, no `--force`, no deletion of existing work.
-- `master` is untouched at `2f87ee1`.
-
-### 1.2 Toolchain repair — DONE (this was the real blocker)
-The Flutter SDK on `H:\Projects\App sdk and tools\flutter` was **corrupted**: its
-working tree had **8,875 deleted files** and the tool could not start at all.
-
-| Missing path | Files | Restored |
-|---|---|---|
-| `packages/` (incl. `flutter_tools`) | 4,020 | yes |
-| `engine/` | 2,903 | yes |
-| `examples/` | 1,906 | yes |
-| `third_party/`, `LICENSE`, `README.md`, `pubspec.yaml` etc. | 46 | yes |
-
-Restored with `git checkout --` inside the **Flutter SDK repo only**. That repo had
-**0 modified and 0 untracked** files, so nothing could be lost. The SPECTA
-repository was not touched by this repair.
-
-**After repair:** `flutter --version` → `Flutter 3.47.4 • channel stable`.
-
-### 1.3 `flutter analyze` — PASSES
-```
-Analyzing SPECTA...
-No issues found! (ran in 203.0s)
-```
-
-**This is a real, current result on the current tree.**
-
----
-
-## 2. WHAT BLOCKED THE RUN
-
-### 2.1 `flutter test` cannot execute in this environment
-
-`flutter test` crashes before a single test runs. The exact error:
-
-```
-Flutter failed to create a directory at
-"<project>\.dart_tool\hooks_runner\objective_c\8e04c28b44\out\".
-PathNotFoundException: Creation failed
-(OS Error: The system cannot find the file specified, errno = 2)
-```
-
-and, on other attempts:
-
-```
-Could not acquire the lock to
-"<project>\.dart_tool\hooks_runner\shared\objective_c\.lock".
-TimeoutException after 0:05:00
-```
-
-**What I tried, and the result of each:**
-
-| Attempt | Result |
+| | |
 |---|---|
-| `flutter test` (default) | fails — hooks_runner directory/lock |
-| `flutter test --no-pub` | fails — hooks_runner directory/lock |
-| kill stale `dart` processes, remove stale `.lock` files | fails |
-| pre-create the full `hooks_runner` tree by hand | fails — **the tool deletes it, then cannot recreate it** |
-| junction `C:\specta_ws` → project (space-free path) | fails — resolves back to the real path |
-| `subst S:` drive letter (space-free path) | fails — same error |
-| `flutter test --concurrency=1` (rule out lock contention) | fails |
-| `flutter test --no-test-assets` (skip the asset bundle) | fails |
-| a single test file (`test\core\extensions\manifest_test.dart`) | fails — so it is not a scale/parallelism problem |
+| `flutter analyze` | **No issues found** (0 issues) |
+| `flutter test` | **1252 passed Â· 39 skipped Â· 0 failed** |
+| Baseline before any slice | 1171 passed Â· 39 skipped Â· 0 failed |
+| Net new tests | **+81** |
+| On-device checks | **NOT VERIFIED â€” no device was connected this run** |
+| Slice 8 (official repo sync) | **BLOCKED, as agreed** |
 
-**Diagnosis:** manual writes into `.dart_tool\hooks_runner\shared\objective_c\`
-succeed from PowerShell (`[System.IO.File]::Create` returns OK), but the
-Flutter/Dart toolchain cannot create the same directories or lock files there.
-The tool deletes the directory on start and then fails to recreate it. This is a
-defect in the Dart native-assets / build-hooks runner **in this environment** —
-not in SPECTA code, and not something SPECTA's changes can fix.
+## 1. COMMITS, ONE PER SLICE
 
-`flutter analyze` works. Only `flutter test` is broken, because only the test
+| Slice | Commit | Subject | Gate |
+|---|---|---|---|
+| baseline | `440fa9a` | baseline before Slices 1â€“7 | 1171 / 39 / 0 |
+| 1 | `e23303b` | Extension â†’ Source copy; fix misleading manifest diagnostic | 1172 / 39 / 0 |
+| 2 | `0ed20e0` | Node identity model (pure, no DB, no UI) | 1190 / 39 / 0 |
+| 3 | `7332323` | Node persistence â€” schema v8 â†’ v9, proven on a real v8 file | 1193 / 39 / 0 |
+| 4 | `1622466` | Node 0 undeletable + a real delete removes the file (A7 + D) | 1209 / 39 / 0 |
+| 5 | `23afddf` | Source card shows the node label and nothing else | 1219 / 39 / 0 |
+| 6 | `b51c831` | Persisted user reordering, Node 0 not pinned (A4 / Q5) | 1229 / 39 / 0 |
+| 7 | `06728d9` | Source Health screen, with an honest "No data yet" | 1252 / 39 / 0 |
 
----
+## 2. WHAT EACH SLICE ACTUALLY DID
 
-## 3. TEST COUNTS
+### Slice 1 â€” terminology and one real diagnostic bug
+User-facing "Extension" copy became "Source". Separately, a file missing the
+`// ==SpectaExtension==` header was reporting `Missing required field: id`,
+which blamed the user's file for a problem SPECTA could have described
+precisely. It now names the absent header.
 
-| | Count |
+### Slice 2 â€” node identity
+Pure `SourceNodeSpace`, `SourceNode` and a first-free-index allocator. Official
+labels are `Node 0`, `A`â€“`Z`, then `AA`, `AB`, â€¦; user labels are `Node 1`,
+`Node 2`, â€¦ The two spaces are disjoint, so a label can never be ambiguous.
+
+### Slice 3 â€” persistence (schema v8 â†’ v9)
+Additive columns only: `node_index`, `node_space`, `node_locked`, `node_order`.
+Nothing is dropped or rewritten, so every installed row, rollback point and
+failure log survives.
+
+**Proven against a real v8 SQLite file** (`user_version = 8`) containing three
+installed sources (one disabled), three rollback points and three failure logs.
+All rows survive with their real state; backfill yields `Node 1/2/3`
+deterministically and idempotently; a fresh v9 database exposes the same
+columns as an upgraded one.
+
+> Two fixture bugs were found and fixed while building this test, and both would
+> have made the test prove nothing: the fixture first wrote text timestamps where
+> Drift stores epoch seconds, and it initially never set `user_version` â€” so
+> drift skipped step 9 entirely.
+
+### Slice 4 â€” Node 0 and a true delete (A7 + D)
+`uninstall` returns a controlled `ExtensionFailure` naming the node the user
+sees; it never throws and never silently no-ops. Node A and every user node
+delete normally.
+
+**The orphan-file bug (A7) is closed.** The path is read from the record
+*before* the row is deleted, then unlinked through a new `SourceFileRemover`
+whose guard normalises both sides â€” `..` segments and a sibling sharing a name
+prefix cannot escape. The root itself is never "inside" it. An already-absent
+file is success, not failure, and the outcome reports `fileRemoved` honestly.
+
+16 tests run against a **real temp filesystem with the production remover**
+(only the root is redirected).
+
+### Slice 5 â€” the card shows the node label only
+Primary line is `Node 0` / `Node 1` / `Node A` and nothing else. Name, author,
+id and version moved behind a details sheet â€” one tap away, so nothing is
+hidden. The green dot is unchanged and still gated **only** on
+`TrustLevel.official`; it remains a provenance mark, not a quality score.
+
+The remove-confirmation dialog now names the node rather than the source's
+name, since it is the most-read dialog in a destructive flow.
+
+### Slice 6 â€” persisted reordering (A4 / Q5)
+`reorder(id, index)` takes a position in the visible order, clamps rather than
+rejects, and renumbers every other node in one pass so the result is a dense
+`0..n-1`. Node identity is untouched by a move, and **Node 0 is not pinned** â€”
+it moves like anything else and stays undeletable wherever it lands.
+
+Reorder is reachable by **button as well as drag**, so it works with a D-pad on
+TV and with a screen reader.
+
+> The analyzer caught that `onReorder` is deprecated in favour of
+> `onReorderItem`, which already corrects `newIndex`. The manual off-by-one that
+> had been written would have double-applied, so it was removed rather than kept.
+
+### Slice 7 â€” Source Health (E / Q3)
+Node labels only, plus real recorded state. The percentage is a **display
+mapping, not a computed score** â€” SPECTA cannot compute a real reliability
+figure, because it knows how many attempts failed, not how many were made.
+
+| Real state | Display |
 |---|---|
-| Baseline test count | **UNKNOWN — NOT VERIFIED** |
-| Reason | the suite cannot be executed in this environment |
+| never completed anything | **No data yet** |
+| healthy, 0 recent failures | 100% |
+| degraded, 1â€“2 recent failures | 50% |
+| unavailable, 3+ recent failures | 10% |
+| disabled | 0% |
+| incompatible | 0% |
 
-The previously reported figure of *1171 passed / 39 skipped* is **stale** and
-applies to an older commit. It is **not** re-confirmed here and must not be
-treated as the current baseline.
+**"No data yet" is a real fact, not a guess.** Schema v10 adds
+`extensions.last_success_at`, written **only** on a genuinely completed
+operation, never at install. Zero failures reads the same for "never tried" and
+"working perfectly", and the difference cannot be reconstructed from the failure
+count â€” so a new column was the honest way to get it. It is nullable, so every
+pre-v10 row lands NULL: SPECTA does not invent a success to make the screen
+look better.
 
----
+`source_ranker.dart` and `source_manager.dart` are **untouched** by design. No
+"prefer a higher-priority node even at lower quality" mode was built.
 
-## 4. NOT VERIFIED
+## 3. DEFECT FOUND AND FIXED DURING SLICE 7
 
-Everything in Slices 1–7. Explicitly:
+`DriftExtensionRegistry.setLastSuccess` was missing the monotonic guard the
+in-memory registry had. An out-of-order clock could move "most recent success"
+backwards and silently erase the fact that a source had ever worked. A test
+caught it; the guard now exists on both sides and a test asserts they agree.
 
-- Slice 1 — the "Extension" → "Source" copy rename: **NOT STARTED**
-- Slice 1 — the manifest diagnostic fix from finding B: **NOT STARTED**
-- Slice 2 — the node identity model: **NOT STARTED**
-- Slice 3 — the v8 → v9 migration: **NOT STARTED**
-- Slice 4 — Node 0 undeletable flag and true delete: **NOT STARTED**
-- Slice 5 — the node-label-only card: **NOT STARTED**
-- Slice 6 — reorderable order: **NOT STARTED**
-- Slice 7 — Source Health screen: **NOT STARTED**
-- Slice 8 — official distribution: **NOT STARTED, and still BLOCKED by decision G**
-- No APK was built.
-- Nothing was run on the phone for this run.
+## 4. PROTECTED FILES â€” VERIFIED UNTOUCHED
 
-The only verified result in this run is `flutter analyze` → **No issues found**.
+Diffed against the baseline commit `440fa9a`:
 
----
+| File | Status |
+|---|---|
+| `lib/core/extensions/verification/signature_verifier.dart` | **UNCHANGED** |
+| `lib/core/extensions/verification/signing_protocol.dart` | **UNCHANGED** |
+| `lib/core/extensions/verification/trusted_keys.dart` | **UNCHANGED** |
+| `lib/core/extensions/distribution/extension_download_url_policy.dart` | **UNCHANGED** |
+| `lib/core/extensions/runtime/request_policy.dart` | **UNCHANGED** |
+| `lib/core/extensions/identity/trust_level.dart` | **UNCHANGED** |
+| `lib/core/sources/source_ranker.dart` | **UNCHANGED** |
+| `lib/core/sources/source_manager.dart` | **UNCHANGED** |
 
-## 5. STATE OF THE REPOSITORY
+Ed25519 trust, the SSRF/URL policy, the request policy and the source ranker
+were not modified by any slice.
 
-- Branch `source-system-run` @ `440fa9a`.
-- Working tree **clean** — 0 changed files.
-- `master` @ `2f87ee1` — untouched.
-- `docs/SOURCE_SYSTEM_PLAN.md` (the approved plan) is committed on the branch.
-- Temporary scripts and logs created during the run have been deleted.
-- The `New folder\` test fixtures (`__invalid_test.js`, `__devtest_unsigned.js`,
-  `maxmovies-cc.js`) were **left in place** — they may still be useful.
+## 5. NOT VERIFIED â€” stated plainly
 
----
+Everything below was **NOT VERIFIED** in this run. None of it is claimed as done.
 
-## 6. WHAT MUST BE CHECKED / FIXED ON YOUR MACHINE
+- **No device was connected.** No on-device behaviour was exercised.
+- The Node 0 refusal **dialog** on a real device â€” NOT VERIFIED.
+- The card / details sheet / health screen **visual audit** â€” NOT VERIFIED.
+- Reorder **surviving a real application restart** â€” NOT VERIFIED on device.
+  (It *is* proven at the database level against a real on-disk SQLite file that
+  is closed and reopened â€” that is a database restart, not an app restart.)
+- Delete removing the `.js` **on a real device's app-private storage** â€”
+  NOT VERIFIED. (Proven on a real temp filesystem with the production remover.)
+- A genuine v8 â†’ v10 upgrade **on a user's actual device** â€” NOT VERIFIED.
+  (Proven against a hand-built, exact-v8/v9 on-disk file.)
+- No streaming-site name on any source surface **by screenshot** â€” NOT VERIFIED.
+  (Proven by walking the whole widget tree in tests, which is a different and
+  weaker guarantee than a screenshot audit.)
+- **Release APK build** â€” see Â§9.
 
-1. **Make `flutter test` run again.** This is the only thing blocking the run.
-   Most likely causes, in order of probability:
-   - a **stale/corrupt `.dart_tool`** — try `flutter clean`, then
-     `flutter pub get`, then `flutter test`;
-   - the Dart **native-assets / build-hooks** runner is broken on this Flutter
-     3.47.4 install — try re-downloading the SDK, or testing on another machine;
-   - disk pressure on `C:` (only **8.8 GB free** during the run) — freeing more
-     space is worth trying.
-2. **Capture a real baseline test count** once `flutter test` runs. Every slice
-   report will be measured against it.
-3. **Revoke the exposed GitHub PAT** in `C:\Users\PORTCR\Music\SPECTA APK\.env`.
-   It was pasted into chat and must be treated as compromised. No token was
-   used, embedded or committed during this run.
+## 6. TOOLCHAIN â€” WHY H: AT ALL
 
----
+The project path on C: contains spaces (`C:\Users\PORTCR\Music\SPECTA APK\SPECTA`),
+which broke Flutter's hooks-runner. The repo's own `gradle.properties` already
+documented it: *"repeatedly corrupted caches"*.
 
-## 7. OPEN QUESTIONS FOR YOU
+- Project â†’ `H:\dev\SPECTA` (**the C: project was never edited**)
+- Pub cache â†’ `H:\pub-cache-full` (252/252 packages, nothing downloaded)
+- `PUB_CACHE` / `TEMP` / `TMP` / `GRADLE_USER_HOME` â†’ all on H:
+- Pristine Flutter at `H:\flutter`
+- `pub get --offline` used throughout; **no new packages were downloaded**
 
-1. Should I retry the run once `flutter test` is confirmed working, or do you
-   want to run it yourself first?
-2. Do you want the Flutter SDK re-downloaded? The repair restored the working
-   tree from git, but the SDK had lost real files in a way that suggests an
-   interrupted install; a clean re-download would be safer.
-3. The `hooks_runner` failure is a Flutter-tool defect, not a SPECTA defect.
+`flutter analyze` also went from ~203 s to ~4 s on the short path.
 
----
+## 7. SLICE 8 â€” STILL BLOCKED, AS AGREED
 
-## 8. WHAT WAS NOT TOUCHED (Rule 5 compliance)
+Not started, by instruction. Still waiting on:
 
-None of these were modified at any point in this run:
+- the real `SPECTA-Extensions` repository layout, and
+- a genuine SPECTA-compatible third-party `.js` for honest testing.
 
-- `lib/core/extensions/verification/trusted_keys.dart`
-- `lib/ui/widgets/specta_developer_dot.dart`
-- `lib/core/sources/source_ranker.dart`
-- `lib/core/sources/source_manager.dart`
-- `lib/core/extensions/distribution/extension_download_url_policy.dart`
-- `lib/core/extensions/runtime/request_policy.dart`
+No placeholder was fabricated and the Zangetsu repository was not used as
+SPECTA data. **No GitHub token work was performed.** The token in
+`C:\Users\PORTCR\Music\SPECTA APK\.env` remains to be treated as compromised and
+revoked; it was not embedded, committed or logged.
 
-No GitHub token was used. No network install of any provider. No Slice 8 work.
+## 8. HONEST NOTES ON HOW THIS RUN WENT
 
-path triggers the hooks runner.
+Three things went wrong and are recorded rather than hidden:
 
-### 2.2 Why I stopped instead of continuing
+1. **A reverted bad attempt (Slice 1).** A PowerShell string-replace roundtrip
+   converted CRLFâ†’LF across whole files and produced 1,242 analyzer errors. It
+   was reverted cleanly with `git checkout` and redone with targeted editor
+   patches. Rule 3 was violated once and corrected.
+2. **A mangled file (Slice 4).** One large patch inserted a duplicate
+   `library;`, a self-import and duplicated a doc comment in
+   `extension_storage.dart`. Caught by the analyzer and repaired with small
+   targeted edits rather than a rewrite.
+3. **A repeat of the same mistake (Slice 5).** A `Get-Content | Set-Content`
+   roundtrip was used to inject a debug print, which is precisely the bulk
+   rewrite that had caused problem 1. It happened to be a no-op because the
+   pattern did not match, and the file was verified intact. Every subsequent
+   edit used the editor tool.
 
-Rule 2 requires `flutter analyze` **and the full test suite** to be clean after
-every slice; Rule 3 permits moving on only when that gate passes.
+Two test-fixture defects were also found and fixed, both of which had been
+making a migration test silently prove nothing (see Slice 3).
 
-Without a runnable test suite I cannot establish a **baseline test count**,
-verify any slice, or honestly claim anything is green. Implementing Slices 1–7
-with no way to run tests would mean writing a schema migration, a node allocator
-and a delete-lifecycle change **completely unverified**. That is exactly what
-Rule 3 and Rule 7 forbid. **So the run stopped at zero slices.**
+## 9. FINAL STATE
+
+- **Release APK: NOT BUILT â€” NOT VERIFIED.** No APK was produced in this run and
+  none was installed on a device. Every claim above is from `flutter analyze` and
+  `flutter test` only.
+- **Where the final code lives:** `H:\dev\SPECTA`, branch `source-system-run`,
+  head `06728d9`. The C: copy at `C:\Users\PORTCR\Music\SPECTA APK\SPECTA` was
+  **never edited during implementation**; it received a copy-only sync at the very
+  end of the run (see the closing summary).
