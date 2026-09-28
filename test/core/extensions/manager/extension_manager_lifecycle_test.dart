@@ -512,7 +512,7 @@ void main() {
       },
     );
 
-    test('installed() is ordered deterministically by name then id', () async {
+    test('installed() is ordered by node, not by the source-supplied name', () async {
       final ExtensionManager manager = buildManager();
       final ExtensionLifecycleService service = ExtensionLifecycleService(
         manager: manager,
@@ -525,15 +525,24 @@ void main() {
         'aa.js',
         extensionSource(id: 'com.test.a', name: 'alpha'),
       );
+      // Installed B first, so B is Node 1 and A is Node 2.
       await service.installFromFile(b.path);
       await service.installFromFile(a.path);
 
       final List<ManagedExtension> installed = await service.installed();
 
+      // Node order, NOT case-insensitive name order. A source supplies its own
+      // name, so ordering by it would let a provider decide the order of the
+      // user's list — and would put a site name in the most prominent position.
       expect(installed.map((ManagedExtension e) => e.id).toList(), <String>[
-        'com.test.a',
         'com.test.b',
-      ], reason: 'case-insensitive name order, then id');
+        'com.test.a',
+      ], reason: 'node order, which is install order, not name order');
+
+      expect(installed.map((ManagedExtension e) => e.nodeLabel).toList(), <String>[
+        'Node 1',
+        'Node 2',
+      ]);
     });
 
     test('setEnabled and uninstall flow through to persisted state', () async {

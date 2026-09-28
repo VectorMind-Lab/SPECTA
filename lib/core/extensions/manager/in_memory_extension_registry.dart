@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:specta/core/extensions/identity/source_node.dart';
 import 'package:specta/core/extensions/identity/trust_level.dart';
 import 'package:specta/core/extensions/manager/extension_record.dart';
 import 'package:specta/core/extensions/manager/extension_registry.dart';
@@ -48,6 +49,16 @@ class InMemoryExtensionRegistry implements ExtensionRegistry {
       enabled: enabled,
       updatedAt: DateTime.now().toUtc(),
     );
+  }
+
+  @override
+  Future<void> setNode(String id, SourceNode node) async {
+    final ExtensionRecord? existing = _extensions[id];
+    if (existing == null) return;
+    // Re-assigning the node a record already holds is a no-op, so a repeated
+    // backfill can never walk a node onto a different extension.
+    if (existing.node == node) return;
+    _extensions[id] = existing.copyWith(node: node);
   }
 
   @override

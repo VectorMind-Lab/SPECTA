@@ -1,3 +1,4 @@
+import 'package:specta/core/extensions/identity/source_node.dart';
 import 'extension_record.dart';
 
 /// Abstract interface for the local extension registry.
@@ -23,6 +24,13 @@ abstract class ExtensionRegistry {
 
   /// Toggles the enabled flag for an extension.
   Future<void> setEnabled(String id, bool enabled);
+
+  /// Persists a node assignment for an extension.
+  ///
+  /// Used by the lazy backfill for rows written before schema v9, and by the
+  /// installer when a genuinely new node is created. Writing a node twice must
+  /// be harmless, and writing the SAME node again must not move it.
+  Future<void> setNode(String id, SourceNode node);
 
   /// Saves a version snapshot for rollback support.
   Future<void> saveVersion(ExtensionVersionRecord record);

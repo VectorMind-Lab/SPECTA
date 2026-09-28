@@ -4,6 +4,7 @@ import 'package:specta/core/errors/specta_failure.dart';
 import 'package:specta/core/errors/specta_result.dart';
 
 import 'package:specta/core/extensions/identity/extension_health.dart';
+import 'package:specta/core/extensions/identity/source_node.dart';
 import 'package:specta/core/extensions/identity/trust_level.dart';
 import 'package:specta/core/extensions/manifest.dart';
 import 'package:specta/core/extensions/runtime/extension_runtime.dart';
@@ -53,8 +54,14 @@ class ExtensionManager {
   ///
   /// Flow: Parse manifest → Validate → Verify signature → Classify trust →
   /// Check API compatibility → Store metadata.
+  ///
+  /// The resulting node belongs to the USER space, whatever the file's
+  /// signature says. A SPECTA-signed file the user picked is verified — and
+  /// keeps its green dot — but it is the user's source, so it becomes Node 1,
+  /// Node 2, … and is not the undeletable Node 0.
   Future<SpectaResult<ExtensionRecord>> importExtension({
     required String filePath,
+    SourceNodeSpace space = SourceNodeSpace.user,
   }) async {
     late final String jsCode;
     try {
@@ -77,6 +84,7 @@ class ExtensionManager {
       jsCode: jsCode,
       targetPath: filePath,
       recordId: null,
+      space: space,
     );
   }
 
@@ -85,11 +93,13 @@ class ExtensionManager {
     required String extensionId,
     required String jsCode,
     required String targetPath,
+    SourceNodeSpace space = SourceNodeSpace.user,
   }) async {
     return _processManifest(
       jsCode: jsCode,
       targetPath: targetPath,
       recordId: extensionId,
+      space: space,
     );
   }
 
@@ -97,6 +107,7 @@ class ExtensionManager {
     required String jsCode,
     required String targetPath,
     required String? recordId,
+    required SourceNodeSpace space,
   }) async {
     late final ExtensionManifest manifest;
     try {
@@ -172,6 +183,13 @@ class ExtensionManager {
       await _retireRuntime(id);
     }
 
+    // A reinstall REPLACES an existing source; it does not create a second
+    // identity beside it. The node therefore must be carried forward
+    // untouched — a reinstall must not consume a new number, and it must not
+    // move a source to a different node. Only a genuinely new id allocates one.
+    final SourceNode node = existing?.node ?? await _allocateNode(space);
+    final int nodeOrder = existing?.nodeOrder ?? await _nextNodeOrder();
+
     final ExtensionRecord record = ExtensionRecord(
       id: id,
       name: manifest.name,
@@ -186,6 +204,13 @@ class ExtensionManager {
       filePath: targetPath,
       installedAt: existing?.installedAt ?? now,
       updatedAt: now,
+      node: node,
+      // The undeletable flag belongs to Node 0 alone. A user-space node is
+      // never locked, even when the file is SPECTA-signed and therefore shows a
+      // green dot. An official node keeps whatever it already had; a brand new
+      // official node at index 0 becomes the undeletable Node 0.
+      nodeLocked: existing?.nodeLocked ?? (node.isOfficial && node.index == 0),
+      nodeOrder: nodeOrder,
     );
 
     await _registry.install(record);
@@ -224,6 +249,62 @@ class ExtensionManager {
       signature: manifest.signature,
     );
     return valid ? TrustLevel.official : TrustLevel.unverified;
+  }
+
+  /// Allocates the lowest free node index in [space].
+  ///
+  /// Reads the indices already in use in that space and asks
+  /// [SourceNodeAllocator] for the first gap. It is never `max + 1`, because a
+  /// compacted list is exactly what renumbers survivors when a node is deleted.
+  Future<SourceNode> _allocateNode(SourceNodeSpace space) async {
+    final List<ExtensionRecord> all = await _registry.getAll();
+    final Set<int> assigned = <int>{
+      for (final ExtensionRecord r in all)
+        if (r.node?.space == space) r.node!.index,
+    };
+    return SourceNode(
+      space: space,
+      index: SourceNodeAllocator.next(space, assigned),
+    );
+  }
+
+  /// The next display position, placing a new node at the end of the list.
+  Future<int> _nextNodeOrder() async {
+    final List<ExtensionRecord> all = await _registry.getAll();
+    int max = 0;
+    for (final ExtensionRecord r in all) {
+      if (r.nodeOrder > max) max = r.nodeOrder;
+    }
+    return max + 1;
+  }
+
+  /// Gives every pre-v9 row a node exactly once, in a deterministic order.
+  ///
+  /// Rows are ordered by `(installedAt, id)`, so the SAME database always
+  /// produces the SAME assignment no matter when the app happens to start, or
+  /// how many times this runs. Once assigned, a node is never recomputed —
+  /// which is what makes "delete Node 2, Node 3 stays Node 3" true.
+  ///
+  /// Everything already carrying a node is skipped, so this is idempotent.
+  Future<void> ensureNodesAssigned() async {
+    final List<ExtensionRecord> all = await _registry.getAll();
+    final List<ExtensionRecord> unassigned = all
+        .where((ExtensionRecord r) => r.node == null)
+        .toList();
+    if (unassigned.isEmpty) return;
+
+    unassigned.sort((ExtensionRecord a, ExtensionRecord b) {
+      final int byTime = a.installedAt.compareTo(b.installedAt);
+      return byTime != 0 ? byTime : a.id.compareTo(b.id);
+    });
+
+    for (final ExtensionRecord record in unassigned) {
+      // A row that predates v9 arrived before nodes existed, so it belongs to
+      // the USER space. Nothing that was already installed becomes an official,
+      // undeletable Node 0 just by being upgraded.
+      final SourceNode node = await _allocateNode(SourceNodeSpace.user);
+      await _registry.setNode(record.id, node);
+    }
   }
 
   /// Permanently removes an extension.

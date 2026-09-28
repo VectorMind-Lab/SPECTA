@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import 'package:specta/core/database/specta_database.dart';
+import 'package:specta/core/extensions/identity/source_node.dart';
 import 'package:specta/core/extensions/identity/trust_level.dart';
 import 'package:specta/core/extensions/manager/extension_record.dart';
 import 'package:specta/core/extensions/manager/extension_registry.dart';
@@ -35,6 +36,10 @@ class DriftExtensionRegistry implements ExtensionRegistry {
             updatedAt: Value<DateTime>(record.updatedAt),
             previousVersionPath: Value<String?>(record.previousVersionPath),
             previousVersion: Value<String?>(record.previousVersion),
+            nodeIndex: Value<int?>(record.node?.index),
+            nodeSpace: Value<String?>(record.node?.spaceCode),
+            nodeLocked: Value<int>(record.nodeLocked ? 1 : 0),
+            nodeOrder: Value<int>(record.nodeOrder),
           ),
         );
   }
@@ -90,6 +95,18 @@ class DriftExtensionRegistry implements ExtensionRegistry {
       ExtensionsCompanion(
         enabled: Value<int>(enabled ? 1 : 0),
         updatedAt: Value<DateTime>(DateTime.now().toUtc()),
+      ),
+    );
+  }
+
+  @override
+  Future<void> setNode(String id, SourceNode node) async {
+    await (_db.update(
+      _db.extensions,
+    )..where(($ExtensionsTable t) => t.id.equals(id))).write(
+      ExtensionsCompanion(
+        nodeIndex: Value<int?>(node.index),
+        nodeSpace: Value<String?>(node.spaceCode),
       ),
     );
   }
@@ -205,6 +222,11 @@ class DriftExtensionRegistry implements ExtensionRegistry {
       updatedAt: row.updatedAt,
       previousVersionPath: row.previousVersionPath,
       previousVersion: row.previousVersion,
+      node: SourceNode.fromCodes(row.nodeSpace, row.nodeIndex == null
+          ? null
+          : '${row.nodeIndex}'),
+      nodeLocked: row.nodeLocked == 1,
+      nodeOrder: row.nodeOrder,
     );
   }
 

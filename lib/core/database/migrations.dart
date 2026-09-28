@@ -17,7 +17,8 @@ abstract final class SpectaMigrations {
   /// Metadata catalogue cache = v6 (persistent TMDB/TVMaze TTL payloads).
   /// Contract metadata = v7 (extension contract revision).
   /// Canonical identity metadata = v8 (provider identity columns).
-  static const int schemaVersion = 8;
+  /// Source node identity = v9 (node label / space / locked / order).
+  static const int schemaVersion = 9;
 
   /// Migration step applied when moving *to* the keyed version.
   static final Map<int, Future<void> Function(Migrator m)>
@@ -180,6 +181,32 @@ abstract final class SpectaMigrations {
           'ALTER TABLE $table ADD COLUMN identity_version INTEGER NOT NULL DEFAULT 1',
         );
       }
+    },
+    9: (Migrator m) async {
+      // Source node identity. Additive only: no existing column is dropped or
+      // rewritten, so every installed extension, every rollback version and
+      // every failure log survives the upgrade untouched.
+      //
+      // `node_label` and `node_space` are left NULL on purpose. A NULL label
+      // means "not assigned yet"; the lifecycle service backfills it once, in a
+      // deterministic order, and then it is stable forever. Backfilling inside
+      // the migration would have to guess at a numbering policy, and would make
+      // the numbering depend on upgrade timing.
+      await m.database.customStatement(
+        'ALTER TABLE extensions ADD COLUMN node_index INTEGER',
+      );
+      await m.database.customStatement(
+        'ALTER TABLE extensions ADD COLUMN node_space TEXT',
+      );
+      // `node_locked` is the owner's undeletable flag and is NOT derived from
+      // `trust_level`. Every pre-existing row defaults to 0, so nothing that was
+      // already installed becomes unexpectedly undeletable just by upgrading.
+      await m.database.customStatement(
+        'ALTER TABLE extensions ADD COLUMN node_locked INTEGER NOT NULL DEFAULT 0',
+      );
+      await m.database.customStatement(
+        'ALTER TABLE extensions ADD COLUMN node_order INTEGER NOT NULL DEFAULT 0',
+      );
     },
   };
 

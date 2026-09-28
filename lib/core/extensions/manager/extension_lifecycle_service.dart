@@ -7,6 +7,7 @@ import 'package:specta/core/extensions/distribution/dart_io_extension_download_t
 import 'package:specta/core/extensions/distribution/extension_downloader.dart';
 import 'package:specta/core/extensions/distribution/extension_storage.dart';
 import 'package:specta/core/extensions/identity/extension_health.dart';
+import 'package:specta/core/extensions/identity/source_node.dart';
 import 'package:specta/core/extensions/identity/trust_level.dart';
 import 'package:specta/core/extensions/manifest.dart';
 
@@ -38,6 +39,10 @@ final class ManagedExtension {
   String get filePath => record.filePath;
   TrustLevel get trustLevel => record.trustLevel;
   bool get enabled => record.enabled;
+  SourceNode? get node => record.node;
+  String? get nodeLabel => record.node?.label;
+  bool get nodeLocked => record.nodeLocked;
+  int get nodeOrder => record.nodeOrder;
   ExtensionHealth get healthState => health.health;
 }
 
@@ -177,8 +182,18 @@ final class ExtensionLifecycleService {
   }
 
   /// Returns every installed extension (enabled and disabled), each with its
-  /// derived health, in a deterministic order (name, then id).
+  /// derived health, in display order.
+  ///
+  /// Ordering is by `nodeOrder` — the user's own arrangement — then by node
+  /// label, then by id. It is deliberately NOT ordered by name: the source
+  /// supplies its own name, so ordering by it would let a provider decide the
+  /// order of the user's list, and would put a site name into the UI's most
+  /// prominent position.
+  ///
+  /// A missing node backfills first, so a database written before schema v9
+  /// acquires labels on first read rather than rendering blank rows.
   Future<List<ManagedExtension>> installed() async {
+    await manager.ensureNodesAssigned();
     final List<ExtensionRecord> records = await manager.getAllExtensions();
     final List<ManagedExtension> managed = <ManagedExtension>[];
     for (final ExtensionRecord record in records) {
@@ -193,8 +208,11 @@ final class ExtensionLifecycleService {
       );
     }
     managed.sort((ManagedExtension a, ManagedExtension b) {
-      final int byName = a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      return byName != 0 ? byName : a.id.compareTo(b.id);
+      final int byOrder = a.nodeOrder.compareTo(b.nodeOrder);
+      if (byOrder != 0) return byOrder;
+      final int byLabel = (a.nodeLabel ?? '').compareTo(b.nodeLabel ?? '');
+      if (byLabel != 0) return byLabel;
+      return a.id.compareTo(b.id);
     });
     return managed;
   }

@@ -46,6 +46,40 @@ class Extensions extends Table {
   /// Version string of the previous known-good version.
   TextColumn get previousVersion => text().nullable()();
 
+  // ---------------------------------------------------------------------------
+  // Source node identity (schema v9).
+  //
+  // These four columns carry the installed source's NODE, not its name. They
+  // are separate from everything above on purpose:
+  //
+  // * `nodeLabel`/`nodeSpace` are IDENTITY and are stable. Deleting Node 2 must
+  //   not renumber Node 3, which is only guaranteed if the label is stored
+  //   rather than recomputed from a list position.
+  // * `nodeLocked` is the OWNER'S undeletable flag. It is deliberately NOT
+  //   derived from `trustLevel`: a user who imports a SPECTA-signed file keeps
+  //   their green dot but must not inherit the undeletable Node 0.
+  // * `nodeOrder` is DISPLAY position only, and is the user's to rearrange.
+  // ---------------------------------------------------------------------------
+
+  /// The node's index WITHIN its space, or null when it has not been assigned
+  /// yet (a row that predates v9).
+  ///
+  /// The INDEX is stored, not the display label, because the label is a pure
+  /// function of `(nodeSpace, nodeIndex)` — see `SourceNode.label`. Storing the
+  /// label instead would force every read to parse "Node AA" back into a number,
+  /// which is lossy and would let a formatting change silently renumber a node.
+  IntColumn get nodeIndex => integer().nullable()();
+
+  /// Which numbering space the node belongs to: 'official' | 'user' | NULL.
+  /// Decided by the install ROUTE, never by the signature.
+  TextColumn get nodeSpace => text().nullable()();
+
+  /// The owner's undeletable flag. Only the designated Node 0 ever has it.
+  IntColumn get nodeLocked => integer().withDefault(const Constant(0))();
+
+  /// Display position. The user may reorder freely, including moving Node 0.
+  IntColumn get nodeOrder => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {id};
 }

@@ -432,6 +432,52 @@ class $ExtensionsTable extends Extensions
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _nodeIndexMeta = const VerificationMeta(
+    'nodeIndex',
+  );
+  @override
+  late final GeneratedColumn<int> nodeIndex = GeneratedColumn<int>(
+    'node_index',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nodeSpaceMeta = const VerificationMeta(
+    'nodeSpace',
+  );
+  @override
+  late final GeneratedColumn<String> nodeSpace = GeneratedColumn<String>(
+    'node_space',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nodeLockedMeta = const VerificationMeta(
+    'nodeLocked',
+  );
+  @override
+  late final GeneratedColumn<int> nodeLocked = GeneratedColumn<int>(
+    'node_locked',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _nodeOrderMeta = const VerificationMeta(
+    'nodeOrder',
+  );
+  @override
+  late final GeneratedColumn<int> nodeOrder = GeneratedColumn<int>(
+    'node_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -449,6 +495,10 @@ class $ExtensionsTable extends Extensions
     updatedAt,
     previousVersionPath,
     previousVersion,
+    nodeIndex,
+    nodeSpace,
+    nodeLocked,
+    nodeOrder,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -580,6 +630,30 @@ class $ExtensionsTable extends Extensions
         ),
       );
     }
+    if (data.containsKey('node_index')) {
+      context.handle(
+        _nodeIndexMeta,
+        nodeIndex.isAcceptableOrUnknown(data['node_index']!, _nodeIndexMeta),
+      );
+    }
+    if (data.containsKey('node_space')) {
+      context.handle(
+        _nodeSpaceMeta,
+        nodeSpace.isAcceptableOrUnknown(data['node_space']!, _nodeSpaceMeta),
+      );
+    }
+    if (data.containsKey('node_locked')) {
+      context.handle(
+        _nodeLockedMeta,
+        nodeLocked.isAcceptableOrUnknown(data['node_locked']!, _nodeLockedMeta),
+      );
+    }
+    if (data.containsKey('node_order')) {
+      context.handle(
+        _nodeOrderMeta,
+        nodeOrder.isAcceptableOrUnknown(data['node_order']!, _nodeOrderMeta),
+      );
+    }
     return context;
   }
 
@@ -649,6 +723,22 @@ class $ExtensionsTable extends Extensions
         DriftSqlType.string,
         data['${effectivePrefix}previous_version'],
       ),
+      nodeIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}node_index'],
+      ),
+      nodeSpace: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}node_space'],
+      ),
+      nodeLocked: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}node_locked'],
+      )!,
+      nodeOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}node_order'],
+      )!,
     );
   }
 
@@ -690,6 +780,25 @@ class Extension extends DataClass implements Insertable<Extension> {
 
   /// Version string of the previous known-good version.
   final String? previousVersion;
+
+  /// The node's index WITHIN its space, or null when it has not been assigned
+  /// yet (a row that predates v9).
+  ///
+  /// The INDEX is stored, not the display label, because the label is a pure
+  /// function of `(nodeSpace, nodeIndex)` — see `SourceNode.label`. Storing the
+  /// label instead would force every read to parse "Node AA" back into a number,
+  /// which is lossy and would let a formatting change silently renumber a node.
+  final int? nodeIndex;
+
+  /// Which numbering space the node belongs to: 'official' | 'user' | NULL.
+  /// Decided by the install ROUTE, never by the signature.
+  final String? nodeSpace;
+
+  /// The owner's undeletable flag. Only the designated Node 0 ever has it.
+  final int nodeLocked;
+
+  /// Display position. The user may reorder freely, including moving Node 0.
+  final int nodeOrder;
   const Extension({
     required this.id,
     required this.name,
@@ -706,6 +815,10 @@ class Extension extends DataClass implements Insertable<Extension> {
     required this.updatedAt,
     this.previousVersionPath,
     this.previousVersion,
+    this.nodeIndex,
+    this.nodeSpace,
+    required this.nodeLocked,
+    required this.nodeOrder,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -731,6 +844,14 @@ class Extension extends DataClass implements Insertable<Extension> {
     if (!nullToAbsent || previousVersion != null) {
       map['previous_version'] = Variable<String>(previousVersion);
     }
+    if (!nullToAbsent || nodeIndex != null) {
+      map['node_index'] = Variable<int>(nodeIndex);
+    }
+    if (!nullToAbsent || nodeSpace != null) {
+      map['node_space'] = Variable<String>(nodeSpace);
+    }
+    map['node_locked'] = Variable<int>(nodeLocked);
+    map['node_order'] = Variable<int>(nodeOrder);
     return map;
   }
 
@@ -757,6 +878,14 @@ class Extension extends DataClass implements Insertable<Extension> {
       previousVersion: previousVersion == null && nullToAbsent
           ? const Value.absent()
           : Value(previousVersion),
+      nodeIndex: nodeIndex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nodeIndex),
+      nodeSpace: nodeSpace == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nodeSpace),
+      nodeLocked: Value(nodeLocked),
+      nodeOrder: Value(nodeOrder),
     );
   }
 
@@ -783,6 +912,10 @@ class Extension extends DataClass implements Insertable<Extension> {
         json['previousVersionPath'],
       ),
       previousVersion: serializer.fromJson<String?>(json['previousVersion']),
+      nodeIndex: serializer.fromJson<int?>(json['nodeIndex']),
+      nodeSpace: serializer.fromJson<String?>(json['nodeSpace']),
+      nodeLocked: serializer.fromJson<int>(json['nodeLocked']),
+      nodeOrder: serializer.fromJson<int>(json['nodeOrder']),
     );
   }
   @override
@@ -804,6 +937,10 @@ class Extension extends DataClass implements Insertable<Extension> {
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'previousVersionPath': serializer.toJson<String?>(previousVersionPath),
       'previousVersion': serializer.toJson<String?>(previousVersion),
+      'nodeIndex': serializer.toJson<int?>(nodeIndex),
+      'nodeSpace': serializer.toJson<String?>(nodeSpace),
+      'nodeLocked': serializer.toJson<int>(nodeLocked),
+      'nodeOrder': serializer.toJson<int>(nodeOrder),
     };
   }
 
@@ -823,6 +960,10 @@ class Extension extends DataClass implements Insertable<Extension> {
     DateTime? updatedAt,
     Value<String?> previousVersionPath = const Value.absent(),
     Value<String?> previousVersion = const Value.absent(),
+    Value<int?> nodeIndex = const Value.absent(),
+    Value<String?> nodeSpace = const Value.absent(),
+    int? nodeLocked,
+    int? nodeOrder,
   }) => Extension(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -843,6 +984,10 @@ class Extension extends DataClass implements Insertable<Extension> {
     previousVersion: previousVersion.present
         ? previousVersion.value
         : this.previousVersion,
+    nodeIndex: nodeIndex.present ? nodeIndex.value : this.nodeIndex,
+    nodeSpace: nodeSpace.present ? nodeSpace.value : this.nodeSpace,
+    nodeLocked: nodeLocked ?? this.nodeLocked,
+    nodeOrder: nodeOrder ?? this.nodeOrder,
   );
   Extension copyWithCompanion(ExtensionsCompanion data) {
     return Extension(
@@ -875,6 +1020,12 @@ class Extension extends DataClass implements Insertable<Extension> {
       previousVersion: data.previousVersion.present
           ? data.previousVersion.value
           : this.previousVersion,
+      nodeIndex: data.nodeIndex.present ? data.nodeIndex.value : this.nodeIndex,
+      nodeSpace: data.nodeSpace.present ? data.nodeSpace.value : this.nodeSpace,
+      nodeLocked: data.nodeLocked.present
+          ? data.nodeLocked.value
+          : this.nodeLocked,
+      nodeOrder: data.nodeOrder.present ? data.nodeOrder.value : this.nodeOrder,
     );
   }
 
@@ -895,7 +1046,11 @@ class Extension extends DataClass implements Insertable<Extension> {
           ..write('installedAt: $installedAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('previousVersionPath: $previousVersionPath, ')
-          ..write('previousVersion: $previousVersion')
+          ..write('previousVersion: $previousVersion, ')
+          ..write('nodeIndex: $nodeIndex, ')
+          ..write('nodeSpace: $nodeSpace, ')
+          ..write('nodeLocked: $nodeLocked, ')
+          ..write('nodeOrder: $nodeOrder')
           ..write(')'))
         .toString();
   }
@@ -917,6 +1072,10 @@ class Extension extends DataClass implements Insertable<Extension> {
     updatedAt,
     previousVersionPath,
     previousVersion,
+    nodeIndex,
+    nodeSpace,
+    nodeLocked,
+    nodeOrder,
   );
   @override
   bool operator ==(Object other) =>
@@ -936,7 +1095,11 @@ class Extension extends DataClass implements Insertable<Extension> {
           other.installedAt == this.installedAt &&
           other.updatedAt == this.updatedAt &&
           other.previousVersionPath == this.previousVersionPath &&
-          other.previousVersion == this.previousVersion);
+          other.previousVersion == this.previousVersion &&
+          other.nodeIndex == this.nodeIndex &&
+          other.nodeSpace == this.nodeSpace &&
+          other.nodeLocked == this.nodeLocked &&
+          other.nodeOrder == this.nodeOrder);
 }
 
 class ExtensionsCompanion extends UpdateCompanion<Extension> {
@@ -955,6 +1118,10 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
   final Value<DateTime> updatedAt;
   final Value<String?> previousVersionPath;
   final Value<String?> previousVersion;
+  final Value<int?> nodeIndex;
+  final Value<String?> nodeSpace;
+  final Value<int> nodeLocked;
+  final Value<int> nodeOrder;
   final Value<int> rowid;
   const ExtensionsCompanion({
     this.id = const Value.absent(),
@@ -972,6 +1139,10 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     this.updatedAt = const Value.absent(),
     this.previousVersionPath = const Value.absent(),
     this.previousVersion = const Value.absent(),
+    this.nodeIndex = const Value.absent(),
+    this.nodeSpace = const Value.absent(),
+    this.nodeLocked = const Value.absent(),
+    this.nodeOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ExtensionsCompanion.insert({
@@ -990,6 +1161,10 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     this.updatedAt = const Value.absent(),
     this.previousVersionPath = const Value.absent(),
     this.previousVersion = const Value.absent(),
+    this.nodeIndex = const Value.absent(),
+    this.nodeSpace = const Value.absent(),
+    this.nodeLocked = const Value.absent(),
+    this.nodeOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -1015,6 +1190,10 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     Expression<DateTime>? updatedAt,
     Expression<String>? previousVersionPath,
     Expression<String>? previousVersion,
+    Expression<int>? nodeIndex,
+    Expression<String>? nodeSpace,
+    Expression<int>? nodeLocked,
+    Expression<int>? nodeOrder,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1034,6 +1213,10 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
       if (previousVersionPath != null)
         'previous_version_path': previousVersionPath,
       if (previousVersion != null) 'previous_version': previousVersion,
+      if (nodeIndex != null) 'node_index': nodeIndex,
+      if (nodeSpace != null) 'node_space': nodeSpace,
+      if (nodeLocked != null) 'node_locked': nodeLocked,
+      if (nodeOrder != null) 'node_order': nodeOrder,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1054,6 +1237,10 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     Value<DateTime>? updatedAt,
     Value<String?>? previousVersionPath,
     Value<String?>? previousVersion,
+    Value<int?>? nodeIndex,
+    Value<String?>? nodeSpace,
+    Value<int>? nodeLocked,
+    Value<int>? nodeOrder,
     Value<int>? rowid,
   }) {
     return ExtensionsCompanion(
@@ -1072,6 +1259,10 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
       updatedAt: updatedAt ?? this.updatedAt,
       previousVersionPath: previousVersionPath ?? this.previousVersionPath,
       previousVersion: previousVersion ?? this.previousVersion,
+      nodeIndex: nodeIndex ?? this.nodeIndex,
+      nodeSpace: nodeSpace ?? this.nodeSpace,
+      nodeLocked: nodeLocked ?? this.nodeLocked,
+      nodeOrder: nodeOrder ?? this.nodeOrder,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1126,6 +1317,18 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     if (previousVersion.present) {
       map['previous_version'] = Variable<String>(previousVersion.value);
     }
+    if (nodeIndex.present) {
+      map['node_index'] = Variable<int>(nodeIndex.value);
+    }
+    if (nodeSpace.present) {
+      map['node_space'] = Variable<String>(nodeSpace.value);
+    }
+    if (nodeLocked.present) {
+      map['node_locked'] = Variable<int>(nodeLocked.value);
+    }
+    if (nodeOrder.present) {
+      map['node_order'] = Variable<int>(nodeOrder.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1150,6 +1353,10 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
           ..write('updatedAt: $updatedAt, ')
           ..write('previousVersionPath: $previousVersionPath, ')
           ..write('previousVersion: $previousVersion, ')
+          ..write('nodeIndex: $nodeIndex, ')
+          ..write('nodeSpace: $nodeSpace, ')
+          ..write('nodeLocked: $nodeLocked, ')
+          ..write('nodeOrder: $nodeOrder, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5481,6 +5688,10 @@ typedef $$ExtensionsTableCreateCompanionBuilder = ExtensionsCompanion Function({
   Value<DateTime> updatedAt,
   Value<String?> previousVersionPath,
   Value<String?> previousVersion,
+  Value<int?> nodeIndex,
+  Value<String?> nodeSpace,
+  Value<int> nodeLocked,
+  Value<int> nodeOrder,
   Value<int> rowid,
 });
 typedef $$ExtensionsTableUpdateCompanionBuilder = ExtensionsCompanion Function({
@@ -5499,6 +5710,10 @@ typedef $$ExtensionsTableUpdateCompanionBuilder = ExtensionsCompanion Function({
   Value<DateTime> updatedAt,
   Value<String?> previousVersionPath,
   Value<String?> previousVersion,
+  Value<int?> nodeIndex,
+  Value<String?> nodeSpace,
+  Value<int> nodeLocked,
+  Value<int> nodeOrder,
   Value<int> rowid,
 });
 
@@ -5637,6 +5852,26 @@ class $$ExtensionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get nodeIndex => $composableBuilder(
+    column: $table.nodeIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nodeSpace => $composableBuilder(
+    column: $table.nodeSpace,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nodeLocked => $composableBuilder(
+    column: $table.nodeLocked,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nodeOrder => $composableBuilder(
+    column: $table.nodeOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> extensionVersionsRefs(
     Expression<bool> Function($$ExtensionVersionsTableFilterComposer f) f,
   ) {
@@ -5771,6 +6006,26 @@ class $$ExtensionsTableOrderingComposer
     column: $table.previousVersion,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get nodeIndex => $composableBuilder(
+    column: $table.nodeIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nodeSpace => $composableBuilder(
+    column: $table.nodeSpace,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nodeLocked => $composableBuilder(
+    column: $table.nodeLocked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nodeOrder => $composableBuilder(
+    column: $table.nodeOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExtensionsTableAnnotationComposer
@@ -5840,6 +6095,20 @@ class $$ExtensionsTableAnnotationComposer
     column: $table.previousVersion,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get nodeIndex =>
+      $composableBuilder(column: $table.nodeIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get nodeSpace =>
+      $composableBuilder(column: $table.nodeSpace, builder: (column) => column);
+
+  GeneratedColumn<int> get nodeLocked => $composableBuilder(
+    column: $table.nodeLocked,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get nodeOrder =>
+      $composableBuilder(column: $table.nodeOrder, builder: (column) => column);
 
   Expression<T> extensionVersionsRefs<T extends Object>(
     Expression<T> Function($$ExtensionVersionsTableAnnotationComposer a) f,
@@ -5940,6 +6209,10 @@ class $$ExtensionsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<String?> previousVersionPath = const Value.absent(),
                 Value<String?> previousVersion = const Value.absent(),
+                Value<int?> nodeIndex = const Value.absent(),
+                Value<String?> nodeSpace = const Value.absent(),
+                Value<int> nodeLocked = const Value.absent(),
+                Value<int> nodeOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExtensionsCompanion(
                 id: id,
@@ -5957,6 +6230,10 @@ class $$ExtensionsTableTableManager
                 updatedAt: updatedAt,
                 previousVersionPath: previousVersionPath,
                 previousVersion: previousVersion,
+                nodeIndex: nodeIndex,
+                nodeSpace: nodeSpace,
+                nodeLocked: nodeLocked,
+                nodeOrder: nodeOrder,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5976,6 +6253,10 @@ class $$ExtensionsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<String?> previousVersionPath = const Value.absent(),
                 Value<String?> previousVersion = const Value.absent(),
+                Value<int?> nodeIndex = const Value.absent(),
+                Value<String?> nodeSpace = const Value.absent(),
+                Value<int> nodeLocked = const Value.absent(),
+                Value<int> nodeOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExtensionsCompanion.insert(
                 id: id,
@@ -5993,6 +6274,10 @@ class $$ExtensionsTableTableManager
                 updatedAt: updatedAt,
                 previousVersionPath: previousVersionPath,
                 previousVersion: previousVersion,
+                nodeIndex: nodeIndex,
+                nodeSpace: nodeSpace,
+                nodeLocked: nodeLocked,
+                nodeOrder: nodeOrder,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

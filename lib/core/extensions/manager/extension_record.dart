@@ -1,3 +1,4 @@
+import 'package:specta/core/extensions/identity/source_node.dart';
 import 'package:specta/core/extensions/identity/trust_level.dart';
 
 /// Immutable snapshot of an installed extension's metadata.
@@ -22,6 +23,9 @@ final class ExtensionRecord {
     required this.updatedAt,
     this.previousVersionPath,
     this.previousVersion,
+    this.node,
+    this.nodeLocked = false,
+    this.nodeOrder = 0,
   });
 
   final String id;
@@ -40,6 +44,26 @@ final class ExtensionRecord {
   final String? previousVersionPath;
   final String? previousVersion;
 
+  /// The node this source occupies, or null when it has not been assigned yet.
+  ///
+  /// Null is a real, expected state for a row written before schema v9. It is
+  /// NOT a licence to derive a label on the fly: the label is stored precisely
+  /// so that deleting one node cannot renumber the others.
+  final SourceNode? node;
+
+  /// The owner's undeletable flag. Only the designated Node 0 carries it.
+  ///
+  /// This is deliberately independent of [trustLevel]. A user who imports a
+  /// SPECTA-signed file is verified — and keeps their green dot — but is NOT
+  /// holding an official node, so it is not undeletable.
+  final bool nodeLocked;
+
+  /// Display position. The user may rearrange nodes freely, Node 0 included.
+  final int nodeOrder;
+
+  /// The node label, or null when the node has not been assigned yet.
+  String? get nodeLabel => node?.label;
+
   ExtensionRecord copyWith({
     String? id,
     String? name,
@@ -56,6 +80,10 @@ final class ExtensionRecord {
     DateTime? updatedAt,
     String? Function()? previousVersionPath,
     String? Function()? previousVersion,
+    SourceNode? node,
+    bool clearNode = false,
+    bool? nodeLocked,
+    int? nodeOrder,
   }) {
     return ExtensionRecord(
       id: id ?? this.id,
@@ -77,13 +105,16 @@ final class ExtensionRecord {
       previousVersion: previousVersion != null
           ? previousVersion()
           : this.previousVersion,
+      node: clearNode ? null : (node ?? this.node),
+      nodeLocked: nodeLocked ?? this.nodeLocked,
+      nodeOrder: nodeOrder ?? this.nodeOrder,
     );
   }
 
   @override
   String toString() =>
       'ExtensionRecord(id: $id, version: $version, enabled: $enabled, '
-      'trust: ${trustLevel.code})';
+      'trust: ${trustLevel.code}, node: ${node?.label ?? "<unassigned>"})';
 }
 
 /// A historical version of an extension, kept for rollback.
