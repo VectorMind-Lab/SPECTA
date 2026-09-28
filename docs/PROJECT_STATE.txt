@@ -1,4 +1,4 @@
-Last updated: 2026-09-27 — PHASE: APP IDENTITY (ICON, SPLASH, TMDB CREDIT, DEV DOT).
+Last updated: 2026-09-28 — PHASE: APP IDENTITY (ICON, SPLASH, TMDB CREDIT, DEV DOT).
 The application finally has its own launcher icon. Until this phase it shipped
 the STOCK FLUTTER template icons (442-1443 bytes, dated 2026-09-11); nothing had
 ever replaced them. tool/generate_icons.py now derives every Android shape from
@@ -1215,3 +1215,50 @@ The 2G-C download engine integration is complete and verified;
 see docs/PHASE_2G_C_ENGINE_AUDIT.md for the full audit
 (implementation, verification evidence, limitations, verdict).
 
+
+PHASE (2026-09-28): OPEN SOURCE PLATFORM - SOURCES UI FIX + COMPATIBILITY.
+Owner requirement, now authoritative (see docs/SOURCE_SYSTEM_PLAN.md 14): SPECTA is
+an OPEN platform. Any user may create, import or provide their own source. A file
+is NOT rejected merely for lacking the // ==SpectaExtension== header. Provenance
+and compatibility are separate axes; the green dot means OFFICIAL provenance only
+(Ed25519) and never gates compatibility. "Open" is bounded: the runtime stays
+sandboxed, no native code execution, no DRM/CAPTCHA bypass, no token or cookie
+theft, no protected media extraction, no private device data, no native
+permissions for source JS. The official SPECTA-Extensions catalogue is PUBLIC and
+needs NO token (correcting an earlier doc error that confused it with the app's
+own private source-control repo, VectorMind-Lab/SPECTA).
+A prior "choose arbitrary JS / adapters / store-only" question is WITHDRAWN - it
+came from the implementation, not the requirement.
+
+SLICE 1 (fce5070) - Sources screen, mobile-first. Removed the horizontal
+SingleChildScrollView action cluster (primary actions were off-screen behind a
+swipe). Added a full-width always-visible "+ Add Source" opening a sheet of only
+the implemented routes (link, JS file, official catalogue, repository), all still
+converging on the single _processManifest boundary. Node card compacted from
+three rows (138 px) to two (104 px); details/update/restore/remove moved to a
+trailing overflow menu, so no capability was lost. OFF is still not DELETE; Node 0
+is still undeletable (entry present but disabled, reason stated). No schema change.
+
+SLICE 2 (d54e3af) - compatibility. New lib/core/extensions/compat/:
+source_format_detector.dart (classifies native/adapted/unrecognised by content,
+not by host) and foreign_source_adapter.dart (generates a manifest + forwarding
+shim; foreign code embedded verbatim). The manager now calls
+resolveImportableSource() BEFORE validation, so an adapted source still passes the
+same manifest, compatibility and Ed25519 trust gates - adaptation is not a
+bypass. Adapted sources are stored app-natively because the runtime loads from
+disk. Capabilities are inferred from referenced primitives only (a source that
+never logs is not granted logging); no provider allowlist, no hardcoded provider
+names, no third-party data copied in. Every refusal states a concrete technical
+reason and none may cite the header format (asserted by test).
+
+EVIDENCE: flutter analyze clean (full project); flutter test 1282 passed / 39
+skipped / 0 failed (18 new compatibility tests, 6 new UI tests, 3 suites updated
+with reasons). Token scan over the diff: 0 hits. No DB schema change.
+
+NOT VERIFIED: (1) No real Android device run - no APK built for these slices; all
+layout claims are from widget-test geometry, not a device screenshot. (2) Runtime
+execution of an ADAPTED source in a live JS sandbox is UNVERIFIED - the shim is
+proven to parse natively and to be structurally correct, but never evaluated in
+flutter_js; install is VERIFIED, resolve is NOT. (3) No genuine third-party source
+file was available in-repo; foreign formats are driven by realistic fixtures, so
+the first real one needs another pass.

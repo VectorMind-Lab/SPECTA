@@ -508,6 +508,79 @@ none was created or requested.** The older token in
 Slices 1–7 + 7b at commits `cbcc18b`, `3afcd4a`, `02b0f3c`. They are **not**
 re-validated by this entry, because this entry changed no Dart file.
 
+---
+
+# COMPLETION REPORT — Slices 1 & 2 (2026-09-28)
+
+Branch `source-system-run`. Commits: `8b71945` (docs), `fce5070` (Slice 1),
+`d54e3af` (Slice 2). Working tree clean at the time of writing.
+
+## C.1 What changed
+
+| Slice | Commit | Substance |
+|---|---|---|
+| Docs first | `8b71945` | `SOURCE_SYSTEM_PLAN.md` §14 (the eight product rules), §14.2 (superseded table), §16 (as built). `SOURCE_RUN_REPORT.md` §12. `GITHUB_CHECKPOINT_REPORT.md` scope note. New `SOURCE_PLATFORM_TASK_REPORT.md`. |
+| 1 — UI | `fce5070` | Horizontal action scroll removed; `+ Add Source` sheet; card 138 px to 104 px. |
+| 2 — compatibility | `d54e3af` | `compat/source_format_detector.dart` and `compat/foreign_source_adapter.dart`; `resolveImportableSource()` in the manager. |
+
+## C.2 Evidence
+
+| Check | Result |
+|---|---|
+| `flutter analyze` | **No issues found** (full project, not just `lib`) |
+| `flutter test` (full suite) | **1282 passed / 39 skipped / 0 failed** |
+| Tests added, Slice 1 | 6 (no horizontal scroll, 320 px width, card compactness, Add Source routes, end-to-end add, overflow menu) |
+| Tests added, Slice 2 | 18 (`test/core/extensions/compat/source_compatibility_test.dart`) |
+| Tests updated | 3 suites; every change commented with its reason |
+| Encoding | All edited files verified clean UTF-8 (only 2014, 00A7, 2026 present) |
+| Secrets | Token-pattern scan over the full diff: **0 hits**. `defaultIndexUrl` is a public `raw.githubusercontent.com` URL. No token in the APK, assets, `repository.json`, JS, logs or docs. |
+| DB schema | **Unchanged.** No migration, no schema edit. |
+
+### Acceptance criteria
+
+**UI**
+- [x] Card substantially smaller: 138 px to 104 px, measured and asserted by a test
+- [x] Green dot small (7 px) and clear; node name readable
+- [x] Enabled/disabled obvious: explicit label plus switch
+- [x] `+ Add Source` obvious and fully visible: asserted `isFullyVisible` at 360 px
+- [x] A source can actually be added through the UI: end-to-end test
+- [x] Install from URL fully visible and usable: asserted in the sheet
+- [x] No clipped controls, no horizontal overflow at 360 px **and** 320 px
+- [x] Existing functionality preserved; Node 0 undeletable; user nodes possible
+
+**Compatibility / docs**
+- [x] No source rejected merely for a different header: asserted on every refusal path
+- [x] Each format documented with the required template: `SOURCE_SYSTEM_PLAN.md` §16.3
+- [x] Provenance and compatibility separate in code and docs
+- [x] No token or secret anywhere
+- [x] `.md` files match the implementation; no known contradictions remain
+- [x] Superseded decisions marked SUPERSEDED (§14.2, §15)
+
+## C.3 NOT VERIFIED — stated plainly
+
+These are **not** claimed as working:
+
+1. **Real Android device.** No APK was built or installed for Slices 1-2. Every
+   layout claim comes from `flutter_test` widget geometry, which is strong
+   evidence but is not a device screenshot. A human should confirm the card and
+   the Add Source sheet on real hardware at 360 px and 320 px.
+2. **Runtime execution of an adapted source.** The generated shim is proven
+   structurally correct and proven to parse through the unmodified native
+   parser, but **no test evaluates it in a live JS sandbox**. A foreign source
+   is therefore proven to *install*, not to *resolve*. Per the requirement that
+   installation and runtime success are reported separately:
+   **install VERIFIED, runtime UNVERIFIED.**
+3. **A genuine third-party source file.** None was present in the repository.
+   The foreign-format work is driven by realistic fixtures. The first real
+   third-party file will need one more pass, because a real provider module may
+   nest its exports or name its operations differently.
+
+## C.4 Recommended next step
+
+Load one adapted source in the runtime under a fake sandbox and assert the shim
+forwards a call end to end. That closes limitation (2), the only substantive gap
+between "compatible" and "known to work".
+
 ## 12. OPEN-PLATFORM REQUIREMENT CORRECTION — 2026-09-28
 
 **Status: documentation correction. No code changed in this entry.**

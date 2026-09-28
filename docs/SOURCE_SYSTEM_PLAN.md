@@ -559,6 +559,158 @@ allowlist. A source is supported as a *format*, not endorsed as a *provider*.
 
 ## 15. PLANNED CHANGES (Slice 1, then Slice 2)
 
+*(Superseded by §16, which records what was actually built. Kept as the record of
+intent at the time.)*
+
+**Slice 1 — Sources screen UI.** Root causes found by inspection: the header's
+action cluster is a `SingleChildScrollView(scrollDirection: Axis.horizontal)`, so
+primary actions sit off-screen and must be swiped to; and the node card is three
+rows plus a conditional update row at `EdgeInsets.all(16)`.
+
+**Slice 2 — source compatibility.** For each external format, record
+identification method, entry points, inputs, return shapes, runtime
+requirements, compatibility status, whether an adapter is required, security
+considerations and test result. **Installation success and runtime/resolution
+success are reported separately** — a source is not called working merely
+because it installed.
+
+## 16. SLICE 1 AND 2 AS BUILT (2026-09-28)
+
+Commits: `fce5070` (Slice 1, UI) and `d54e3af` (Slice 2, compatibility).
+
+### 16.1 Slice 1 as built
+
+Two root causes were found by inspection, not guessed at:
+
+1. The header's action cluster was a `SingleChildScrollView(Axis.horizontal)`.
+   It existed because a fixed `Row` of seven controls overflowed a real phone by
+   147 px (Phase F), and scrolling was the right *minimal* fix at the time — but
+   it left "From a link", "Install from file" and Source Health off the right
+   edge, reachable only by a swipe. Scrolling is acceptable for secondary
+   chrome, never for a primary action. The cluster is **gone**, not re-tuned.
+2. The node card was three rows plus a conditional update row at
+   `EdgeInsets.all(16)`.
+
+Result:
+
+| Before | After |
+|---|---|
+| 7 controls in a sideways-scrolling strip | 3 fixed icon buttons + a full-width `+ Add Source` |
+| `Install from a link` off-screen | a row in the Add Source sheet, fully visible |
+| card 138 px (32 padding + 48 + 10 + 48) | card **104 px**, two rows, padding 16 -> 8/6 |
+
+The Add Source sheet lists **only** routes the build implements: Install from a
+link, Import a JavaScript file, Browse the official catalogue, Add from a
+repository. Every one of them still converges on
+`ExtensionManager._processManifest`; the sheet is navigation only and creates no
+second install path and no second set of gates.
+
+Compactness cost no capability. Details, Update, Restore and Remove moved into a
+trailing overflow menu, so the card face shows identity, provenance dot, health,
+ordering and the on/off switch. **OFF is still not DELETE**, and **Node 0 is
+still undeletable** — its Remove entry is present but disabled and states why.
+
+### 16.2 Slice 2 as built
+
+A source is no longer classified by which host wrote it, but by what it
+**contains**. Classification happens in one place, at the top of
+`ExtensionManager._processManifest`, before any validation.
+
+| File | Role |
+|---|---|
+| `lib/core/extensions/compat/source_format_detector.dart` | Classifies a file as `native` / `adapted` / `unrecognised`. Reads the metadata the file declares about itself, finds the operations it actually defines, infers capabilities from the primitives it references. |
+| `lib/core/extensions/compat/foreign_source_adapter.dart` | Generates a native manifest header and a forwarding shim. The foreign code is embedded **verbatim**. |
+| `lib/core/extensions/manager/extension_manager.dart` | `resolveImportableSource()` is the single decision point. |
+
+The decisive design point: adaptation happens **before** the existing gates, so
+an adapted source still passes manifest parsing, the API-compatibility check and
+Ed25519 trust classification exactly like any other source. Nothing downstream
+was forked.
+
+An adapted source is written to app-private storage, because the runtime loads
+code from disk and would otherwise never execute the generated shim. A native
+source is left exactly where the user put it, so importing one never duplicates
+or moves a file.
+
+### 16.3 Formats examined
+
+No third-party source file was available in this repository — the only `.js`
+files present are SPECTA's own (`internet_archive_reference.js` and a test
+fixture), both native. The foreign formats below are therefore driven by
+realistic fixtures written to the shapes such sources actually use, not by a
+captured third-party file. **This is the main limitation of Slice 2 and is stated
+plainly rather than papered over.**
+
+**FORMAT: native SPECTA extension**
+IDENTIFICATION METHOD: a line exactly equal to `// ==SpectaExtension==`.
+ENTRY POINTS: declared via `@capabilities`; called on `class Extension`.
+INPUTS: the native contract, unchanged.
+RETURN SHAPES: the native contract, unchanged.
+RUNTIME REQUIREMENTS: `SpectaExtension` base for `request`/`log`.
+COMPATIBILITY STATUS: fully supported, registered byte-for-byte unmodified.
+ADAPTER REQUIRED: no.
+SECURITY CONSIDERATIONS: unchanged; only signed sources earn a green dot.
+TEST RESULT: asserted to be returned unchanged and never given a shim.
+
+**FORMAT: foreign CommonJS module (object-literal export)**
+IDENTIFICATION METHOD: `module.exports` / `exports.` present, no native header,
+and at least one contract operation defined.
+ENTRY POINTS: `search`, `latest`, `details`, `getSources`, detected as object
+members, arrow functions, or `exports.<name> =`.
+INPUTS: forwarded verbatim as `(query, page)`, `(page)`, `(reference)`.
+RETURN SHAPES: passed through unchanged; the shim does not reinterpret results.
+RUNTIME REQUIREMENTS: any JS module shape; no SPECTA base class needed.
+COMPATIBILITY STATUS: **adapted and installed.**
+ADAPTER REQUIRED: yes — manifest + shim generated.
+SECURITY CONSIDERATIONS: capabilities derived from referenced primitives only. A
+source that never logs is **not** granted `logging`; one that calls `fetch` is
+granted `network`. No authority is widened.
+TEST RESULT: installs, and the generated file is asserted to parse through the
+**unmodified native parser** — the proof that adaptation is real, not cosmetic.
+
+**FORMAT: foreign ES module (class export)**
+Same detection and adaptation path; class methods are recognised. Only the
+operations the file defines are bridged. Asserted to adapt into a natively
+parseable file.
+
+**FORMAT: not a JavaScript source at all** (prose, JSON, an empty file)
+COMPATIBILITY STATUS: refused.
+REASON STATED: "This file is not a JavaScript source module…"
+SECURITY CONSIDERATIONS: n/a. A test asserts that **no** refusal message ever
+cites the header format or the string `SpectaExtension`.
+
+**FORMAT: JavaScript implementing no contract operation**
+COMPATIBILITY STATUS: refused.
+REASON STATED: "implements none of the operations a source needs…"
+
+### 16.4 The eight product rules, as enforced by code
+
+1. Open platform — foreign files are adapted, not refused. ✔ tested
+2. Users can import their own sources — unchanged, plus the Add Source sheet. ✔
+3. Native contract still supported — returned byte-identical. ✔ tested
+4. Compatibility by inspection and test, not assumption. ✔
+5. Never rejected merely for lacking the header — asserted directly on every refusal path. ✔
+6. Provenance ≠ compatibility — an adapted source is `unverified`, no green dot. ✔ tested
+7. Green dot = official provenance only — the Ed25519 path is untouched. ✔
+8. Public repo, no token — `defaultIndexUrl` is a public `raw.githubusercontent.com` URL. ✔
+
+### 16.5 Deliberate behaviour change
+
+The pre-existing test `a rejected file surfaces an error and lists nothing`
+asserted a junk file be rejected with the message *"no SPECTA source header"* —
+i.e. refused for lacking our header. That is precisely the rule §14 supersedes.
+The file is still refused, now because it is not a JavaScript source module. The
+test was updated with the reason recorded in its comments, and it now
+additionally asserts the message does **not** blame the header.
+
+### 16.6 NOT VERIFIED
+
+- **Runtime execution of an adapted source inside a live JS sandbox.** The
+  generated shim is asserted to be structurally correct and to parse natively,
+  but no test evaluates it in `flutter_js`. UNVERIFIED.
+- **A real third-party source file.** None was available; see §16.3.
+- **Any real Android device run.** No build was produced for these slices.
+
 **Slice 1 — Sources screen UI.** Root causes found by inspection: the header's
 action cluster is a `SingleChildScrollView(scrollDirection: Axis.horizontal)`, so
 primary actions sit off-screen and must be swiped to; and the node card is three
