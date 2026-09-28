@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:specta/app/platform/file_picker.dart';
+import 'package:specta/core/extensions/identity/source_node.dart';
 import 'package:specta/core/extensions/identity/trust_level.dart';
 import 'package:specta/core/extensions/manager/extension_manager.dart';
 import 'package:specta/core/extensions/manager/extension_providers.dart';
@@ -148,8 +149,10 @@ void main() {
       () => container.read(extensionsProvider).items.isNotEmpty,
     );
 
-    expect(find.text('View Fixture'), findsOneWidget);
-    expect(find.text('Unverified'), findsOneWidget);
+    // The card shows the NODE LABEL, not the source-supplied name (Slice 5).
+    // The name is still available one tap away in the details sheet.
+    expect(find.text('Node 1'), findsOneWidget);
+    expect(find.text('View Fixture'), findsNothing);
     expect(find.text('1 installed'), findsOneWidget);
   });
 
@@ -266,6 +269,7 @@ void main() {
         filePath: '${dir.path}/toggle.js',
         installedAt: now,
         updatedAt: now,
+        node: const SourceNode(space: SourceNodeSpace.user, index: 1),
       ),
     );
 
@@ -275,7 +279,8 @@ void main() {
       container,
       () => container.read(extensionsProvider).items.isNotEmpty,
     );
-    expect(find.text('Toggle Me'), findsOneWidget);
+    expect(find.text('Node 1'), findsOneWidget);
+    expect(find.text('Toggle Me'), findsNothing);
     expect(find.text('Enabled'), findsOneWidget);
 
     await tester.tap(find.byType(Switch));
@@ -308,6 +313,7 @@ void main() {
           filePath: '${dir.path}/remove.js',
           installedAt: now,
           updatedAt: now,
+          node: const SourceNode(space: SourceNodeSpace.user, index: 1),
         ),
       );
 
@@ -318,9 +324,12 @@ void main() {
         () => container.read(extensionsProvider).items.isNotEmpty,
       );
 
+      // The confirmation names the NODE, not the source-supplied name.
       await tester.tap(find.byIcon(Icons.delete_outline_rounded));
       await openDialog(tester);
       expect(find.text('Remove source'), findsOneWidget);
+      expect(find.textContaining('Remove Node 1?'), findsOneWidget);
+      expect(find.textContaining('Remove Me'), findsNothing);
 
       // Cancelling leaves the extension installed.
       await tester.tap(find.widgetWithText(TextButton, 'Cancel'));

@@ -17,6 +17,7 @@ import '../../ui/widgets/specta_button.dart';
 import '../../ui/widgets/specta_card.dart';
 import '../../ui/widgets/specta_empty_state.dart';
 import 'extensions_catalogue_sheet.dart';
+import 'extensions_details_sheet.dart';
 import 'extensions_repository_sheet.dart';
 import 'extensions_url_dialog.dart';
 import 'state/extensions_state.dart';
@@ -403,9 +404,12 @@ class ExtensionsView extends ConsumerWidget {
           context: context,
           builder: (BuildContext dialogContext) => AlertDialog(
             title: const Text('Remove source'),
+            // The NODE LABEL, not the source's name. The confirmation is the
+            // most-read dialog in a destructive flow, so it must not print a
+            // streaming-site name the provider chose.
             content: Text(
-              'Remove "${extension.name}"? Its saved state on this device is '
-              'deleted. You can install it again at any time.',
+              'Remove ${extension.nodeLabel ?? 'this source'}? Its saved state '
+              'on this device is deleted. You can install it again at any time.',
             ),
             actions: <Widget>[
               TextButton(
@@ -581,6 +585,10 @@ class _ExtensionCard extends StatelessWidget {
   final VoidCallback? onUpdate;
   final VoidCallback? onRollback;
 
+  void _showDetails(BuildContext context, ManagedExtension extension) {
+    ExtensionDetailsSheet.show(context, extension);
+  }
+
   @override
   Widget build(BuildContext context) {
     return SpectaCard(
@@ -589,52 +597,42 @@ class _ExtensionCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
+              // PRIMARY LINE: the node label, and nothing else.
+              //
+              // The source's own name is deliberately NOT here. It is chosen by
+              // whoever wrote the extension, so showing it in the most prominent
+              // position of the user's source list would hand a third party
+              // control of SPECTA's UI and leak a streaming-site name onto a
+              // screen the owner reads every day. It lives in the details sheet.
               Expanded(
-                child: Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: Text(
-                        extension.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: SpectaColors.textPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    // The app-developer mark. Gated on a VERIFIED trust level
-                    // only — see SpectaDeveloperDot for why nothing weaker may
-                    // switch it on. It sits after the flexible name so a
-                    // truncated title can never hide it, and stays outside the
-                    // trust badge so the two are independently readable.
-                    if (extension.trustLevel ==
-                        TrustLevel.official) ...<Widget>[
-                      const SizedBox(width: 7),
-                      const SpectaDeveloperDot(),
-                    ],
-                  ],
+                child: Text(
+                  extension.nodeLabel ?? 'Node',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: SpectaColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 8),
-              _TrustBadge(trust: extension.trustLevel),
+              // The app-developer mark. Gated on a VERIFIED trust level only —
+              // see SpectaDeveloperDot for why nothing weaker may switch it on.
+              // It is a PROVENANCE mark, not a quality score and not a ranking:
+              // a green dot says who signed the file, nothing more. It sits
+              // after the flexible label so a truncated label can never hide it.
+              if (extension.trustLevel == TrustLevel.official) ...<Widget>[
+                const SizedBox(width: 7),
+                const SpectaDeveloperDot(),
+              ],
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: () => _showDetails(context, extension),
+                icon: const Icon(Icons.info_outline_rounded),
+                color: SpectaColors.textSecondary,
+                tooltip: 'Details',
+              ),
             ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            <String>[extension.version, extension.author].join('  ·  '),
-            style: const TextStyle(
-              fontSize: 12,
-              color: SpectaColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            extension.id,
-            style: const TextStyle(fontSize: 11, color: SpectaColors.textMuted),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 10),
           // Update / restore row. Shown only when there is genuinely something
@@ -686,37 +684,28 @@ class _ExtensionCard extends StatelessWidget {
                 onChanged: busy ? null : onToggle,
               ),
               IconButton(
-                onPressed: busy ? null : onUninstall,
-                icon: const Icon(Icons.delete_outline_rounded),
+                // Node 0 is undeletable. The control is DISABLED rather than
+                // hidden, and the tooltip says why: silently removing the
+                // affordance would leave the user wondering where it went,
+                // while letting them tap it would only produce a refusal.
+                onPressed: (busy || extension.nodeLocked)
+                    ? null
+                    : onUninstall,
+                icon: Icon(
+                  extension.nodeLocked
+                      ? Icons.lock_outline_rounded
+                      : Icons.delete_outline_rounded,
+                ),
                 color: SpectaColors.failure,
-                tooltip: 'Remove source',
+                tooltip: extension.nodeLocked
+                    ? '${extension.nodeLabel} is the core source and cannot be '
+                          'removed'
+                    : 'Remove source',
               ),
             ],
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Official vs unverified, derived from signature verification only.
-class _TrustBadge extends StatelessWidget {
-  const _TrustBadge({required this.trust});
-
-  final TrustLevel trust;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool official = trust == TrustLevel.official;
-    return SpectaBadge(
-      label: official ? 'Official' : 'Unverified',
-      backgroundColor: official
-          ? SpectaColors.success.withValues(alpha: 0.14)
-          : SpectaColors.warning.withValues(alpha: 0.14),
-      borderColor: official
-          ? SpectaColors.success.withValues(alpha: 0.5)
-          : SpectaColors.warning.withValues(alpha: 0.5),
-      textColor: official ? SpectaColors.success : SpectaColors.warning,
     );
   }
 }

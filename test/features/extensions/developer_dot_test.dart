@@ -143,24 +143,41 @@ void main() {
       () => container.read(extensionsProvider).items.length == 2,
     );
 
-    expect(find.text('Developer Extension'), findsOneWidget);
-    expect(find.text('Personal Extension'), findsOneWidget);
+    // Slice 5: the card is identified by its node label, not the source's own
+    // name. The two nodes are the verified one and the personal one, in node
+    // order.
+    expect(find.text('Node 1'), findsOneWidget);
+    expect(find.text('Node 2'), findsOneWidget);
+    expect(find.text('Developer Extension'), findsNothing);
+    expect(find.text('Personal Extension'), findsNothing);
 
     // Exactly one dot across the whole screen: the verified extension's. The
     // personal one is installed, enabled and healthy — it is simply not
     // SPECTA's, and that is the only thing the dot reports.
     expect(find.byType(SpectaDeveloperDot), findsOneWidget);
 
-    // And it sits beside the verified extension, not the personal one.
+    // And it sits on the verified extension's card, not the personal one. The
+    // verified source was seeded first, so it holds the lower node index.
     expect(
       find.descendant(
         of: find.ancestor(
-          of: find.text('Developer Extension'),
+          of: find.text('Node 1'),
           matching: find.byType(Row),
         ),
         matching: find.byType(SpectaDeveloperDot),
       ),
       findsWidgets,
+    );
+    expect(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('Node 2'),
+          matching: find.byType(Row),
+        ),
+        matching: find.byType(SpectaDeveloperDot),
+      ),
+      findsNothing,
+      reason: 'the personal node must carry no dot',
     );
   });
 
@@ -181,7 +198,8 @@ void main() {
       () => container.read(extensionsProvider).items.length == 1,
     );
 
-    expect(find.text('Personal Extension'), findsOneWidget);
+    expect(find.text('Node 1'), findsOneWidget);
+    expect(find.text('Personal Extension'), findsNothing);
     expect(find.byType(SpectaDeveloperDot), findsNothing);
   });
 
