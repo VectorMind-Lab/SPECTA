@@ -8,7 +8,8 @@ import 'package:specta/core/extensions/manifest.dart';
 /// A foreign source in the shape another host's extension systems commonly use:
 /// a CommonJS module that declares its own metadata and exports operations as
 /// object members. It has no SPECTA header at all.
-String _foreignCommonJs({String name = 'Community Source'}) => '''
+String _foreignCommonJs({String name = 'Community Source'}) =>
+    '''
 const BASE = 'https://example.invalid';
 
 module.exports = {
@@ -59,7 +60,8 @@ export default new Provider({});
 ''';
 
 /// The native contract, used to prove native sources are untouched.
-const String nativeSource = '// ==SpectaExtension==\n'
+const String nativeSource =
+    '// ==SpectaExtension==\n'
     '// @id org.test.native\n'
     '// @name Native\n'
     '// @version 1.0.0\n'
@@ -163,7 +165,10 @@ void main() {
       expect(manifest.name, 'Community Source');
       expect(manifest.apiVersion, NativeContractBridge.apiMajor);
       expect(manifest.isCompatible, isTrue);
-      expect(manifest.capabilities.contains(ExtensionCapability.search), isTrue);
+      expect(
+        manifest.capabilities.contains(ExtensionCapability.search),
+        isTrue,
+      );
     });
 
     test('preserves the original code verbatim', () {
@@ -189,13 +194,96 @@ void main() {
     });
   });
 
+  group('the generated shim must parse and run in the sandbox', () {
+    // Regression, found by EXECUTING the adapter's real output in a JavaScript
+    // engine rather than reading it as text: an escaped `}}` in the Dart
+    // template emitted a stray `}` that closed `class Extension` before
+    // `healthCheck`, so every adapted source died with a SyntaxError at load.
+    // Content-only assertions could not see it, because the text was all there.
+    String shimFor(String body) => ForeignSourceAdapter.buildShimmedBody(
+      SourceFormatDetector.analyse(body),
+      body,
+    );
+
+    test('braces balance, so the class is never closed early', () {
+      for (final String body in <String>[
+        _foreignCommonJs(),
+        _foreignEsModule(),
+      ]) {
+        final String text = shimFor(body);
+        expect(
+          '{'.allMatches(text).length,
+          '}'.allMatches(text).length,
+          reason: 'unbalanced braces: the sandbox cannot parse this file.',
+        );
+      }
+    });
+
+    test('no member is generated after the class has closed', () {
+      final String text = shimFor(_foreignCommonJs());
+      expect(
+        RegExp(r'^\}[ \t]*\n[ \t]*async ', multiLine: true).hasMatch(text),
+        isFalse,
+        reason:
+            'a method was emitted outside the class body, which is a '
+            'syntax error in every JavaScript engine.',
+      );
+    });
+
+    test('a CommonJS module is given a module object to export into', () {
+      // The sandbox defines `SpectaExtension` and nothing else. Without this
+      // prelude the imported code's own `module.exports = ...` statement throws
+      // ReferenceError before any operation can run.
+      final String text = shimFor(_foreignCommonJs());
+      expect(text, contains('const __spectaModule = { exports: {} };'));
+      expect(text, contains('var module = __spectaModule;'));
+      expect(
+        text.indexOf('var module = __spectaModule;'),
+        lessThan(text.indexOf(_foreignCommonJs())),
+        reason:
+            'the prelude must be declared before the imported code runs, '
+            'not after it.',
+      );
+    });
+
+    test('an uncapturable export fails honestly instead of recursing', () {
+      final String text = shimFor(_foreignCommonJs());
+      // Resolving the call target to `this` would invoke the shim's own
+      // forwarding method again: unbounded recursion, so the host saw a stack
+      // overflow where it should see "this source does not implement X".
+      expect(text, isNot(contains('return this;')));
+      expect(text, contains('return null;'));
+      expect(text, contains('does not implement'));
+    });
+
+    test('KNOWN GAP: an ES module is wrapped for a script global that '
+        'cannot parse it', () {
+      // Characterisation, not endorsement: SPECTA evaluates extensions as
+      // plain scripts, where a top-level `export` is a syntax error. The
+      // adapter currently ships such a source as if it would run. Recorded in
+      // docs/SOURCE_RUN_REPORT.md; the fix is to transform the module or to
+      // refuse it at import with a message that says why.
+      final String text = shimFor(_foreignEsModule());
+      expect(
+        RegExp(r'^export ', multiLine: true).hasMatch(text),
+        isTrue,
+        reason:
+            'if ES syntax is ever rewritten out of the wrapper, this '
+            'test must be replaced by one that proves the rewrite.',
+      );
+    });
+  });
+
   group('a foreign ES module is adapted too', () {
     test('class-method operations are detected', () {
       final ForeignSourceAnalysis analysis = SourceFormatDetector.analyse(
         _foreignEsModule(),
       );
       expect(analysis.format, SourceFormat.adapted);
-      expect(analysis.entryPoints, containsAll(<String>['search', 'getSources']));
+      expect(
+        analysis.entryPoints,
+        containsAll(<String>['search', 'getSources']),
+      );
       // Only the operations the file defines are bridged.
       expect(analysis.entryPoints.contains('latest'), isFalse);
     });

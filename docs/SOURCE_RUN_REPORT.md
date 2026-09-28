@@ -558,28 +558,47 @@ Branch `source-system-run`. Commits: `8b71945` (docs), `fce5070` (Slice 1),
 
 ## C.3 NOT VERIFIED — stated plainly
 
-These are **not** claimed as working:
+These are **not** claimed as working. Updated 2026-09-28 by §13, which is the
+verification pass written to close items 1 and 2.
 
-1. **Real Android device.** No APK was built or installed for Slices 1-2. Every
-   layout claim comes from `flutter_test` widget geometry, which is strong
-   evidence but is not a device screenshot. A human should confirm the card and
-   the Add Source sheet on real hardware at 360 px and 320 px.
-2. **Runtime execution of an adapted source.** The generated shim is proven
-   structurally correct and proven to parse through the unmodified native
-   parser, but **no test evaluates it in a live JS sandbox**. A foreign source
-   is therefore proven to *install*, not to *resolve*. Per the requirement that
-   installation and runtime success are reported separately:
-   **install VERIFIED, runtime UNVERIFIED.**
+1. **Real Android device — Slice 1/2 layout.** Still **NOT VERIFIED on
+   hardware.** The suite that would close it exists and is analyzer-clean —
+   `integration_test/slice12_device_verification_test.dart`, checks A1-A6 for the
+   card and the Add Source sheet at 360 px and 320 px — but the phone was not
+   attached when it came time to run it (§13.4). No layout claim in this section
+   rests on a device: all of it is `flutter_test` geometry.
+2. **Runtime execution of an adapted source.** **Partly closed — and it found a
+   blocker.** The shim was evaluated in a real JavaScript engine (§13.1), which
+   is how the defect in §13.2 was caught: every adapted source failed to parse.
+   After the fix, a foreign CommonJS source evaluates and answers `search()` and
+   `details()` with its own values. Engine caveat, stated rather than glossed:
+   that run used the host engine (V8) under the sandbox's real global shape, not
+   the device's QuickJS, because the phone was unplugged. The property under test
+   — whether a plain script global with no `module` binding can parse and run the
+   generated file — is grammar-level and engine-independent, but the device run
+   is still owed.
+   **install VERIFIED · host-engine runtime VERIFIED · device runtime NOT VERIFIED.**
 3. **A genuine third-party source file.** None was present in the repository.
    The foreign-format work is driven by realistic fixtures. The first real
    third-party file will need one more pass, because a real provider module may
    nest its exports or name its operations differently.
+4. **ES-module sources cannot run (new, §13.3).** A source detected as an ES
+   module is adapted and installed, then dies on `export` in the script-mode
+   sandbox. The adapter ships it as though it would run. Now pinned by a
+   characterisation test rather than hidden; fixing it properly is a decision —
+   transform the module, or refuse it at import with a message that says why.
 
 ## C.4 Recommended next step
 
-Load one adapted source in the runtime under a fake sandbox and assert the shim
-forwards a call end to end. That closes limitation (2), the only substantive gap
-between "compatible" and "known to work".
+Was: "load one adapted source in the runtime under a fake sandbox and assert the
+shim forwards a call end to end." Done, and better than a fake sandbox: the
+adapter's real output was executed in a real engine (§13), which found a blocker
+that a fake sandbox would have mimicked straight past, because the bug is in the
+generated text, not in the wiring.
+
+Remaining, in order: (a) run `integration_test/slice12_device_verification_test.dart`
+on the phone and replace the two NOT VERIFIED lines above with device evidence;
+(b) decide item 4.
 
 ## 12. OPEN-PLATFORM REQUIREMENT CORRECTION — 2026-09-28
 
@@ -599,3 +618,131 @@ entry records what changes in this report's standing state.
 Nothing in the previously recorded test counts changes here. `flutter analyze`
 and the `1259 passed / 39 skipped / 0 failed` figures still describe Slices 1-7
 and 7b; they are not re-validated by a docs-only change.
+
+---
+
+# 13. SLICE 1 / SLICE 2 VERIFICATION PASS (2026-09-28)
+
+**Status: one blocker found and fixed, one gap recorded, device run still owed.**
+
+This pass set out to close §C.3 items 1 and 2 on the phone. It did not get the
+device run — the phone was unplugged by the time the suite was ready (§13.4) —
+but it got something more valuable first: it executed the compatibility adapter's
+real output in a real JavaScript engine, and that found a defect that made
+**every** adapted source unrunnable.
+
+## 13.2 BLOCKER FOUND — the generated shim did not parse
+
+The adapter's output was written to disk by the adapter itself (no hand-written
+copy) and evaluated against the sandbox's real global shape: `SpectaExtension`
+defined, and **no `module`, no `exports`, no `require`, no `fetch`** — exactly
+what `sandboxBootstrap` in `extension_runtime.dart` provides.
+
+```
+typeof module  -> undefined
+typeof exports -> undefined
+EVALUATE THREW: SyntaxError: Unexpected identifier 'healthCheck'
+```
+
+Three separate defects, all in `foreign_source_adapter.dart`'s generated text:
+
+| # | Defect | Effect | Fix |
+|---|---|---|---|
+| 1 | The Dart template ended its operation list with `}}` after an interpolation. In Dart, `}}` after `${…}` is the **escape for a literal `}`**, so the generated file carried a stray brace. | `class Extension` closed before `healthCheck`; `healthCheck` dangled outside the class → **SyntaxError at load, for every adapted source, in every engine** | Emit one `}` |
+| 2 | The shim looked for `module.exports`, but the sandbox is a plain script global and defines no `module`, while the imported body — included verbatim, as designed — begins with its own `module.exports = …`. | `ReferenceError: module` on the first statement of any CommonJS source | Declare a CommonJS prelude (`__spectaModule` / `module` / `exports`) **before** the imported code |
+| 3 | `__spectaResolve()` fell back to `return this`. The only members on `this` are the shim's own forwarding methods. | An export that could not be captured recursed until the stack died, so the host saw a stack overflow where it should see "this source does not implement X" | `return null`, letting `__spectaCall` report the absence |
+
+Defect 1 is the one worth reading twice: the existing host tests asserted the
+shim's **content** — it contains `class Extension extends SpectaExtension`, it
+contains `does not implement` — and all of that was true. The file simply was not
+valid JavaScript. Content assertions cannot see a grammar error; one execution
+can. §C.4 had recommended exactly this, and it paid for itself immediately.
+
+## 13.3 After the fix — same probe, same engine
+
+```
+=== CommonJS source ===
+  EVALUATE: ok
+  search('ghost', 1)  -> OK [{"title":"FOREIGN[ghost]foreign-build-7",
+                              "url":"https://example.invalid/watch/ghost",
+                              "type":"movie","year":2026}]
+  details(ref)        -> OK {"id":"…/watch/ghost",
+                             "title":"FOREIGN-DETAILS …/watch/ghost", …}
+  healthCheck()       -> OK true          ← the method that used to dangle
+
+=== source with no capturable export ===
+  EVALUATE: ok
+  search('ghost', 1)  -> THREW Error: This source does not implement "search".
+                          (previously: unbounded recursion)
+
+=== ES module source ===
+  EVALUATE THREW: SyntaxError: Unexpected token 'export'
+```
+
+The `search` value is the fixture's own literal, assembled by the fixture's own
+code — so the host received what the foreign source returned, which is the claim
+Slice 2 makes and the claim §C.3 item 2 could not previously support.
+
+**Recorded gap (not fixed here, §C.3 item 4):** the third block. An ES module is
+detected, adapted and installed, then dies on `export` because SPECTA evaluates
+extensions as plain scripts. Pinned by a characterisation test named
+`KNOWN GAP: an ES module is wrapped for a script global that cannot parse it`, so
+it cannot be mistaken for working code. The honest options are to transform the
+module or to refuse it at import with a message that says why; that is a product
+decision, not a drive-by edit.
+
+**Engine honesty:** these runs used V8 (Node v24.16.0) through `node:vm`, in a
+context whose globals were transcribed from `sandboxBootstrap`. It is not
+QuickJS. What it proves — parse success or failure, and value forwarding, in a
+script global with no `module` — is grammar-level and the same across engines.
+What it does not prove is that the device's QuickJS behaves identically under the
+real `FlutterJsSandbox`, its timeouts and its capability gates. That is what the
+device suite is for, and it is still owed.
+
+## 13.4 Device run — NOT RUN, and why
+
+`integration_test/slice12_device_verification_test.dart` is written, analyzer
+clean, formatted: **A1-A6** (Slice 1 card geometry, Add Source sheet routing,
+overflow menu, 320 px constraint) and **B1-B6** (adaptation, Drift install,
+QuickJS load, foreign value forwarding, honest rejection of an unimplemented
+operation, trust and node-space isolation, clean shutdown). Every measured value
+is logged under a `SPECTA-S12` tag, so the evidence is text rather than a
+screenshot — `uiautomator` cannot see inside a Flutter surface.
+
+It was never executed. When the run was due, `adb devices` returned an empty list
+and `Get-PnpDevice -PresentOnly` found no Android device on the bus: the phone was
+physically disconnected. No emulator exists on this machine (`flutter emulators`
+lists none), and no substitute was passed off as the real thing — the layout
+checks in particular want the real 360 px panel.
+
+Command to run when the phone is back:
+
+```
+cd H:\dev\SPECTA
+$env:Path="H:\flutter\bin;$env:Path"
+flutter test integration_test/slice12_device_verification_test.dart -d R83L20FRDFM
+```
+
+## 13.5 Regression net added, so this class of bug cannot return
+
+Five host-side tests in
+`test/core/extensions/compat/source_compatibility_test.dart`, in a group named
+`the generated shim must parse and run in the sandbox`:
+
+* braces balance across the generated file — this one fails against the old template;
+* no member is emitted after the class has closed;
+* the CommonJS prelude is declared **before** the imported body, not after;
+* the shim never resolves the call target to `this`;
+* the ES-module gap, as a characterisation test that must be replaced, not
+  deleted, when the gap is genuinely closed.
+
+## 13.6 Counts and hygiene for this pass
+
+* `flutter test` — **1287 passed / 39 skipped / 0 failed** (was 1282; +5 from §13.5).
+* `flutter analyze` on `lib/core/extensions/compat`,
+  `test/core/extensions/compat` and the new integration test — **no issues**.
+* `dart format --set-exit-if-changed` on the touched files — clean.
+* The probe fixtures and the temporary Dart dump harness were deleted. The Node
+  probe lives under `build/` (git-ignored) as `build/shim_probe/probe.mjs`; it is a
+  tool, not a test, and nothing in `lib/` or `test/` depends on it.
+

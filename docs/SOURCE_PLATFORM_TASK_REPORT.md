@@ -70,7 +70,7 @@ Governing rules for the work below:
 | Item | Status |
 |---|---|
 | Docs corrected and superseded decisions marked | see §5 of the plan |
-| Slice 1 UI implemented, tested, committed | in progress |
-| Slice 2 compatibility, documented per format, tested | not started |
-| Full suite + analyzer | to be reported with real counts |
-| Real-device verification | to be reported; anything untested marked NOT VERIFIED |
+| Slice 1 UI implemented, tested, committed | done — `fce5070`. Device checks A1-A6 are written and analyzer-clean but **NOT RUN** (§C.3 item 1; `SOURCE_RUN_REPORT.md` §13.4) |
+| Slice 2 compatibility, documented per format, tested | done — `d54e3af`, then **fixed**: `SOURCE_RUN_REPORT.md` §13.2 found the generated shim did not parse at all. Install VERIFIED, host-engine runtime VERIFIED, device runtime NOT VERIFIED |
+| Full suite + analyzer | **1287 passed / 39 skipped / 0 failed**, analyzer clean (`SOURCE_RUN_REPORT.md` §13.6) |
+| Real-device verification | **NOT VERIFIED.** The suite exists and is ready; the phone was disconnected when it came time to run it. Command and scope: `SOURCE_RUN_REPORT.md` §13.4

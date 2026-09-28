@@ -70,10 +70,9 @@ abstract final class ForeignSourceAdapter {
 
   /// Renders the capability list for the manifest header.
   static String _encodeCapabilities(ForeignSourceAnalysis analysis) {
-    final List<String> codes = analysis.capabilities
-        .map((ExtensionCapability c) => c.code)
-        .toList()
-      ..sort();
+    final List<String> codes =
+        analysis.capabilities.map((ExtensionCapability c) => c.code).toList()
+          ..sort();
     return codes.isEmpty ? 'none' : codes.join(',');
   }
 
@@ -87,6 +86,19 @@ abstract final class ForeignSourceAdapter {
   ) {
     final Set<String> operations = analysis.entryPoints;
     return '''
+// ---------------------------------------------------------------------------
+// SPECTA compatibility prelude (generated).
+//
+// The sandbox is a plain script global: it defines `SpectaExtension` and
+// nothing else, so a CommonJS module's own `module.exports = ...` line would
+// throw ReferenceError on the very first statement. This declares the object
+// that line fills in, and the shim at the bottom of this file reads it back.
+// The imported code below is still included verbatim; nothing in it changed.
+// ---------------------------------------------------------------------------
+const __spectaModule = { exports: {} };
+var module = __spectaModule;
+var exports = __spectaModule.exports;
+
 $jsSource
 
 // ---------------------------------------------------------------------------
@@ -112,14 +124,17 @@ const __spectaForeign = (function () {
 
 class Extension extends SpectaExtension {
   __spectaResolve() {
-    // Prefer the CommonJS/ES export. Fall back to a global the module set, and
-    // finally to this instance, which is itself a valid target when the source
-    // declared its operations as class members.
+    // The CommonJS/ES export first, then a global the module chose to set.
+    // There is deliberately no fallback to `this`: the only members on this
+    // instance are the forwarding methods generated below, so resolving to
+    // `this` would invoke the forwarder again and recurse until the stack
+    // gives out. A source whose export cannot be captured has nothing to call,
+    // and __spectaCall reports that instead of looping.
     if (__spectaForeign) return __spectaForeign;
     if (typeof globalThis !== 'undefined' && globalThis.__spectaForeign) {
       return globalThis.__spectaForeign;
     }
-    return this;
+    return null;
   }
 
   async __spectaCall(name, args) {
@@ -131,39 +146,23 @@ class Extension extends SpectaExtension {
     // reports a real incompatibility instead of an empty result.
     throw new Error('This source does not implement "' + name + '".');
   }
-${
-  operations.contains('search')
-      ? '''
+${operations.contains('search') ? '''
   async search(query, page) {
     return await this.__spectaCall('search', [query, page]);
   }
-'''
-      : ''
-}${
-  operations.contains('latest')
-      ? '''
+''' : ''}${operations.contains('latest') ? '''
   async latest(page) {
     return await this.__spectaCall('latest', [page]);
   }
-'''
-      : ''
-}${
-  operations.contains('details')
-      ? '''
+''' : ''}${operations.contains('details') ? '''
   async details(reference) {
     return await this.__spectaCall('details', [reference]);
   }
-'''
-      : ''
-}${
-  operations.contains('getSources')
-      ? '''
+''' : ''}${operations.contains('getSources') ? '''
   async getSources(reference) {
     return await this.__spectaCall('getSources', [reference]);
   }
-'''
-      : ''
-}}
+''' : ''}
   async healthCheck() {
     try {
       return await this.__spectaCall('healthCheck', []);
