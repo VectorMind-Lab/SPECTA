@@ -169,7 +169,7 @@ class _SpectaAppShellState extends ConsumerState<SpectaAppShell> {
                 ),
                 const SizedBox(height: 2),
                 const Text(
-                  'Extensions & Sources',
+                  'Sources',
                   style: TextStyle(fontSize: 10, color: SpectaColors.textMuted),
                 ),
                 const SizedBox(height: 8),

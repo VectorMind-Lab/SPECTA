@@ -70,10 +70,10 @@ final class HomeFeed {
     HomeFeedStatus.ready => '',
     HomeFeedStatus.empty => 'Nothing new right now.',
     HomeFeedStatus.noExtensions =>
-      'No extensions are installed yet. Add one to see movies and series '
+      'No sources are installed yet. Add one to see movies and series '
           'here.',
     HomeFeedStatus.unsupported =>
-      'Your installed extensions do not provide a Home feed. Use Search to '
+      'Your installed sources do not provide a Home feed. Use Search to '
           'find something to watch.',
     HomeFeedStatus.failure =>
       'Your extensions could not be reached. Check your connection and '

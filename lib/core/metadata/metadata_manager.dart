@@ -229,7 +229,7 @@ abstract final class MetadataManager {
           extensionId: reference.extensionId,
           operation: 'details',
           type: ExtensionFailureType.timeout,
-          message: 'Metadata request timed out for this extension',
+          message: 'Metadata request timed out for this source',
           timestamp: DateTime.now().toUtc(),
         ),
       );

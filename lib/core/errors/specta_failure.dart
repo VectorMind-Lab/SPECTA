@@ -173,7 +173,7 @@ final class CapabilityFailure extends SpectaFailure {
     required this.extensionId,
     required this.capability,
     String? message,
-  }) : super(message ?? 'Extension does not declare capability "$capability".');
+  }) : super(message ?? 'Source does not declare capability "$capability".');
 
   final String extensionId;
   final String capability;
@@ -370,31 +370,31 @@ enum ExtensionDistributionFailureType {
 
   String get message => switch (this) {
     ExtensionDistributionFailureType.invalidUrl =>
-      'That does not look like a valid extension link.',
+      'That does not look like a valid source link.',
     ExtensionDistributionFailureType.hostBlocked =>
-      'That address cannot be used for extensions.',
+      'That address cannot be used for sources.',
     ExtensionDistributionFailureType.redirectRefused =>
-      'The extension link redirected somewhere SPECTA will not follow.',
+      'The source link redirected somewhere SPECTA will not follow.',
     ExtensionDistributionFailureType.networkError =>
-      'The extension could not be downloaded. Check your connection.',
+      'The source could not be downloaded. Check your connection.',
     ExtensionDistributionFailureType.timeout =>
-      'The extension download took too long. Try again.',
+      'The source download took too long. Try again.',
     ExtensionDistributionFailureType.serverError =>
-      'The extension host reported a problem. Try again later.',
+      'The source host reported a problem. Try again later.',
     ExtensionDistributionFailureType.httpError =>
-      'The extension link could not be fetched.',
+      'The source link could not be fetched.',
     ExtensionDistributionFailureType.tooLarge =>
-      'That extension file is too large to install.',
+      'That source file is too large to install.',
     ExtensionDistributionFailureType.notText =>
       'That link did not return a readable text file.',
     ExtensionDistributionFailureType.notAnExtension =>
-      'That link is not a SPECTA extension.',
+      'That link is not a SPECTA source.',
     ExtensionDistributionFailureType.emptyResponse =>
       'That link returned an empty file.',
     ExtensionDistributionFailureType.integrityMismatch =>
-      'The downloaded extension did not match its published checksum.',
+      'The downloaded source did not match its published checksum.',
     ExtensionDistributionFailureType.storageFailure =>
-      'The extension could not be saved on this device.',
+      'The source could not be saved on this device.',
     ExtensionDistributionFailureType.cancelled => 'The download was cancelled.',
   };
 }
@@ -457,21 +457,21 @@ enum ExtensionCatalogueFailureType {
 
   String get message => switch (this) {
     ExtensionCatalogueFailureType.networkError =>
-      'The extension catalogue could not be reached. Check your connection.',
+      'The source catalogue could not be reached. Check your connection.',
     ExtensionCatalogueFailureType.timeout =>
-      'The extension catalogue took too long to answer. Try again.',
+      'The source catalogue took too long to answer. Try again.',
     ExtensionCatalogueFailureType.serverError =>
-      'The extension catalogue reported a problem. Try again later.',
+      'The source catalogue reported a problem. Try again later.',
     ExtensionCatalogueFailureType.httpError =>
-      'The extension catalogue could not be fetched.',
+      'The source catalogue could not be fetched.',
     ExtensionCatalogueFailureType.invalidUrl =>
       'That does not look like a valid catalogue address.',
     ExtensionCatalogueFailureType.parseError =>
-      'The extension catalogue could not be read.',
+      'The source catalogue could not be read.',
     ExtensionCatalogueFailureType.unsupportedSchema =>
-      'This extension catalogue uses an unsupported format.',
+      'This source catalogue uses an unsupported format.',
     ExtensionCatalogueFailureType.noInstallableEntries =>
-      'That repository does not list any JavaScript extensions SPECTA can '
+      'That repository does not list any JavaScript sources SPECTA can '
           'install.',
     ExtensionCatalogueFailureType.cancelled => 'The request was cancelled.',
   };

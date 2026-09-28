@@ -117,7 +117,7 @@ void main() {
     );
 
     expect(
-      find.textContaining('does not list any JavaScript extensions'),
+      find.textContaining('does not list any JavaScript sources'),
       findsOneWidget,
     );
     expect(find.textContaining('providers'), findsNothing);

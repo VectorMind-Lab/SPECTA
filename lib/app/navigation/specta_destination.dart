@@ -23,7 +23,7 @@ enum SpectaDestination {
     selectedIcon: Icons.download_rounded,
   ),
   extensions(
-    label: 'Extensions',
+    label: 'Sources',
     icon: Icons.extension_outlined,
     selectedIcon: Icons.extension_rounded,
   ),

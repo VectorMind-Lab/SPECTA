@@ -185,7 +185,7 @@ abstract final class DiscoveryCoordinator {
           extensionId: record.id,
           operation: operation,
           type: ExtensionFailureType.timeout,
-          message: 'Discovery round timed out for this extension',
+          message: 'Discovery round timed out for this source',
           timestamp: DateTime.now().toUtc(),
         ),
       );

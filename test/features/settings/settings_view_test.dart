@@ -52,7 +52,7 @@ void main() {
     // The real sections are still present and functional.
     expect(find.text('Appearance'), findsOneWidget);
     expect(find.text('Downloads'), findsOneWidget);
-    expect(find.text('Extensions'), findsOneWidget);
+    expect(find.text('Sources'), findsOneWidget);
     expect(find.text('Diagnostics'), findsOneWidget);
     expect(find.text('About & Credits'), findsOneWidget);
   });
@@ -214,7 +214,7 @@ void main() {
 
       expect(
         find.textContaining(
-          'Off — extensions stay on the version you installed',
+          'Off — sources stay on the version you installed',
         ),
         findsOneWidget,
       );

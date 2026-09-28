@@ -74,7 +74,7 @@ class _ExtensionsCatalogueSheetState extends State<ExtensionsCatalogueSheet> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Listing is not trust. Every extension is downloaded and '
+              'Listing is not trust. Every source is downloaded and '
               'verified before it can run.',
               style: TextStyle(fontSize: 12, color: SpectaColors.textMuted),
             ),
@@ -109,7 +109,7 @@ class _ExtensionsCatalogueSheetState extends State<ExtensionsCatalogueSheet> {
                 result.valueOrNull!.supportedEntries;
             if (entries.isEmpty) {
               return const _CatalogueMessage(
-                message: 'This catalogue lists no extensions yet.',
+                message: 'This catalogue lists no sources yet.',
               );
             }
             return ListView.separated(

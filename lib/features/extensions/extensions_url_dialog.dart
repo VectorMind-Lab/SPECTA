@@ -13,8 +13,8 @@ class UrlInstallDialog extends StatefulWidget {
   const UrlInstallDialog({
     super.key,
     this.title = 'Install from a link',
-    this.fieldLabel = 'Extension link',
-    this.hint = 'https://.../extension.js',
+    this.fieldLabel = 'Source link',
+    this.hint = 'https://.../source.js',
     this.actionLabel = 'Download',
     this.explanation =
         'Only https:// links are accepted. The file is '

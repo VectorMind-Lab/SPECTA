@@ -299,9 +299,29 @@ void main() {
         'just some random text',
         ManifestParseException('no manifest header found'),
       );
-      expect(message, contains('not a SPECTA extension'));
+      // The text carries no `// ==SpectaExtension==` header, so the honest
+      // explanation names the missing header instead of reporting whichever
+      // required field the parser happened to check first.
+      expect(message, contains('no SPECTA source header'));
       expect(message, isNot(contains('too large')));
     });
+
+    test(
+      'a .js file with no SPECTA header names the header, not a missing field',
+      () {
+        // This is the case captured on a real device: a file from another
+        // ecosystem. It has plenty of `@` lines, just not SPECTA's, so
+        // reporting "Missing required field: id" was actively misleading.
+        final String message = describeUnimportableSource(
+          '// ==Extension==\n// @name x\n// @version 1.0.0\n'
+          '// @package net.example.ext\n// ==/Extension==\n',
+          ManifestParseException('Missing required field: id'),
+        );
+        expect(message, contains('no SPECTA source header'));
+        expect(message, isNot(contains('Missing required field')));
+        expect(message, isNot(contains('id')));
+      },
+    );
 
     test(
       'a .js file with a malformed manifest still reports the real reason',

@@ -61,17 +61,17 @@ class ExtensionsView extends ConsumerWidget {
               icon: Icons.error_outline_rounded,
               message:
                   state.errorMessage ??
-                  'Installed extensions could not be read.',
+                  'Installed sources could not be read.',
               action: () => ref.read(extensionsProvider.notifier).reload(),
               actionLabel: 'Try again',
             ),
             ExtensionsStatus.ready when state.items.isEmpty => SpectaEmptyState(
               icon: Icons.extension_outlined,
               message:
-                  'No extensions are installed.\nInstall an extension '
+                  'No sources are installed.\nInstall a source '
                   'file to add discovery sources.',
               action: () => _install(context, ref),
-              actionLabel: 'Install extension',
+              actionLabel: 'Install source',
             ),
             ExtensionsStatus.ready => ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -198,8 +198,8 @@ class ExtensionsView extends ConsumerWidget {
         actionLabel: 'Open',
         explanation:
             'Paste a link to a provider index such as index.json. '
-            'SPECTA reads the providers it lists and installs them one at a '
-            'time, through the same checks as any other extension. Being '
+            'SPECTA reads the sources it lists and installs them one at a '
+            'time, through the same checks as any other source. Being '
             'listed in a repository does not make a provider trusted.',
       ),
     );
@@ -270,8 +270,8 @@ class ExtensionsView extends ConsumerWidget {
       SnackBar(
         content: Text(
           state.updatesAvailable.isEmpty
-              ? 'All installed extensions are up to date.'
-              : '${state.updatesAvailable.length} extension'
+              ? 'All installed sources are up to date.'
+              : '${state.updatesAvailable.length} source'
                     '${state.updatesAvailable.length == 1 ? '' : 's'} can be updated.',
         ),
       ),
@@ -313,7 +313,7 @@ class ExtensionsView extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('That extension is no longer in the catalogue.'),
+          content: Text('That source is no longer in the catalogue.'),
         ),
       );
       return;
@@ -402,7 +402,7 @@ class ExtensionsView extends ConsumerWidget {
         await showDialog<bool>(
           context: context,
           builder: (BuildContext dialogContext) => AlertDialog(
-            title: const Text('Remove extension'),
+            title: const Text('Remove source'),
             content: Text(
               'Remove "${extension.name}"? Its saved state on this device is '
               'deleted. You can install it again at any time.',
@@ -464,7 +464,7 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 const Text(
-                  'Extensions',
+                  'Sources',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -496,14 +496,14 @@ class _Header extends StatelessWidget {
                   IconButton(
                     onPressed: busy ? null : onReload,
                     icon: const Icon(Icons.refresh_rounded),
-                    tooltip: 'Reload installed extensions',
+                    tooltip: 'Reload installed sources',
                   ),
                   const SizedBox(width: 4),
                   IconButton(
                     onPressed: busy ? null : onCheckUpdates,
                     icon: const Icon(Icons.upgrade_rounded),
                     tooltip:
-                        'Check the official catalogue for extension updates',
+                        'Check the official catalogue for source updates',
                   ),
                   const SizedBox(width: 8),
                   SpectaSecondaryButton(
@@ -531,7 +531,7 @@ class _Header extends StatelessWidget {
                   IconButton(
                     onPressed: busy ? null : onBrowseCatalogue,
                     icon: const Icon(Icons.travel_explore_rounded),
-                    tooltip: 'Browse the official extension catalogue',
+                    tooltip: 'Browse the official source catalogue',
                   ),
                   const SizedBox(width: 8),
                   SpectaSecondaryButton(
@@ -689,7 +689,7 @@ class _ExtensionCard extends StatelessWidget {
                 onPressed: busy ? null : onUninstall,
                 icon: const Icon(Icons.delete_outline_rounded),
                 color: SpectaColors.failure,
-                tooltip: 'Remove extension',
+                tooltip: 'Remove source',
               ),
             ],
           ),
@@ -825,7 +825,7 @@ class _InstallDialogState extends State<_InstallDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Install extension'),
+      title: const Text('Install source'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

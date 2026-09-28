@@ -265,7 +265,7 @@ class _ExtensionsCard extends ConsumerWidget {
 
     return _SettingsSection(
       icon: Icons.extension_rounded,
-      title: 'Extensions',
+      title: 'Sources',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -273,7 +273,7 @@ class _ExtensionsCard extends ConsumerWidget {
             children: <Widget>[
               const Expanded(
                 child: Text(
-                  'Auto-update extensions & sources',
+                  'Auto-update sources',
                   style: TextStyle(
                     fontSize: 13,
                     color: SpectaColors.textPrimary,
@@ -294,9 +294,9 @@ class _ExtensionsCard extends ConsumerWidget {
           const SizedBox(height: 6),
           Text(
             autoUpdate
-                ? 'On — SPECTA checks for newer versions of your extensions. '
+                ? 'On — SPECTA checks for newer versions of your sources. '
                       'You choose what to install.'
-                : 'Off — extensions stay on the version you installed.',
+                : 'Off — sources stay on the version you installed.',
             style: const TextStyle(fontSize: 12, color: SpectaColors.textMuted),
           ),
         ],
@@ -446,7 +446,7 @@ class _AboutCreditsCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             'TMDB supplies artwork, titles and descriptions. Playback sources '
-            'come only from the extensions you install.',
+            'come only from the sources you install.',
             style: const TextStyle(
               fontSize: 11,
               color: SpectaColors.textMuted,

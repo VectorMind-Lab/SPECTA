@@ -135,12 +135,12 @@ class DetailsView extends ConsumerWidget {
   /// 4. the catalogue itself could not complete the record.
   static String _failureMessage(DetailsState state) {
     if (state.invalidReferences.isNotEmpty) {
-      return 'The extensions responded, but the details could not be trusted. '
+      return 'The sources responded, but the details could not be trusted. '
           'Try again later.';
     }
     if (!state.hasExtensionReference) {
-      return 'This title came from the metadata catalogue, and no extension '
-          'provides details for it. Install an extension that covers it.';
+      return 'This title came from the metadata catalogue, and no source '
+          'provides details for it. Install a source that covers it.';
     }
     if (state.hasProviderGap) {
       return 'The metadata catalogue could not complete this title. Check your '
@@ -271,8 +271,8 @@ class _DetailsContent extends StatelessWidget {
         Text(
           isCatalogueOnly
               ? 'No episode list yet — this title came from the metadata '
-                    'catalogue. Install an extension to discover streams.'
-              : 'This extension has not reported episode information yet.',
+                    'catalogue. Install a source to discover streams.'
+              : 'This source has not reported episode information yet.',
           style: const TextStyle(fontSize: 12, color: SpectaColors.textMuted),
         ),
       ];

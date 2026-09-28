@@ -65,7 +65,7 @@ class ExtensionManager {
           type: ExtensionFailureType.parseError,
           // PRE-F §15: the message reaches a SnackBar, so it must never carry
           // a filesystem path. The path stays in `detail` for diagnostics only.
-          message: 'That extension file could not be read.',
+          message: 'That source file could not be read.',
           extensionId: unidentifiedExtension,
           detail: 'Cannot read extension file: $filePath (${e.runtimeType})',
           operation: 'import',
@@ -118,7 +118,7 @@ class ExtensionManager {
         _buildFailure(
           type: ExtensionFailureType.unsupported,
           message:
-              'Extension API version ${manifest.apiVersion} / contract '
+              'Source API version ${manifest.apiVersion} / contract '
               '${manifest.effectiveContractVersion} is not supported by this '
               'SPECTA build.',
           extensionId: manifest.id,
@@ -269,7 +269,7 @@ class ExtensionManager {
       return Err<ExtensionRuntime>(
         _buildFailure(
           type: ExtensionFailureType.invalidResult,
-          message: 'Extension not found: $id',
+          message: 'Source not found: $id',
           extensionId: id,
           operation: 'load',
         ),
@@ -280,7 +280,7 @@ class ExtensionManager {
       return Err<ExtensionRuntime>(
         _buildFailure(
           type: ExtensionFailureType.capabilityError,
-          message: 'Extension is disabled: $id',
+          message: 'Source is disabled: $id',
           extensionId: id,
           operation: 'load',
         ),
@@ -317,7 +317,7 @@ class ExtensionManager {
         _buildFailure(
           type: ExtensionFailureType.runtimeError,
           // PRE-F §15: no filesystem path in a user-facing message.
-          message: 'That extension could not be loaded.',
+          message: 'That source could not be loaded.',
           extensionId: id,
           detail:
               'Cannot read extension file: ${record.filePath} '
@@ -338,7 +338,7 @@ class ExtensionManager {
       return Err<ExtensionRuntime>(
         _buildFailure(
           type: ExtensionFailureType.invalidResult,
-          message: 'Extension manifest is no longer valid: ${e.message}',
+          message: 'Source manifest is no longer valid: ${e.message}',
           extensionId: id,
           operation: 'load',
         ),
@@ -449,7 +449,7 @@ class ExtensionManager {
       return Err<T>(
         _buildFailure(
           type: ExtensionFailureType.runtimeError,
-          message: 'Extension runtime not loaded: $id',
+          message: 'Source runtime not loaded: $id',
           extensionId: id,
           operation: 'operation',
         ),
@@ -561,7 +561,7 @@ class ExtensionManager {
       return Err<ExtensionHealthState>(
         _buildFailure(
           type: ExtensionFailureType.invalidResult,
-          message: 'Extension not found: $id',
+          message: 'Source not found: $id',
           extensionId: id,
           operation: 'health',
         ),
@@ -620,31 +620,52 @@ class ExtensionManager {
 }
 
 /// Explains, in plain user-facing terms, why a picked or downloaded file is not
-/// a SPECTA extension.
+/// a SPECTA source.
 ///
-/// The dominant real-world case is a repository CATALOGUE — a JSON index of
-/// addons belonging to some other provider ecosystem — pasted into "Install
-/// from a link". SPECTA extensions are single-file JavaScript carrying a
-/// `// ==SpectaExtension==` manifest header. The two formats are not
-/// interchangeable, and a link that looks perfectly valid was previously refused
-/// with nothing more specific than a raw parser message, leaving users with no
-/// idea what they had pasted or what to do next.
+/// Three distinct real-world cases are separated, because they have three
+/// different fixes and collapsing them into one message is what made this
+/// confusing in the first place:
+///
+/// 1. A repository CATALOGUE — a JSON index of sources belonging to some other
+///    provider ecosystem — pasted into "Install from a link".
+/// 2. A `.js` file that carries NO `// ==SpectaExtension==` header at all. This
+///    is the case that produced the least honest message. The parser reads an
+///    EMPTY field map and then fails on whichever required field it happens to
+///    check first, so an ordinary file from another ecosystem was told
+///    "Missing required field: id" — literally true, and completely useless,
+///    because the file's real problem is that SPECTA never recognised its
+///    header in the first place. That exact message was observed on a real
+///    device and is the reason this branch now exists.
+/// 3. A file that DOES carry the header but is missing or has an invalid
+///    required field. Here the field name is genuinely useful, so it is kept.
 ///
 /// This changes only the EXPLANATION. Nothing here relaxes validation: a
-/// catalogue is still not installable as an extension, and the signature and
-/// trust gates are untouched.
+/// catalogue is still not installable as a source, and the signature and trust
+/// gates are untouched.
 String describeUnimportableSource(String jsCode, ManifestParseException cause) {
   final String head = jsCode.trimLeft();
   final bool looksLikeJson =
       head.startsWith('{') || head.startsWith('[') || head.startsWith('{');
   if (looksLikeJson) {
-    return 'That link is a repository catalogue — a JSON index of addons — not '
-        'a single SPECTA extension. Browse the catalogue to install from it, '
-        'or link the .js file of one provider directly.';
+    return 'That link is a repository catalogue — a JSON index of sources — '
+        'not a single SPECTA source. Open the repository to install from it, '
+        'or link the .js file of one source directly.';
   }
+
+  // The decisive question is whether SPECTA found its own header. When the
+  // header block is absent, `ManifestParser.parse` reads an empty field map and
+  // fails on the first required field it looks for — a misleading symptom
+  // rather than the real cause. Detecting the missing header directly is what
+  // turns "Missing required field: id" into something the user can act on. The
+  // header is still mandatory; this only names it.
+  if (ManifestParser.extractHeader(jsCode).isEmpty) {
+    return 'That file has no SPECTA source header. A SPECTA source is a .js '
+        'file that begins with a // ==SpectaExtension== header block.';
+  }
+
   if (!head.startsWith('//')) {
-    return 'That file is not a SPECTA extension. A SPECTA extension is a '
+    return 'That file is not a SPECTA source. A SPECTA source is a '
         '.js file that starts with a // ==SpectaExtension== manifest header.';
   }
-  return 'That file is not a valid SPECTA extension: ${cause.message}';
+  return 'That file is not a valid SPECTA source: ${cause.message}';
 }

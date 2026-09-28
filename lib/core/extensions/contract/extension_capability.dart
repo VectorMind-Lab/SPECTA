@@ -109,7 +109,7 @@ CapabilityFailure capabilityDeniedFailure({
     extensionId: extensionId,
     capability: capability.code,
     message:
-        'Extension did not declare the "${capability.code}" capability, '
+        'Source did not declare the "${capability.code}" capability, '
         'so $operation was refused.',
   );
 }

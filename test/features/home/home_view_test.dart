@@ -106,7 +106,7 @@ void main() {
     );
 
     expect(
-      find.textContaining('No extensions are installed yet'),
+      find.textContaining('No sources are installed yet'),
       findsOneWidget,
     );
     expect(find.text('New on SPECTA'), findsNothing);
@@ -140,9 +140,9 @@ void main() {
 
     // The catalogue result is visible.
     expect(find.text('Cowboy Bebop'), findsOneWidget);
-    // And the reason the extension rail is empty is still explained, not hidden.
+    // And the reason the source rail is empty is still explained, not hidden.
     expect(
-      find.textContaining('No extensions are installed yet'),
+      find.textContaining('No sources are installed yet'),
       findsOneWidget,
     );
   });

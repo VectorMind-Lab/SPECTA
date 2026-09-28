@@ -137,7 +137,7 @@ class ExtensionRuntime {
       return Err<void>(
         _runtimeFailure(
           type: ExtensionFailureType.runtimeError,
-          message: 'Extension failed to load',
+          message: 'Source failed to load',
           detail: _describe(e),
           operation: 'load',
         ),
@@ -155,7 +155,7 @@ class ExtensionRuntime {
       return Err<void>(
         _runtimeFailure(
           type: ExtensionFailureType.runtimeError,
-          message: 'Extension failed to instantiate',
+          message: 'Source failed to instantiate',
           detail: _describe(e),
           operation: 'load',
         ),
@@ -172,7 +172,7 @@ class ExtensionRuntime {
           type: e is TimeoutException
               ? ExtensionFailureType.timeout
               : ExtensionFailureType.runtimeError,
-          message: 'Extension load() failed',
+          message: 'Source load() failed',
           detail: _describe(e),
           operation: 'load',
         ),
@@ -497,7 +497,7 @@ class ExtensionRuntime {
       return Err<T>(
         _runtimeFailure(
           type: ExtensionFailureType.runtimeError,
-          message: 'Extension runtime is not loaded',
+          message: 'Source runtime is not loaded',
           operation: operation.name,
         ),
       );
@@ -564,7 +564,7 @@ class ExtensionRuntime {
           ok: false,
           errorType: ExtensionFailureType.capabilityError.code,
           error:
-              'CAPABILITY_ERROR: this extension did not declare the "network" '
+              'CAPABILITY_ERROR: this source did not declare the "network" '
               'capability, so request() is unavailable.',
         ).toMap(),
       );

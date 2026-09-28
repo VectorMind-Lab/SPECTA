@@ -98,10 +98,10 @@ void main() {
       () => container.read(extensionsProvider).status == ExtensionsStatus.ready,
     );
 
-    expect(find.text('Extensions'), findsOneWidget);
+    expect(find.text('Sources'), findsOneWidget);
     expect(find.text('0 installed'), findsOneWidget);
-    expect(find.textContaining('No extensions are installed'), findsOneWidget);
-    expect(find.text('Install extension'), findsOneWidget);
+    expect(find.textContaining('No sources are installed'), findsOneWidget);
+    expect(find.text('Install source'), findsOneWidget);
   });
 
   testWidgets('installing a file adds it to the list as Unverified', (
@@ -126,7 +126,7 @@ void main() {
 
     // The flow is picker-first (PRE-F §15): choose a file, then install. No
     // filesystem path is ever typed or displayed.
-    await tester.tap(find.text('Install extension'));
+    await tester.tap(find.text('Install source'));
     await openDialog(tester);
     await tester.tap(find.text('Choose a .js file…'));
     // The picker performs real file I/O; pump the real async zone until the
@@ -172,7 +172,7 @@ void main() {
       () => container.read(extensionsProvider).status == ExtensionsStatus.ready,
     );
 
-    await tester.tap(find.text('Install extension'));
+    await tester.tap(find.text('Install source'));
     await openDialog(tester);
     await tester.tap(find.text('Choose a .js file…'));
     for (int i = 0; i < 20 && find.text('broken.js').evaluate().isEmpty; i++) {
@@ -191,13 +191,18 @@ void main() {
     );
 
     // PRE-F §16: the reason is now explained in plain language instead of a raw
-    // parser prefix, and it never blames a size limit that was never hit.
-    expect(find.textContaining('not a SPECTA extension'), findsOneWidget);
+    // parser prefix, and it never blames a size limit that was never hit. The
+    // file carries no `// ==SpectaExtension==` header at all, so the message
+    // must NAME the missing header rather than report the first required field
+    // the parser happened to look for ("Missing required field: id") — which is
+    // exactly the misleading text captured on a real device.
+    expect(find.textContaining('no SPECTA source header'), findsOneWidget);
+    expect(find.textContaining('Missing required field'), findsNothing);
     expect(find.textContaining('too large'), findsNothing);
     // PRE-F §15: the surfaced error never carries a filesystem path.
     expect(find.textContaining(dir.path), findsNothing);
     expect(find.textContaining('/data/user/'), findsNothing);
-    expect(find.textContaining('No extensions are installed'), findsOneWidget);
+    expect(find.textContaining('No sources are installed'), findsOneWidget);
   });
 
   // PRE-F §15: no filesystem path may ever be rendered to the user.
@@ -219,7 +224,7 @@ void main() {
       () => container.read(extensionsProvider).status == ExtensionsStatus.ready,
     );
 
-    await tester.tap(find.text('Install extension'));
+    await tester.tap(find.text('Install source'));
     await openDialog(tester);
     await tester.tap(find.text('Choose a .js file…'));
     for (
@@ -315,7 +320,7 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.delete_outline_rounded));
       await openDialog(tester);
-      expect(find.text('Remove extension'), findsOneWidget);
+      expect(find.text('Remove source'), findsOneWidget);
 
       // Cancelling leaves the extension installed.
       await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
@@ -334,7 +339,7 @@ void main() {
       );
 
       expect(
-        find.textContaining('No extensions are installed'),
+        find.textContaining('No sources are installed'),
         findsOneWidget,
       );
       expect(await registry.getById('com.test.remove'), isNull);

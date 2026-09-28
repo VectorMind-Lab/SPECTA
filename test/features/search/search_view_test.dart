@@ -167,7 +167,7 @@ void main() {
 
     // No extensions installed → the round ends in the noExtensions state,
     // then clearing resets to idle.
-    expect(find.textContaining('No search-capable extensions'), findsOneWidget);
+    expect(find.textContaining('No search-capable sources'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.close_rounded));
     await tester.pump();

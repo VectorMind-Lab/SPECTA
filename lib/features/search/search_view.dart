@@ -143,8 +143,8 @@ class _SearchViewState extends ConsumerState<SearchView> {
                   ? const SpectaEmptyState(
                       icon: Icons.extension_off_rounded,
                       message:
-                          'No search-capable extensions are installed and enabled. '
-                          'Install one from the Extensions screen.',
+                          'No search-capable sources are installed and enabled. '
+                          'Install one from the Sources screen.',
                     )
                   : _ResultList(state: state),
           },

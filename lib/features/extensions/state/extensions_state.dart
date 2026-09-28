@@ -154,7 +154,7 @@ class ExtensionsNotifier extends Notifier<ExtensionsState> {
   Future<SpectaResult<ExtensionRecord>> installFromUrl(String url) async {
     final String clean = url.trim();
     if (clean.isEmpty) {
-      state = state.copyWith(errorMessage: 'Enter an extension link.');
+      state = state.copyWith(errorMessage: 'Enter a source link.');
       return Err<ExtensionRecord>(
         ExtensionDistributionFailure(
           type: ExtensionDistributionFailureType.invalidUrl,
@@ -216,8 +216,8 @@ class ExtensionsNotifier extends Notifier<ExtensionsState> {
       operation: enabled ? 'enable' : 'disable',
       action: () => _service.setEnabled(id, enabled),
       failureMessage: enabled
-          ? 'The extension could not be enabled.'
-          : 'The extension could not be disabled.',
+          ? 'The source could not be enabled.'
+          : 'The source could not be disabled.',
     );
   }
 
@@ -227,7 +227,7 @@ class ExtensionsNotifier extends Notifier<ExtensionsState> {
       id: id,
       operation: 'uninstall',
       action: () => _service.uninstall(id),
-      failureMessage: 'The extension could not be removed.',
+      failureMessage: 'The source could not be removed.',
     );
   }
 
@@ -285,8 +285,8 @@ class ExtensionsNotifier extends Notifier<ExtensionsState> {
       updateCheckDone: true,
       errorMessage: catalogue.isOk
           ? null
-          : 'The extension catalogue could not be reached. '
-                'Installed extensions are unaffected.',
+          : 'The source catalogue could not be reached. '
+                'Installed sources are unaffected.',
     );
   }
 
@@ -352,7 +352,7 @@ class ExtensionsNotifier extends Notifier<ExtensionsState> {
       state = ExtensionsState(
         status: ExtensionsStatus.failure,
         items: state.items,
-        errorMessage: 'Installed extensions could not be read.',
+        errorMessage: 'Installed sources could not be read.',
       );
     }
   }
