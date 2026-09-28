@@ -235,8 +235,16 @@ void main() {
   });
 
   group('the details sheet', () {
+    /// Opens the details sheet from the card's trailing overflow menu.
+    ///
+    /// Slice 1 moved Details out of the card face and into the overflow menu to
+    /// keep the card two rows. The sheet's contents and purpose are unchanged -
+    /// this is still where the source's own name lives, one tap away.
     Future<void> openDetails(WidgetTester tester) async {
-      await tester.tap(find.byIcon(Icons.info_outline_rounded).first);
+      await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('Details'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
     }
@@ -295,6 +303,10 @@ void main() {
   });
 
   group('the delete control respects Node 0', () {
+    // Slice 1: the delete affordance is now an entry in the card's trailing
+    // overflow menu rather than a delete IconButton on the card face. These
+    // still assert the real invariant - Node 0 cannot be deleted, a user node
+    // can - via the control that now carries it.
     testWidgets('is disabled and shows a lock for a locked node', (
       WidgetTester tester,
     ) async {
@@ -307,26 +319,33 @@ void main() {
       );
       await pumpView(tester);
 
-      final IconButton button = tester.widget<IconButton>(
-        find.ancestor(
-          of: find.byIcon(Icons.lock_outline_rounded),
-          matching: find.byType(IconButton),
+      await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // The reason is stated rather than the control silently vanishing.
+      expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
+      final PopupMenuItem<String> item = tester.widget<PopupMenuItem<String>>(
+        find.widgetWithText(
+          PopupMenuItem<String>,
+          'Node 0 is the core source and cannot be removed',
         ),
       );
-      expect(button.onPressed, isNull, reason: 'Node 0 must not be deletable');
+      expect(item.enabled, isFalse, reason: 'Node 0 must not be deletable');
     });
 
     testWidgets('is enabled for a user node', (WidgetTester tester) async {
       await install(id: 'com.leak.user', name: 'A', author: 'B', node: node1);
       await pumpView(tester);
 
-      final IconButton button = tester.widget<IconButton>(
-        find.ancestor(
-          of: find.byIcon(Icons.delete_outline_rounded),
-          matching: find.byType(IconButton),
-        ),
+      await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final PopupMenuItem<String> item = tester.widget<PopupMenuItem<String>>(
+        find.widgetWithText(PopupMenuItem<String>, 'Remove source'),
       );
-      expect(button.onPressed, isNotNull);
+      expect(item.enabled, isTrue);
     });
   });
 }

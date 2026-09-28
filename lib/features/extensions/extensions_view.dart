@@ -47,10 +47,7 @@ class ExtensionsView extends ConsumerWidget {
         _Header(
           count: state.items.length,
           busy: state.busy,
-          onInstall: () => _install(context, ref),
-          onInstallFromUrl: () => _installFromUrl(context, ref),
-          onBrowseCatalogue: () => _browseCatalogue(context, ref),
-          onBrowseRepository: () => _browseRepository(context, ref),
+          onAddSource: () => _showAddSourceSheet(context, ref),
           onReload: () => ref.read(extensionsProvider.notifier).reload(),
           onCheckUpdates: () => _checkForUpdates(context, ref),
           onOpenHealth: () => _openSourceHealth(context),
@@ -125,6 +122,105 @@ class ExtensionsView extends ConsumerWidget {
           },
         ),
       ],
+    );
+  }
+
+  /// Opens the "Add Source" sheet (Slice 1).
+  ///
+  /// This is the single, always-visible entry point for adding a source. It
+  /// replaces a cluster of header controls that had to be swiped to reach.
+  ///
+  /// It lists ONLY routes this build genuinely implements. Nothing is invented
+  /// and nothing is offered that cannot be completed:
+  ///   * a URL / link           -> `installFromUrl`
+  ///   * a JavaScript file      -> `installFromFile` (SAF picker)
+  ///   * the official catalogue -> `installFromCatalogueEntry`
+  ///   * a repository index     -> the repository sheet
+  ///
+  /// Every one of those already converges on the single central install
+  /// boundary (`ExtensionManager._processManifest`), which re-validates,
+  /// classifies trust and registers the node. This sheet is navigation only - it
+  /// creates no parallel install path and no second set of gates.
+  ///
+  /// The sheet scrolls vertically only, so every option stays reachable on a
+  /// short screen or at a large text scale, and "Install from a link" is fully
+  /// visible rather than clipped.
+  Future<void> _showAddSourceSheet(BuildContext context, WidgetRef ref) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
+                  child: Text(
+                    'Add a source',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: SpectaColors.textPrimary,
+                    ),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: Text(
+                    'Bring your own source. It is checked, then added as a new '
+                    'node you can order and switch off.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: SpectaColors.textMuted,
+                    ),
+                  ),
+                ),
+                _AddSourceOption(
+                  icon: Icons.link_rounded,
+                  label: 'Install from a link',
+                  detail: 'Paste an https address for a source file',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _installFromUrl(context, ref);
+                  },
+                ),
+                _AddSourceOption(
+                  icon: Icons.description_outlined,
+                  label: 'Import a JavaScript file',
+                  detail: 'Choose a .js file from this device',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _install(context, ref);
+                  },
+                ),
+                _AddSourceOption(
+                  icon: Icons.travel_explore_rounded,
+                  label: 'Browse the official catalogue',
+                  detail: 'Published sources you can install',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _browseCatalogue(context, ref);
+                  },
+                ),
+                _AddSourceOption(
+                  icon: Icons.storage_rounded,
+                  label: 'Add from a repository',
+                  detail: 'Open a source repository index by address',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _browseRepository(context, ref);
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -494,10 +590,7 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.count,
     required this.busy,
-    required this.onInstall,
-    required this.onInstallFromUrl,
-    required this.onBrowseCatalogue,
-    required this.onBrowseRepository,
+    required this.onAddSource,
     required this.onReload,
     required this.onCheckUpdates,
     required this.onOpenHealth,
@@ -505,10 +598,7 @@ class _Header extends StatelessWidget {
 
   final int count;
   final bool busy;
-  final VoidCallback onInstall;
-  final VoidCallback onInstallFromUrl;
-  final VoidCallback onBrowseCatalogue;
-  final VoidCallback onBrowseRepository;
+  final VoidCallback onAddSource;
   final VoidCallback onReload;
   final VoidCallback onCheckUpdates;
   final VoidCallback onOpenHealth;
@@ -516,115 +606,142 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text(
-                  'Sources',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: SpectaColors.textPrimary,
-                  ),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Text(
+                      'Sources',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: SpectaColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      count == 1 ? '1 installed' : '$count installed',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: SpectaColors.textMuted,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  count == 1 ? '1 installed' : '$count installed',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: SpectaColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              // Only genuinely low-frequency, non-primary actions live up here,
+              // and each is a fixed-size icon button, so this Row cannot overflow
+              // on a narrow phone.
+              //
+              // Slice 1 (2026-09-28) replaced a horizontal
+              // `SingleChildScrollView` action cluster that used to live here.
+              // It existed because a fixed Row of seven controls overflowed a
+              // real phone by 147 px (Phase F), and scrolling was the right
+              // minimal fix at the time. But it left "From a link", "Install
+              // from file" and Source Health off the right edge, reachable only
+              // by a swipe. That is not acceptable for a primary action, so the
+              // cluster is gone rather than merely re-tuned.
+              IconButton(
+                onPressed: busy ? null : onOpenHealth,
+                icon: const Icon(Icons.monitor_heart_outlined),
+                tooltip: 'Source health',
+                color: SpectaColors.textSecondary,
+              ),
+              IconButton(
+                onPressed: busy ? null : onCheckUpdates,
+                icon: const Icon(Icons.upgrade_rounded),
+                tooltip: 'Check the official catalogue for source updates',
+                color: SpectaColors.textSecondary,
+              ),
+              IconButton(
+                onPressed: busy ? null : onReload,
+                icon: const Icon(Icons.refresh_rounded),
+                tooltip: 'Reload installed sources',
+                color: SpectaColors.textSecondary,
+              ),
+            ],
           ),
-          // The action cluster is wider than a phone screen. Found on a REAL
-          // device (Phase F): a fixed Row overflowed by 147 px once the
-          // install-from-link and catalogue actions were added. The cluster
-          // scrolls sideways so every action stays reachable on a narrow
-          // screen. `Flexible` is required: a scroll view inside a Row is
-          // otherwise given unbounded width and overflows anyway.
-          Flexible(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
+          const SizedBox(height: 10),
+          // The one obvious way to add a source: full width, always visible at
+          // a normal phone width, never scrolled, clipped or hidden.
+          SpectaPrimaryButton(
+            label: 'Add Source',
+            icon: Icons.add_rounded,
+            onPressed: busy ? null : onAddSource,
+            fontSize: 14,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One row in the "Add Source" sheet: an icon, the route's name, and a plain
+/// sentence saying what it does.
+///
+/// Deliberately a full-width row rather than a button in a grid or a horizontal
+/// strip: the label must never be truncated or clipped on a narrow phone, and
+/// every option must be reachable by scrolling down only.
+class _AddSourceOption extends StatelessWidget {
+  const _AddSourceOption({
+    required this.icon,
+    required this.label,
+    required this.detail,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String detail;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: <Widget>[
+            Icon(icon, size: 22, color: SpectaColors.textSecondary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  IconButton(
-                    onPressed: busy ? null : onReload,
-                    icon: const Icon(Icons.refresh_rounded),
-                    tooltip: 'Reload installed sources',
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    onPressed: busy ? null : onCheckUpdates,
-                    icon: const Icon(Icons.upgrade_rounded),
-                    tooltip:
-                        'Check the official catalogue for source updates',
-                  ),
-                  const SizedBox(width: 8),
-                  SpectaSecondaryButton(
-                    label: 'From a link',
-                    icon: Icons.link_rounded,
-                    onPressed: busy ? null : onInstallFromUrl,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: SpectaColors.textPrimary,
                     ),
-                    fontSize: 13,
                   ),
-                  const SizedBox(width: 8),
-                  SpectaSecondaryButton(
-                    label: 'Repository',
-                    icon: Icons.storage_rounded,
-                    onPressed: busy ? null : onBrowseRepository,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
+                  const SizedBox(height: 2),
+                  Text(
+                    detail,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: SpectaColors.textMuted,
                     ),
-                    fontSize: 13,
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: busy ? null : onBrowseCatalogue,
-                    icon: const Icon(Icons.travel_explore_rounded),
-                    tooltip: 'Browse the official source catalogue',
-                  ),
-                  const SizedBox(width: 8),
-                  // Slice 7b: the entry point that makes Source Health reachable.
-                  // The icon is deliberately generic and neutral - it names no
-                  // provider and no site, matching everything else on this
-                  // surface. It lives inside the scrolling cluster so the
-                  // narrowest width still scrolls rather than overflowing.
-                  IconButton(
-                    onPressed: busy ? null : onOpenHealth,
-                    icon: const Icon(Icons.monitor_heart_outlined),
-                    tooltip: 'Source health',
-                  ),
-                  const SizedBox(width: 8),
-                  // "Install from file" rather than a bare "Install": with a
-                  // "From a link" action right there, the two routes must be
-                  // distinguishable at a glance. This action is ALWAYS present,
-                  // not only in the empty state, so a second or third source can
-                  // be added from a file.
-                  SpectaSecondaryButton(
-                    label: 'Install from file',
-                    icon: Icons.add_rounded,
-                    onPressed: busy ? null : onInstall,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    fontSize: 13,
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: SpectaColors.textMuted,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -684,19 +801,34 @@ class _ExtensionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SpectaCard(
+      // 8/6 top/bottom instead of the widget's default EdgeInsets.all(16). The
+      // card is two dense rows now, so the old 16 px inset was a quarter of the
+      // visible content: wasted height, repeated once per installed source.
+      padding: const EdgeInsets.fromLTRB(12, 8, 6, 6),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          // ROW 1 - identity and state.
           Row(
             children: <Widget>[
-              // PRIMARY LINE: the node label, and nothing else.
+              // The app-developer mark, BEFORE the label. Gated on a VERIFIED
+              // trust level only - see SpectaDeveloperDot for why nothing
+              // weaker may switch it on. It is a PROVENANCE mark, not a quality
+              // score and not a ranking: a green dot says who signed the file
+              // and nothing more. It never gates whether a source may be used.
+              if (extension.trustLevel == TrustLevel.official) ...<Widget>[
+                const SpectaDeveloperDot(),
+                const SizedBox(width: 8),
+              ],
+              // PRIMARY IDENTITY: the node label, and nothing else.
               //
               // The source's own name is deliberately NOT here. It is chosen by
-              // whoever wrote the extension, so showing it in the most prominent
+              // whoever wrote the source, so showing it in the most prominent
               // position of the user's source list would hand a third party
               // control of SPECTA's UI and leak a streaming-site name onto a
               // screen the owner reads every day. It lives in the details sheet.
-              Expanded(
+              Flexible(
                 child: Text(
                   extension.nodeLabel ?? 'Node',
                   style: const TextStyle(
@@ -708,122 +840,251 @@ class _ExtensionCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // The app-developer mark. Gated on a VERIFIED trust level only —
-              // see SpectaDeveloperDot for why nothing weaker may switch it on.
-              // It is a PROVENANCE mark, not a quality score and not a ranking:
-              // a green dot says who signed the file, nothing more. It sits
-              // after the flexible label so a truncated label can never hide it.
-              if (extension.trustLevel == TrustLevel.official) ...<Widget>[
-                const SizedBox(width: 7),
-                const SpectaDeveloperDot(),
-              ],
-              const SizedBox(width: 4),
+              const SizedBox(width: 8),
+              // Health sits on the identity row because it describes the source,
+              // not the controls. The `Flexible` above guarantees the badge is
+              // never pushed off the edge by a long label.
+              Flexible(child: _HealthBadge(extension: extension)),
               // Long-press drag handle. `buildDefaultDragHandles` is off so
               // only this handle starts a drag, leaving taps on the rest of the
               // card working normally.
               ReorderableDragStartListener(
                 index: index,
-                child: const Icon(
-                  Icons.drag_indicator_rounded,
-                  color: SpectaColors.textMuted,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 2),
+                  child: Icon(
+                    Icons.drag_indicator_rounded,
+                    size: 20,
+                    color: SpectaColors.textMuted,
+                  ),
                 ),
               ),
-              IconButton(
-                onPressed: () => _showDetails(context, extension),
-                icon: const Icon(Icons.info_outline_rounded),
-                color: SpectaColors.textSecondary,
-                tooltip: 'Details',
+              // Secondary actions live in an overflow menu. Compact does not
+              // mean cramming: update, restore, details and remove are all
+              // still reachable, one tap deeper, and the card stays two rows.
+              //
+              // The explicit constraints matter: a PopupMenuButton defaults to
+              // a 48 px target, which alone would have kept the identity row
+              // as tall as the old card's whole first row. 36 px stays well
+              // above the accessible minimum.
+              _CardOverflowMenu(
+                extension: extension,
+                updateVersion: updateVersion,
+                canRollback: canRollback,
+                busy: busy,
+                onDetails: () => _showDetails(context, extension),
+                onUpdate: onUpdate,
+                onRollback: onRollback,
+                onUninstall: onUninstall,
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          // Update / restore row. Shown only when there is genuinely something
-          // to do, so the card stays identical for an up-to-date extension.
-          if (updateVersion != null || canRollback) ...<Widget>[
-            const SizedBox(height: 8),
-            Row(
-              children: <Widget>[
-                if (updateVersion != null) ...<Widget>[
-                  SpectaSecondaryButton(
-                    label: 'Update to $updateVersion',
-                    icon: Icons.system_update_rounded,
-                    onPressed: busy ? null : onUpdate,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    fontSize: 12,
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                if (canRollback)
-                  SpectaSecondaryButton(
-                    label: 'Restore previous',
-                    icon: Icons.history_rounded,
-                    onPressed: busy ? null : onRollback,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    fontSize: 12,
-                  ),
-              ],
-            ),
-          ],
+          const SizedBox(height: 2),
+          // ROW 2 - ordering and the on/off switch.
           Row(
             children: <Widget>[
               // Reorder controls. Buttons rather than drag-only, so reordering
               // is reachable with a D-pad on a TV and with a screen reader.
               // The first card has no "up" and the last no "down"; Node 0 is
               // NOT exempt from either.
-              IconButton(
-                onPressed: (busy || onMoveUp == null) ? null : onMoveUp,
-                icon: const Icon(Icons.keyboard_arrow_up_rounded),
-                color: SpectaColors.textSecondary,
+              _MoveButton(
+                icon: Icons.keyboard_arrow_up_rounded,
                 tooltip: 'Move up',
+                onPressed: (busy || onMoveUp == null) ? null : onMoveUp,
               ),
-              IconButton(
-                onPressed: (busy || onMoveDown == null) ? null : onMoveDown,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                color: SpectaColors.textSecondary,
+              _MoveButton(
+                icon: Icons.keyboard_arrow_down_rounded,
                 tooltip: 'Move down',
+                onPressed: (busy || onMoveDown == null) ? null : onMoveDown,
               ),
-              _HealthBadge(extension: extension),
-              const Spacer(),
+              const SizedBox(width: 4),
+              // OFF is not DELETE. The switch disables a source without removing
+              // it, without deleting its file and without changing its place in
+              // the user's ordering.
               Text(
                 extension.enabled ? 'Enabled' : 'Disabled',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: SpectaColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                  color: extension.enabled
+                      ? SpectaColors.textSecondary
+                      : SpectaColors.textMuted,
                 ),
               ),
-              Switch(
-                value: extension.enabled,
-                onChanged: busy ? null : onToggle,
-              ),
-              IconButton(
-                // Node 0 is undeletable. The control is DISABLED rather than
-                // hidden, and the tooltip says why: silently removing the
-                // affordance would leave the user wondering where it went,
-                // while letting them tap it would only produce a refusal.
-                onPressed: (busy || extension.nodeLocked)
-                    ? null
-                    : onUninstall,
-                icon: Icon(
-                  extension.nodeLocked
-                      ? Icons.lock_outline_rounded
-                      : Icons.delete_outline_rounded,
+              const Spacer(),
+              // A full-size Switch is ~48 px tall and was the tallest thing in
+              // the old card. Wrapping it in a FittedBox scales the painted
+              // switch down while the surrounding 48 px box keeps the real tap
+              // target intact, so it stays easy to hit on a phone.
+              SizedBox(
+                height: 40,
+                width: 52,
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: Switch(
+                    value: extension.enabled,
+                    onChanged: busy ? null : onToggle,
+                  ),
                 ),
-                color: SpectaColors.failure,
-                tooltip: extension.nodeLocked
-                    ? '${extension.nodeLabel} is the core source and cannot be '
-                          'removed'
-                    : 'Remove source',
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A reorder arrow that is visually tight but keeps a real tap target.
+///
+/// A stock `IconButton` carries default padding and a 48 px minimum height,
+/// which is what made the card tall. Pinning `visualDensity` to compact and the
+/// constraints to 34 px removes the dead space around the glyph while staying
+/// comfortably above the 24 px accessible minimum, and keeping the tooltip so
+/// the control stays labelled for a screen reader.
+class _MoveButton extends StatelessWidget {
+  const _MoveButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 20),
+      color: SpectaColors.textSecondary,
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+    );
+  }
+}
+
+/// Trailing overflow menu for a node card's secondary actions.
+///
+/// Holds everything that is real but not frequent: details, update, restore and
+/// remove. Keeping these out of the two visible rows is what allows the card to
+/// stay compact without removing any capability.
+///
+/// Node 0's remove entry is shown but DISABLED, with the reason in the label,
+/// rather than hidden: silently dropping the affordance would leave the user
+/// wondering where it went.
+class _CardOverflowMenu extends StatelessWidget {
+  const _CardOverflowMenu({
+    required this.extension,
+    required this.updateVersion,
+    required this.canRollback,
+    required this.busy,
+    required this.onDetails,
+    required this.onUpdate,
+    required this.onRollback,
+    required this.onUninstall,
+  });
+
+  final ManagedExtension extension;
+  final String? updateVersion;
+  final bool canRollback;
+  final bool busy;
+  final VoidCallback onDetails;
+  final VoidCallback? onUpdate;
+  final VoidCallback? onRollback;
+  final VoidCallback onUninstall;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool locked = extension.nodeLocked;
+    return PopupMenuButton<String>(
+      // A generic "more" glyph names no provider and no site, matching the rest
+      // of this surface.
+      icon: const Icon(
+        Icons.more_vert_rounded,
+        size: 20,
+        color: SpectaColors.textSecondary,
+      ),
+      // A stock PopupMenuButton is a 48 px target, which would make the card's
+      // identity row as tall as it was before. 36 px keeps it comfortable to
+      // tap while letting the card shrink.
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      tooltip: 'More actions for ${extension.nodeLabel ?? 'this source'}',
+      onSelected: (String value) {
+        switch (value) {
+          case 'details':
+            onDetails();
+          case 'update':
+            onUpdate?.call();
+          case 'rollback':
+            onRollback?.call();
+          case 'uninstall':
+            onUninstall();
+        }
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        const PopupMenuItem<String>(
+          value: 'details',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.info_outline_rounded, size: 20),
+            title: Text('Details'),
+          ),
+        ),
+        if (updateVersion != null)
+          PopupMenuItem<String>(
+            value: 'update',
+            enabled: !busy,
+            child: ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.system_update_rounded, size: 20),
+              title: Text('Update to $updateVersion'),
+            ),
+          ),
+        if (canRollback)
+          PopupMenuItem<String>(
+            value: 'rollback',
+            enabled: !busy,
+            child: const ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.history_rounded, size: 20),
+              title: Text('Restore previous version'),
+            ),
+          ),
+        PopupMenuItem<String>(
+          value: 'uninstall',
+          enabled: !busy && !locked,
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              locked
+                  ? Icons.lock_outline_rounded
+                  : Icons.delete_outline_rounded,
+              size: 20,
+              color: locked ? SpectaColors.textMuted : SpectaColors.failure,
+            ),
+            title: Text(
+              locked
+                  ? '${extension.nodeLabel} is the core source and cannot be '
+                        'removed'
+                  : 'Remove source',
+              style: TextStyle(
+                color: locked
+                    ? SpectaColors.textMuted
+                    : SpectaColors.failure,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

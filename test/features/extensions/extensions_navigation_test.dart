@@ -132,26 +132,14 @@ void main() {
     return container;
   }
 
-  /// Scrolls the header's horizontal action cluster until [target] is on screen,
-  /// then taps it.
+  /// Taps a header action.
   ///
-  /// The cluster scrolls by design (it overflowed a real phone by 147 px in
-  /// Phase F), so an action can sit outside the viewport. A bare `tap()` on such
-  /// a finder silently misses. Scrolling first is what a user does, and it keeps
-  /// these tests honest about the real path rather than about an idealised one.
+  /// Slice 1 removed the horizontal scroll view this helper existed to scroll.
+  /// The header's actions are now fixed, always-on-screen icon buttons, so a
+  /// plain tap is correct. The helper is kept - rather than inlined - because
+  /// these tests are about reachability, and one place to tap is one place to
+  /// keep true.
   Future<void> tapHeaderAction(WidgetTester tester, Finder target) async {
-    final Finder cluster = find.descendant(
-      of: find.byType(SingleChildScrollView),
-      matching: find.byType(Scrollable),
-    );
-    if (cluster.evaluate().isNotEmpty) {
-      await tester.scrollUntilVisible(
-        target,
-        120,
-        scrollable: cluster.first,
-        maxScrolls: 40,
-      );
-    }
     await tester.pumpAndSettle();
     await tester.tap(target);
     await tester.pumpAndSettle();
@@ -242,7 +230,12 @@ void main() {
       // empty state, so with one node installed a second source could not be
       // added from a file at all. The action is now unconditional.
       expect(find.text('1 installed'), findsOneWidget);
-      expect(find.text('Install from file'), findsOneWidget);
+      // Slice 1: the action is one always-visible "+ Add Source" button, and
+      // the file route is one of its options. Assert both, so the file route
+      // can never quietly become unreachable once sources are installed.
+      expect(find.text('Add Source'), findsOneWidget);
+      await tapHeaderAction(tester, find.text('Add Source'));
+      expect(find.text('Import a JavaScript file'), findsOneWidget);
     });
 
     testWidgets('a second source is installed and becomes Node 2', (
@@ -258,7 +251,10 @@ void main() {
       );
 
       await pumpSources(tester, picker: _PathPicker(file));
-      await tapHeaderAction(tester, find.text('Install from file'));
+      // Slice 1: the file route now lives in the "Add Source" sheet, which is
+      // the single visible entry point for adding a source.
+      await tapHeaderAction(tester, find.text('Add Source'));
+      await tapHeaderAction(tester, find.text('Import a JavaScript file'));
 
       await tester.tap(find.text('Choose a .js file…'));
       await waitFor(

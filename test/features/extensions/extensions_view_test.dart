@@ -16,8 +16,33 @@ import 'package:specta/core/extensions/manager/in_memory_extension_registry.dart
 import 'package:specta/core/extensions/runtime/runtime_api.dart';
 import 'package:specta/features/extensions/extensions_view.dart';
 import 'package:specta/features/extensions/state/extensions_state.dart';
+import 'package:specta/ui/widgets/specta_card.dart';
 
 import '../../support/fake_js_sandbox.dart';
+
+/// The node a user-owned source receives. Slice 1's layout tests all install
+/// into the same space, so they share this one declaration.
+const SourceNode node1 = SourceNode(space: SourceNodeSpace.user, index: 1);
+
+/// A minimal installed record, for the tests that only care about layout.
+ExtensionRecord _record(String id, String name, SourceNode node) {
+  final DateTime now = DateTime.now().toUtc();
+  return ExtensionRecord(
+    id: id,
+    name: name,
+    version: '1.0.0',
+    author: 'SPECTA Tests',
+    apiVersion: 2,
+    contentType: 'movie',
+    signature: null,
+    trustLevel: TrustLevel.unverified,
+    enabled: true,
+    filePath: '$id.js',
+    installedAt: now,
+    updatedAt: now,
+    node: node,
+  );
+}
 
 /// Widget coverage for the extension-management surface: it renders persisted
 /// state, and its controls drive the real lifecycle service.
@@ -325,9 +350,14 @@ void main() {
       );
 
       // The confirmation names the NODE, not the source-supplied name.
-      await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+      //
+      // Slice 1: the delete affordance moved from the card face into the
+      // trailing overflow menu, so the tap is now "open menu, then Remove
+      // source". The behaviour under test is unchanged.
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
       await openDialog(tester);
-      expect(find.text('Remove source'), findsOneWidget);
+      await tester.tap(find.text('Remove source'));
+      await openDialog(tester);
       expect(find.textContaining('Remove Node 1?'), findsOneWidget);
       expect(find.textContaining('Remove Me'), findsNothing);
 
@@ -336,7 +366,9 @@ void main() {
       await openDialog(tester);
       expect(container.read(extensionsProvider).items, hasLength(1));
 
-      await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await openDialog(tester);
+      await tester.tap(find.text('Remove source'));
       await openDialog(tester);
       await tester.tap(find.widgetWithText(TextButton, 'Remove'));
       await tester.pump();
@@ -355,12 +387,15 @@ void main() {
     },
   );
 
-  // Regression, found on a REAL device during Phase F: at phone width the
-  // header's action Row overflowed by 147 px, which Flutter renders as a
-  // black/yellow hatch and one-character-per-line text. Every action must stay
-  // reachable on a narrow screen.
+  // Slice 1 (2026-09-28). This test previously asserted that a horizontally
+  // scrolling action cluster kept every action reachable. That was the wrong
+  // fix for the wrong problem: scrolling is acceptable for secondary chrome,
+  // never for a primary action, and it left "From a link" and "Install from
+  // file" off the right edge of a real phone. The cluster is gone, so this now
+  // asserts the stronger property: no horizontal scroll view exists on the
+  // screen, and "Add Source" is fully on-screen at phone width.
   testWidgets(
-    'the extensions header does not overflow on a narrow phone width',
+    'the sources header has no horizontal scroll and Add Source is visible',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1.0;
@@ -370,16 +405,220 @@ void main() {
       await settle(tester, container, () => true);
 
       expect(tester.takeException(), isNull);
-      // Every action is still present and reachable.
-      expect(find.text('From a link'), findsOneWidget);
-      // Slice 7b: the file install action is reachable at phone width too, and
-      // is now named for its route so it cannot be confused with "From a link".
-      expect(find.text('Install from file'), findsOneWidget);
+
+      // The actual defect: a HORIZONTALLY scrolling action cluster. Asserting
+      // its absence is what stops this silently regressing to the
+      // swipe-to-reach layout. A *vertical* scroll is still fine and expected
+      // (the node list itself scrolls, and so does the empty state), so this
+      // checks the scroll direction rather than the presence of a scroll view.
+      final Iterable<SingleChildScrollView> scrolls = tester
+          .widgetList<SingleChildScrollView>(
+            find.descendant(
+              of: find.byType(ExtensionsView),
+              matching: find.byType(SingleChildScrollView),
+            ),
+          );
+      for (final SingleChildScrollView scroll in scrolls) {
+        expect(
+          scroll.scrollDirection,
+          Axis.vertical,
+          reason:
+              'A horizontal scroll would push a primary action off the edge '
+              'of the screen.',
+        );
+      }
+
+      // The primary action, present and fully on-screen at phone width.
+      final Finder addSource = find.text('Add Source');
+      expect(addSource, findsOneWidget);
+      expect(
+        _isOnScreen(tester, addSource),
+        isTrue,
+        reason: '"Add Source" must be fully visible without scrolling.',
+      );
+
+      // Secondary chrome stays reachable as fixed, non-scrolling icon buttons.
       expect(find.byIcon(Icons.monitor_heart_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.travel_explore_rounded), findsOneWidget);
       expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.upgrade_rounded), findsOneWidget);
     },
   );
+
+  // A very narrow phone. The old header and the old card both overflowed here;
+  // this asserts the compact layout holds at 320 px.
+  testWidgets(
+    'Add Source and the node card fit a 320 px phone without overflow',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await registry.install(_record('com.test.narrow', 'Narrow Fixture', node1));
+
+      final ProviderContainer container = await pumpView(tester);
+      await settle(
+        tester,
+        container,
+        () => container.read(extensionsProvider).items.isNotEmpty,
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Add Source'), findsOneWidget);
+      expect(find.text('Node 1'), findsOneWidget);
+    },
+  );
+
+  // The compact card is measurably shorter than the three-row layout it
+  // replaced. A regression test on the number itself, because "looks tidier" is
+  // not something a widget test can otherwise prove.
+  testWidgets('the node card is compact', (WidgetTester tester) async {
+    await registry.install(_record('com.test.compact', 'Compact', node1));
+
+    final ProviderContainer container = await pumpView(tester);
+    await settle(
+      tester,
+      container,
+      () => container.read(extensionsProvider).items.isNotEmpty,
+    );
+
+    final double cardHeight = tester.getSize(find.byType(SpectaCard)).height;
+    // The old three-row card measured 138 px: 16 px padding top and bottom, a
+    // 48 px identity row, a 10 px gap, and a 48 px control row. The compact
+    // card drops the third row and trims the padding, so a threshold below the
+    // old value catches a regression to the old shape.
+    expect(
+      cardHeight,
+      lessThan(110),
+      reason:
+          'The node card should be two compact rows well under the old '
+          'three-row 138 px layout.',
+    );
+  });
+
+  // The Add Source sheet must offer ONLY routes this build really implements,
+  // and "Install from a link" must be fully visible - not clipped, and not
+  // behind a horizontal scroll. This was the original complaint.
+  testWidgets(
+    'Add Source offers the supported routes with a visible link option',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final ProviderContainer container = await pumpView(tester);
+      await settle(tester, container, () => true);
+
+      await tester.tap(find.text('Add Source'));
+      await openDialog(tester);
+
+      // Every route the code actually implements, and nothing invented.
+      expect(find.text('Install from a link'), findsOneWidget);
+      expect(find.text('Import a JavaScript file'), findsOneWidget);
+      expect(find.text('Browse the official catalogue'), findsOneWidget);
+      expect(find.text('Add from a repository'), findsOneWidget);
+
+      final Finder link = find.text('Install from a link');
+      expect(
+        _isOnScreen(tester, link),
+        isTrue,
+        reason: '"Install from a link" must be fully visible, not clipped.',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  // A source can actually be added through the UI, end to end. This proves the
+  // sheet is wired to the real install boundary rather than being a menu of
+  // labels.
+  testWidgets(
+    'a source can be added through the Add Source sheet',
+    (WidgetTester tester) async {
+      final File file = File('${dir.path}/added.js');
+      await tester.runAsync(
+        () => file.writeAsString(_source(id: 'com.test.added', name: 'Added')),
+      );
+
+      final ProviderContainer container = await pumpView(
+        tester,
+        picker: _PathPicker(file),
+      );
+      await settle(
+        tester,
+        container,
+        () =>
+            container.read(extensionsProvider).status == ExtensionsStatus.ready,
+      );
+
+      await tester.tap(find.text('Add Source'));
+      await openDialog(tester);
+      await tester.tap(find.text('Import a JavaScript file'));
+      await openDialog(tester);
+
+      await tester.tap(find.text('Choose a .js file…'));
+      for (
+        int i = 0;
+        i < 20 && find.text('added.js').evaluate().isEmpty;
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      await tester.tap(find.widgetWithText(TextButton, 'Install'));
+      await tester.pump();
+
+      await settle(
+        tester,
+        container,
+        () => container.read(extensionsProvider).items.isNotEmpty,
+      );
+
+      expect(container.read(extensionsProvider).items, hasLength(1));
+      expect(find.text('Node 1'), findsOneWidget);
+    },
+  );
+
+  // The compact card keeps every capability: details and remove live in the
+  // trailing overflow menu rather than on the card face.
+  testWidgets(
+    'the node card overflow menu carries details and remove',
+    (WidgetTester tester) async {
+      await registry.install(_record('com.test.menu', 'Menu Fixture', node1));
+
+      final ProviderContainer container = await pumpView(tester);
+      await settle(
+        tester,
+        container,
+        () => container.read(extensionsProvider).items.isNotEmpty,
+      );
+
+      // The compact card shows identity + state, not the secondary actions.
+      expect(find.text('Node 1'), findsOneWidget);
+      expect(find.text('Enabled'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await openDialog(tester);
+      expect(find.text('Details'), findsOneWidget);
+      expect(find.text('Remove source'), findsOneWidget);
+    },
+  );
+}
+
+/// Whether [finder]'s rendered box lies wholly inside the test view.
+///
+/// A layout overflow renders as a stripe, and a control pushed off the edge by
+/// a scroll view is equally unusable. This measures the real rendered rect
+/// against the real view, which is the property the requirement is actually
+/// about.
+bool _isOnScreen(WidgetTester tester, Finder finder) {
+  final Rect box = tester.getRect(finder);
+  final Size view = tester.view.physicalSize / tester.view.devicePixelRatio;
+  return box.left >= 0 &&
+      box.top >= 0 &&
+      box.right <= view.width &&
+      box.bottom <= view.height;
 }
 
 String _source({
