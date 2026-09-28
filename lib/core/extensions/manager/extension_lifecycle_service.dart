@@ -207,15 +207,28 @@ final class ExtensionLifecycleService {
         ),
       );
     }
-    managed.sort((ManagedExtension a, ManagedExtension b) {
-      final int byOrder = a.nodeOrder.compareTo(b.nodeOrder);
-      if (byOrder != 0) return byOrder;
-      final int byLabel = (a.nodeLabel ?? '').compareTo(b.nodeLabel ?? '');
-      if (byLabel != 0) return byLabel;
-      return a.id.compareTo(b.id);
-    });
+    managed.sort(_byDisplayOrder);
     return managed;
   }
+
+  /// The display ordering, mirroring the manager's `reorder` exactly.
+  ///
+  /// The two must agree: if the list sorted by one rule and a drag wrote
+  /// positions for another, a node would jump to a different place than the
+  /// one the user dropped it on.
+  static int _byDisplayOrder(ManagedExtension a, ManagedExtension b) {
+    final int byOrder = a.nodeOrder.compareTo(b.nodeOrder);
+    if (byOrder != 0) return byOrder;
+    final int byLabel = (a.nodeLabel ?? '').compareTo(b.nodeLabel ?? '');
+    if (byLabel != 0) return byLabel;
+    return a.id.compareTo(b.id);
+  }
+
+  /// Moves [id] to [index] in the user's display order and persists it.
+  ///
+  /// Node 0 is not pinned: it moves like any other node, and stays
+  /// undeletable wherever it lands.
+  Future<void> reorder(String id, int index) => manager.reorder(id, index);
 
   /// Enables or disables an extension. Persisted, and enforced by the manager.
   Future<void> setEnabled(String id, bool enabled) =>

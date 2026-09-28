@@ -210,6 +210,16 @@ class ExtensionsNotifier extends Notifier<ExtensionsState> {
     return result;
   }
 
+  /// Moves a node to a new position in the user's display order and persists it.
+  Future<SpectaResult<void>> reorder(String id, int index) {
+    return _mutate(
+      id: id,
+      operation: 'reorder',
+      action: () => _service.reorder(id, index),
+      failureMessage: 'The source order could not be changed.',
+    );
+  }
+
   /// Enables or disables an extension; the change is persisted immediately.
   Future<SpectaResult<void>> setEnabled(String id, bool enabled) {
     return _mutate(

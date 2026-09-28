@@ -62,6 +62,14 @@ class InMemoryExtensionRegistry implements ExtensionRegistry {
   }
 
   @override
+  Future<void> setNodeOrder(String id, int order) async {
+    final ExtensionRecord? existing = _extensions[id];
+    if (existing == null) return;
+    if (existing.nodeOrder == order) return;
+    _extensions[id] = existing.copyWith(nodeOrder: order);
+  }
+
+  @override
   Future<void> saveVersion(ExtensionVersionRecord record) async {
     _versions.add(record);
   }

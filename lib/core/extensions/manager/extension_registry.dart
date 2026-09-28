@@ -32,6 +32,14 @@ abstract class ExtensionRegistry {
   /// be harmless, and writing the SAME node again must not move it.
   Future<void> setNode(String id, SourceNode node);
 
+  /// Persists a node's display position.
+  ///
+  /// Positions are the user's own arrangement and are independent of
+  /// [ExtensionRecord.node]: a node may sit anywhere in the list, and moving it
+  /// must never change which node it is. Writing the same order twice is
+  /// harmless.
+  Future<void> setNodeOrder(String id, int order);
+
   /// Saves a version snapshot for rollback support.
   Future<void> saveVersion(ExtensionVersionRecord record);
 

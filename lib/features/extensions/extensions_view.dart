@@ -74,25 +74,49 @@ class ExtensionsView extends ConsumerWidget {
               action: () => _install(context, ref),
               actionLabel: 'Install source',
             ),
-            ExtensionsStatus.ready => ListView.separated(
+            ExtensionsStatus.ready => ReorderableListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              buildDefaultDragHandles: false,
               itemCount: state.items.length,
-              separatorBuilder: (BuildContext context, int index) =>
-                  const SizedBox(height: 8),
+              // onReorderItem, not onReorder: it already corrects newIndex for
+              // the removed item, so no manual off-by-one is needed (and adding
+              // one here would double-apply it).
+              onReorderItem: (int oldIndex, int newIndex) {
+                ref
+                    .read(extensionsProvider.notifier)
+                    .reorder(state.items[oldIndex].id, newIndex);
+              },
               itemBuilder: (BuildContext context, int index) {
-                return _ExtensionCard(
+                return Padding(
+                  // The key belongs on the widget ReorderableListView actually
+                  // builds, which is this Padding - not on the card inside it.
+                  key: ValueKey<String>(state.items[index].id),
+                  padding: EdgeInsets.only(
+                    bottom: index == state.items.length - 1 ? 0 : 8,
+                  ),
+                  child: _ExtensionCard(
                   extension: state.items[index],
                   busy: state.busy,
+                  index: index,
+                  isFirst: index == 0,
+                  isLast: index == state.items.length - 1,
                   updateVersion: state.updatesAvailable[state.items[index].id],
                   canRollback: state.rollbackAvailable.contains(
                     state.items[index].id,
                   ),
+                  onMoveUp: index == 0
+                      ? null
+                      : () => _reorder(context, ref, state.items[index], index - 1),
+                  onMoveDown: index == state.items.length - 1
+                      ? null
+                      : () => _reorder(context, ref, state.items[index], index + 1),
                   onToggle: (bool enabled) =>
                       _setEnabled(context, ref, state.items[index].id, enabled),
                   onUpdate: () => _update(context, ref, state.items[index]),
                   onRollback: () => _rollback(context, ref, state.items[index]),
                   onUninstall: () =>
                       _uninstall(context, ref, state.items[index]),
+                  ),
                 );
               },
             ),
@@ -379,6 +403,21 @@ class ExtensionsView extends ConsumerWidget {
     );
   }
 
+  Future<void> _reorder(
+    BuildContext context,
+    WidgetRef ref,
+    ManagedExtension extension,
+    int target,
+  ) async {
+    final SpectaResult<void> result = await ref
+        .read(extensionsProvider.notifier)
+        .reorder(extension.id, target);
+    if (result.isOk || !context.mounted) return;
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(result.failureOrNull!.message)));
+  }
+
   Future<void> _setEnabled(
     BuildContext context,
     WidgetRef ref,
@@ -563,8 +602,13 @@ class _ExtensionCard extends StatelessWidget {
   const _ExtensionCard({
     required this.extension,
     required this.busy,
+    required this.index,
+    required this.isFirst,
+    required this.isLast,
     required this.onToggle,
     required this.onUninstall,
+    this.onMoveUp,
+    this.onMoveDown,
     this.updateVersion,
     this.canRollback = false,
     this.onUpdate,
@@ -573,6 +617,14 @@ class _ExtensionCard extends StatelessWidget {
 
   final ManagedExtension extension;
   final bool busy;
+
+  /// Position in the visible list, for the drag handle's index.
+  final int index;
+
+  /// Whether this card is at either end of the list, which disables the
+  /// corresponding move control.
+  final bool isFirst;
+  final bool isLast;
 
   /// Newer version the catalogue advertises, when a check has found one.
   final String? updateVersion;
@@ -584,6 +636,13 @@ class _ExtensionCard extends StatelessWidget {
   final VoidCallback onUninstall;
   final VoidCallback? onUpdate;
   final VoidCallback? onRollback;
+
+  /// Move controls. Null at the corresponding end of the list.
+  ///
+  /// There is deliberately no "locked nodes cannot move" rule: Node 0 reorders
+  /// like anything else and stays undeletable wherever it lands (A4/Q5).
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
 
   void _showDetails(BuildContext context, ManagedExtension extension) {
     ExtensionDetailsSheet.show(context, extension);
@@ -626,6 +685,16 @@ class _ExtensionCard extends StatelessWidget {
                 const SpectaDeveloperDot(),
               ],
               const SizedBox(width: 4),
+              // Long-press drag handle. `buildDefaultDragHandles` is off so
+              // only this handle starts a drag, leaving taps on the rest of the
+              // card working normally.
+              ReorderableDragStartListener(
+                index: index,
+                child: const Icon(
+                  Icons.drag_indicator_rounded,
+                  color: SpectaColors.textMuted,
+                ),
+              ),
               IconButton(
                 onPressed: () => _showDetails(context, extension),
                 icon: const Icon(Icons.info_outline_rounded),
@@ -670,6 +739,22 @@ class _ExtensionCard extends StatelessWidget {
           ],
           Row(
             children: <Widget>[
+              // Reorder controls. Buttons rather than drag-only, so reordering
+              // is reachable with a D-pad on a TV and with a screen reader.
+              // The first card has no "up" and the last no "down"; Node 0 is
+              // NOT exempt from either.
+              IconButton(
+                onPressed: (busy || onMoveUp == null) ? null : onMoveUp,
+                icon: const Icon(Icons.keyboard_arrow_up_rounded),
+                color: SpectaColors.textSecondary,
+                tooltip: 'Move up',
+              ),
+              IconButton(
+                onPressed: (busy || onMoveDown == null) ? null : onMoveDown,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                color: SpectaColors.textSecondary,
+                tooltip: 'Move down',
+              ),
               _HealthBadge(extension: extension),
               const Spacer(),
               Text(

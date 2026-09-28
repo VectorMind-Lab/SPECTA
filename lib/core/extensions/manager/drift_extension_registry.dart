@@ -112,6 +112,15 @@ class DriftExtensionRegistry implements ExtensionRegistry {
   }
 
   @override
+  Future<void> setNodeOrder(String id, int order) async {
+    await (_db.update(
+      _db.extensions,
+    )..where(($ExtensionsTable t) => t.id.equals(id))).write(
+      ExtensionsCompanion(nodeOrder: Value<int>(order)),
+    );
+  }
+
+  @override
   Future<void> saveVersion(ExtensionVersionRecord record) async {
     await _db
         .into(_db.extensionVersions)

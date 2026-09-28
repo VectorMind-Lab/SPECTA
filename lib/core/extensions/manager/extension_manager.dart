@@ -339,6 +339,56 @@ class ExtensionManager {
     }
   }
 
+  /// Moves [id] to [index] in the user's display order.
+  ///
+  /// The supplied [index] is a POSITION IN THE CURRENT VISIBLE ORDER, not a
+  /// node number, and is clamped rather than rejected — a stale list must never
+  /// make an ordinary drag fail.
+  ///
+  /// Every other node is renumbered around it in one pass, so the result is a
+  /// dense 0..n-1 ordering with no gaps and no duplicates. Doing it one write
+  /// per node is what makes the order survive a restart: a partial write would
+  /// otherwise leave two nodes claiming the same position.
+  ///
+  /// A node's IDENTITY is untouched. Moving Node 0 to the end moves the card,
+  /// never the node, and never its locked flag. There is deliberately no
+  /// "Node 0 cannot move" rule (A4/Q5).
+  Future<void> reorder(String id, int index) async {
+    // Sorted exactly as `installed()` sorts, so a position the user saw is a
+    // position this method understands.
+    final List<ExtensionRecord> all = await _registry.getAll();
+    all.sort(_byDisplayOrder);
+    final int from = all.indexWhere((ExtensionRecord r) => r.id == id);
+    if (from < 0) return; // unknown id: nothing to move
+    if (all.length < 2) return;
+
+    final int to = index.clamp(0, all.length - 1);
+    if (to == from) return;
+
+    final ExtensionRecord moved = all.removeAt(from);
+    all.insert(to, moved);
+    for (int i = 0; i < all.length; i++) {
+      await _registry.setNodeOrder(all[i].id, i);
+    }
+  }
+
+  /// The single display ordering, used by both the list and [reorder].
+  ///
+  /// `nodeOrder` first — the user's arrangement — then the node label, then
+  /// the id. It is never the source's name: the name is provider-chosen, so
+  /// ordering by it would let a third party decide the order of the user's
+  /// list, and would leak a site name into the sort key.
+  ///
+  /// The label/id tie-breakers exist so two nodes that somehow share an order
+  /// still render in the same sequence on every run.
+  static int _byDisplayOrder(ExtensionRecord a, ExtensionRecord b) {
+    final int byOrder = a.nodeOrder.compareTo(b.nodeOrder);
+    if (byOrder != 0) return byOrder;
+    final int byLabel = (a.nodeLabel ?? '').compareTo(b.nodeLabel ?? '');
+    if (byLabel != 0) return byLabel;
+    return a.id.compareTo(b.id);
+  }
+
   /// Permanently removes an extension, its rows and its file.
   ///
   /// Returns a controlled failure when the node is locked (Node 0) or unknown.
