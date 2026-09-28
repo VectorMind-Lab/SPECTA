@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:specta/core/errors/specta_failure.dart';
 import 'package:specta/core/errors/specta_result.dart';
 
+import 'package:specta/core/extensions/compat/foreign_source_adapter.dart';
+import 'package:specta/core/extensions/compat/source_format_detector.dart';
 import 'package:specta/core/extensions/distribution/extension_storage.dart';
 import 'package:specta/core/extensions/identity/extension_health.dart';
 import 'package:specta/core/extensions/identity/source_node.dart';
@@ -14,6 +16,120 @@ import 'package:specta/core/extensions/verification/signature_verifier.dart';
 
 import 'extension_record.dart';
 import 'extension_registry.dart';
+
+/// The outcome of deciding what to do with a candidate source file.
+///
+/// Exactly one of [source] (importable, possibly after adaptation) or [failure]
+/// (refused, with a stated technical reason) is present.
+final class ResolvedImportableSource {
+  const ResolvedImportableSource._({
+    required this.source,
+    required this.analysis,
+    required this.failure,
+  });
+
+  /// The source to register: the original bytes for a native file, or the
+  /// adapted bytes for a recognised foreign one.
+  final String source;
+
+  /// What inspection found. Null only when [failure] is set.
+  final ForeignSourceAnalysis? analysis;
+
+  /// Why the file cannot be run. Null when the file is importable.
+  final SourceResolutionFailure? failure;
+
+  /// Whether the file was in a foreign format and has been adapted.
+  bool get wasAdapted => analysis?.format == SourceFormat.adapted;
+}
+
+/// A refusal, always carrying a concrete technical reason.
+final class SourceResolutionFailure {
+  const SourceResolutionFailure({required this.message, required this.detail});
+
+  /// What the user is shown. Never "it lacks the SPECTA header".
+  final String message;
+
+  /// Diagnostic detail for logs. Never shown.
+  final String detail;
+}
+
+/// Decides what to do with a candidate source file.
+///
+/// This is the compatibility entry point. It is deliberately a pure function of
+/// the file's bytes: the same file always produces the same decision, and the
+/// decision never depends on where the file came from, who wrote it, or whether
+/// a catalogue lists it.
+///
+/// ## The rule it implements
+///
+/// SPECTA is an open platform, so a file is classified by what it *contains*,
+/// not by which host it was written for:
+///
+/// * **native** - a `// ==SpectaExtension==` header. Registered unchanged.
+/// * **adapted** - JavaScript that implements one or more contract operations
+///   in a recognisable way. A manifest and a forwarding shim are generated so
+///   the existing runtime can execute it. The file's own code is not modified.
+/// * **unrecognised** - refused, with the reason stated.
+///
+/// ## What "adapted" does not mean
+///
+/// Adaptation is not endorsement and not trust. An adapted source is
+/// `TrustLevel.unverified` unless it carries a valid SPECTA signature, gets no
+/// green dot, and runs under exactly the same capability enforcement as any
+/// other source. The generated shim adds no authority of its own.
+ResolvedImportableSource resolveImportableSource(
+  String jsCode, {
+  String? sourcePath,
+}) {
+  final ForeignSourceAnalysis analysis = SourceFormatDetector.analyse(jsCode);
+
+  switch (analysis.format) {
+    case SourceFormat.native:
+      return ResolvedImportableSource._(
+        source: jsCode,
+        analysis: analysis,
+        failure: null,
+      );
+
+    case SourceFormat.adapted:
+      // Defence in depth: the detector only reports `adapted` when at least one
+      // contract operation was found. If that ever stops holding, refusing here
+      // is better than installing a source that cannot answer a single call.
+      if (analysis.entryPoints.isEmpty) {
+        return ResolvedImportableSource._(
+          source: '',
+          analysis: analysis,
+          failure: const SourceResolutionFailure(
+            message:
+                'This source declares no operations SPECTA can call, so there '
+                'is nothing to adapt.',
+            detail: 'adapted format with zero detected entry points',
+          ),
+        );
+      }
+      return ResolvedImportableSource._(
+        source: ForeignSourceAdapter.adapt(analysis, jsCode),
+        analysis: analysis,
+        failure: null,
+      );
+
+    case SourceFormat.unrecognised:
+      final String reason = analysis.rejectionReason ?? 'Unrecognised source.';
+      return ResolvedImportableSource._(
+        source: '',
+        analysis: analysis,
+        failure: SourceResolutionFailure(
+          message: reason,
+          // The path is recorded for diagnostics only and is never rendered to
+          // the user, so an error can point at a file without leaking a
+          // filesystem path into the UI.
+          detail:
+              'Unrecognised source: $reason (file: '
+              '${sourcePath ?? 'unknown'})',
+        ),
+      );
+  }
+}
 
 /// What a completed delete actually did.
 ///
@@ -141,9 +257,39 @@ class ExtensionManager {
     required String? recordId,
     required SourceNodeSpace space,
   }) async {
+    // COMPATIBILITY (Slice 2). SPECTA is an open platform, so a file that is not
+    // in the native format is inspected on its own terms rather than refused for
+    // lacking our header. `resolveImportableSource` returns the source to
+    // register, which is the original bytes for a native file and the adapted
+    // bytes for a recognised foreign one.
+    final ResolvedImportableSource resolved = resolveImportableSource(
+      jsCode,
+      sourcePath: targetPath,
+    );
+
+    if (resolved.failure != null) {
+      return Err<ExtensionRecord>(
+        _buildFailure(
+          type: ExtensionFailureType.invalidResult,
+          message: resolved.failure!.message,
+          extensionId: recordId ?? unidentifiedExtension,
+          detail: resolved.failure!.detail,
+          operation: 'import',
+        ),
+      );
+    }
+
+    // From here on the file is in the native contract, so the existing parser,
+    // compatibility check, trust classification and registry path are unchanged.
+    // Adaptation happens BEFORE validation, not instead of it: an adapted
+    // source passes the same gates as any other source, including the Ed25519
+    // check that keeps the green dot meaningful.
+    final String effectiveSource = resolved.source;
+    final bool adapted = resolved.analysis?.format == SourceFormat.adapted;
+
     late final ExtensionManifest manifest;
     try {
-      manifest = ManifestParser.parse(jsCode);
+      manifest = ManifestParser.parse(effectiveSource);
     } on ManifestParseException catch (e) {
       return Err<ExtensionRecord>(
         _buildFailure(
@@ -172,10 +318,54 @@ class ExtensionManager {
 
     final TrustLevel trustLevel = await _classifyTrust(
       manifest,
-      ManifestParser.extractBody(jsCode),
+      ManifestParser.extractBody(effectiveSource),
     );
 
+    // The id is always the one in the manifest. For an adapted source that is
+    // the content-derived id, so the record, the node and the stored file all
+    // agree without a second code path.
     final String id = recordId ?? manifest.id;
+
+    // An ADAPTED source must be persisted, because the runtime loads code from
+    // disk: without this, the record would point at the user's original file,
+    // the generated shim would never be executed, and every contract call would
+    // fail. A native source is already a valid file on disk and is left exactly
+    // where the user put it, so importing one never duplicates or moves a file.
+    String effectivePath = targetPath;
+    if (adapted) {
+      final SpectaResult<Directory> directory = await const
+          AppPrivateExtensionStorage().resolveDirectory();
+      if (directory.isErr) {
+        return Err<ExtensionRecord>(
+          _buildFailure(
+            type: ExtensionFailureType.invalidResult,
+            message: 'This source could not be stored on the device.',
+            extensionId: id,
+            detail: 'Cannot resolve extension storage: '
+                '${directory.failureOrNull!.message}',
+            operation: 'import',
+          ),
+        );
+      }
+      final SpectaResult<String> written = await ExtensionFileStore.write(
+        directory.valueOrNull!,
+        id,
+        effectiveSource,
+      );
+      if (written.isErr) {
+        return Err<ExtensionRecord>(
+          _buildFailure(
+            type: ExtensionFailureType.invalidResult,
+            message: 'This source could not be stored on the device.',
+            extensionId: id,
+            detail: 'Cannot write adapted source: '
+                '${written.failureOrNull!.message}',
+            operation: 'import',
+          ),
+        );
+      }
+      effectivePath = written.valueOrNull!;
+    }
 
     // Deterministic duplicate-ID handling (Phase 2H §6). Installing under an
     // id that already exists REPLACES that extension; it never creates a
@@ -233,7 +423,9 @@ class ExtensionManager {
       signature: manifest.signature,
       trustLevel: trustLevel,
       enabled: existing?.enabled ?? true,
-      filePath: targetPath,
+      // Points at the file the runtime will actually load: the user's own file
+      // for a native source, or the stored adapted file for a foreign one.
+      filePath: effectivePath,
       installedAt: existing?.installedAt ?? now,
       updatedAt: now,
       node: node,

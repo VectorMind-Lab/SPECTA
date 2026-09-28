@@ -218,13 +218,22 @@ void main() {
       () => container.read(extensionsProvider).errorMessage != null,
     );
 
-    // PRE-F §16: the reason is now explained in plain language instead of a raw
-    // parser prefix, and it never blames a size limit that was never hit. The
-    // file carries no `// ==SpectaExtension==` header at all, so the message
-    // must NAME the missing header rather than report the first required field
-    // the parser happened to look for ("Missing required field: id") — which is
-    // exactly the misleading text captured on a real device.
-    expect(find.textContaining('no SPECTA source header'), findsOneWidget);
+    // PRE-F §16: the reason is explained in plain language instead of a raw
+    // parser prefix, and it never blames a size limit that was never hit.
+    //
+    // SLICE 2 CHANGED THIS ON PURPOSE. The old assertion demanded the message
+    // say "no SPECTA source header" - i.e. the file was refused for lacking our
+    // header. That is exactly the rule the open-platform requirement
+    // supersedes: a file is not rejected merely for lacking the SPECTA header.
+    //
+    // 'not an extension at all' is still correctly refused, but now for a
+    // concrete technical reason - it is not a JavaScript source module at all,
+    // so there is nothing to execute. The reason must describe what the file
+    // actually IS, not which host it was written for.
+    expect(find.textContaining('not a JavaScript source module'), findsOneWidget);
+    // The refusal must not be justified by the missing header, nor by a raw
+    // parser field error, nor by a size limit that was never hit.
+    expect(find.textContaining('no SPECTA source header'), findsNothing);
     expect(find.textContaining('Missing required field'), findsNothing);
     expect(find.textContaining('too large'), findsNothing);
     // PRE-F §15: the surfaced error never carries a filesystem path.
