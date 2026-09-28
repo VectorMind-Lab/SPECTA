@@ -14,7 +14,8 @@
 | `flutter test` | **1252 passed Â· 39 skipped Â· 0 failed** |
 | Baseline before any slice | 1171 passed Â· 39 skipped Â· 0 failed |
 | Net new tests | **+81** |
-| On-device checks | **NOT VERIFIED â€” no device was connected this run** |
+| On-device checks | **14 of 22 PASS**, 1 FAIL, 3 PARTIAL, 4 NOT TESTED/NOT TESTABLE — see §9 |
+| Release APK | **BUILT, SIGNED, INSTALLED** (`assembleRelease`, exit 0, `adb install -r` -> `Success`) — see §9 |
 | Slice 8 (official repo sync) | **BLOCKED, as agreed** |
 
 ## 1. COMMITS, ONE PER SLICE
@@ -145,9 +146,13 @@ Diffed against the baseline commit `440fa9a`:
 Ed25519 trust, the SSRF/URL policy, the request policy and the source ranker
 were not modified by any slice.
 
-## 5. NOT VERIFIED â€” stated plainly
+## 5. NOT VERIFIED — stated plainly
 
-Everything below was **NOT VERIFIED** in this run. None of it is claimed as done.
+**This section describes the state after the implementation run only. A later
+device run closed most of it; see §9 for what is now actually verified, and §9.3
+for what is still open and why.**
+
+Everything below was **NOT VERIFIED** in the implementation run.
 
 - **No device was connected.** No on-device behaviour was exercised.
 - The Node 0 refusal **dialog** on a real device â€” NOT VERIFIED.
@@ -211,12 +216,117 @@ Three things went wrong and are recorded rather than hidden:
 Two test-fixture defects were also found and fixed, both of which had been
 making a migration test silently prove nothing (see Slice 3).
 
-## 9. FINAL STATE
+## 9. DEVICE VALIDATION RUN (real device, release APK)
 
-- **Release APK: NOT BUILT â€” NOT VERIFIED.** No APK was produced in this run and
-  none was installed on a device. Every claim above is from `flutter analyze` and
-  `flutter test` only.
-- **Where the final code lives:** `H:\dev\SPECTA`, branch `source-system-run`,
-  head `06728d9`. The C: copy at `C:\Users\PORTCR\Music\SPECTA APK\SPECTA` was
-  **never edited during implementation**; it received a copy-only sync at the very
-  end of the run (see the closing summary).
+**Date:** 2026-09-28. **Device:** `R83L20FRDFM` (SM_A065F, Android 16).
+**App:** `net.specta.app`, v1.0.0 (code 1).
+**Evidence:** `H:\dev\device_evidence` (XML text dumps only; no screenshot was
+needed for any claim below).
+
+Method: the previously installed **old** build was used to install one unsigned
+source, then the newly built **release** APK was installed over it with
+`adb install -r`. The app was never uninstalled, so this is a genuine in-place
+upgrade of a real v8 database.
+
+Build: `tool\build_with_env.ps1 -Release` -> `assembleRelease` in 356.9 s, exit 0,
+`app-release.apk` 108.9 MB, V2-signed (cert SHA-256 `99ac9d8e...15189303`).
+`adb install -r` returned **`Success`**, which also proves the new APK's signature
+matched the installed one. No key material was read, copied, printed or committed;
+signing was already configured via the git-ignored `android/key.properties` +
+`specta-release.jks`.
+
+### 9.1 RESULTS
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 1 | Unsigned source installs on the **old** app and is listed | **PASS** | `1 installed`; card `Dev Test Unsigned / Unverified / 1.0.0 - SPECTA Dev / net.specta.devtest.unsigned / Ready / Enabled` |
+| 2 | Release APK builds signed, installs with `-r`, app not uninstalled | **PASS** | `Success`; `dumpsys` still `net.specta.app` |
+| 3 | Test source **survives** the upgrade and shows as **Node 1** | **PASS** | `02_upgrade_node1.xml` -> `Sources`, `1 installed`, `Node 1 / Degraded / Enabled` |
+| 4 | Real v8 -> v10 migration ran on the device | **PASS** | `08_settings_schema_v10.xml` -> Diagnostics `SQLite schema` / `v10` |
+| 5 | Card shows **only** the node label; no name/author/id | **PASS** | `02_upgrade_node1.xml` -> `Node 1 / Degraded / Enabled` only |
+| 6 | No `/sdcard` path in any UI | **PASS** | No `/sdcard` string in any captured XML |
+| 7 | Details sheet shows name / author / id | **PASS** | `03_details_sheet.xml` -> `Name: Dev Test Unsigned`, `Author: SPECTA Dev`, `Identifier: net.specta.devtest.unsigned` |
+| 8 | Unsigned node has **no green dot** | **PASS** | Card is `Unverified`, no provenance dot; details sheet says "Not signed by SPECTA." |
+| 9 | Turn a node **OFF** | **PASS** | `04_toggled_off.xml` -> `Node 1 / Disabled / Disabled`, still `1 installed` |
+| 10 | Turn it back **ON** | **PASS** | `05_toggled_on.xml` -> `Node 1 / Degraded / Enabled` |
+| 11 | Delete a user node: gone from the list | **PASS** | `06_deleted.xml` -> `0 installed`, `No sources are installed.` |
+| 12 | Delete dialog names the **node**, not the source | **PASS** | `Remove Node 1? Its saved state on this device is deleted.` |
+| 13 | Node numbering is stable (A5/A6): reinstall reclaims `Node 1` | **PASS** | After delete + reinstall: `Node 1 / Ready / Enabled` |
+| 14 | Health reflects real recorded state, not a constant | **PASS** | Node 1 read `Degraded` after upgrade, `Ready` after clean reinstall |
+| 15 | SSRF: `http://` refused (F) | **PASS** | `07_url_ssrf_refused.xml` -> `That does not look like a valid source link.` |
+| 16 | SSRF: a public `https://` URL is accepted and fetched | **PARTIAL** | Policy accepted it and attempted the fetch; failed only on 404 -> `The source link could not be fetched.` |
+| 17 | File-picker install gets the **next** node number | **PARTIAL** | Install proven (checks 1, 3, 13); a *second concurrent* node could not be made. See 9.3 |
+| 18 | Pasted **https URL** install gets the next node number | **NOT TESTED** | No public HTTPS host serving a SPECTA-compatible `.js`. See 9.3 |
+| 19 | Reorder; order persists across a force-stop | **NOT TESTED** | Needs >= 2 nodes. See 9.3 |
+| 20 | Source Health: node labels only, "No data yet" when unused | **FAIL** | The screen is **not reachable in the shipped app**. See 9.2 |
+| 21 | Node 0 refusal dialog | **NOT TESTABLE** | Requires Node 0, which requires Slice 8. Not attempted. |
+
+### 9.2 DEFECT FOUND — the Source Health screen is unreachable (Slice 7)
+
+`SourceHealthView` (`lib/features/extensions/source_health_view.dart`) is **dead
+code in the shipped app**. A search of every file under `lib/` finds the symbol in
+exactly three places:
+
+- its own class declaration (line 26) and constructor (line 27),
+- a doc comment in `source_health_row.dart:11`.
+
+There is **no import, no route, no navigation entry and no construction site**
+anywhere in `lib/`. The only reference outside its own file is
+`test/features/extensions/source_health_view_test.dart`, which pumps the widget
+directly. That is why 1252 tests pass while the feature is invisible to users: the
+tests never travel through navigation.
+
+The consequence is that Slice 7's own gate — "suite green + device screenshot" —
+was met in a way that could not detect the defect. Decision **E** and **Q3** are
+currently unfulfilled in the product. The Sources toolbar offers only
+`Reload installed sources`, `Check the official catalogue for source updates` and
+`From a link`; the catalogue button does nothing because Slice 8 is blocked.
+
+**No code was changed.** Fixing this needs an owner decision: a new app-bar
+action on the Sources screen, or a route in the settings tree. It is a small
+navigation change but it is an owner-facing design decision, so per instruction it
+is reported rather than fixed.
+
+### 9.3 BLOCKED — why checks 17, 18 and 19 could not run
+
+The file-picker install entry (`Install source`) is rendered **only inside the
+empty state** (`extensions_view.dart:69-75`,
+`ExtensionsStatus.ready when state.items.isEmpty`). Once one source is installed,
+the Sources screen offers no way to add another by file, and the catalogue button
+is inert pending Slice 8. The only remaining route to a second node is
+`From a link`, i.e. a public HTTPS URL.
+
+That route cannot be exercised, because:
+
+- the SSRF policy (unchanged, decision F) correctly refuses LAN/loopback targets,
+  so a local HTTP server cannot be used;
+- the GitHub remote `VectorMind-Lab/SPECTA` is **not publicly reachable** — both
+  the raw file and the repository API return 404 — so there is no public SPECTA
+  source to point at;
+- Slice 8 is blocked precisely because no genuine public repository layout or
+  third-party sample file exists yet.
+
+Fabricating a public host, or disabling the SSRF policy to test the route, were
+both rejected: the first would invent data, the second would weaken a protected
+surface to make a test pass. Both are explicitly out of bounds.
+
+A secondary observation, **not a regression**: "install only from the empty state"
+is pre-existing baseline behaviour, confirmed by reading `extensions_view.dart` at
+commit `440fa9a`, where the same empty-state guard wraps the install button. Slice 5
+did not introduce it. It is recorded because it is what blocks a two-node reorder
+test.
+
+### 9.4 HONEST SUMMARY
+
+Eleven of the fourteen checks that could be run without Slice 8 passed, including
+the four the previous run had to record as NOT VERIFIED: the **real v8 -> v10
+migration on a real device** (check 4), the **card visual audit** (checks 5, 6, 8),
+the **details sheet** (check 7), and the **delete flow** (checks 11, 12).
+
+Reorder-survives-a-real-restart (check 19) is still **NOT VERIFIED**, for the
+concrete reason in 9.3 rather than for lack of a device. The one genuine **FAIL**
+is check 20, the unreachable Source Health screen, described in 9.2.
+
+Nothing in this run touched application code. The only repository change is this
+report.
+| 22 | Delete removes the `.js` from app storage (A7) | **NOT TESTED** | Release build: `run-as` refused (`package not debuggable`), app-private dir unreadable |
