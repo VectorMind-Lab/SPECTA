@@ -32,7 +32,7 @@ void main() {
     tearDown(() => database.close());
 
     test('opens the schema at the version this build declares', () {
-      expect(database.schemaVersion, 9);
+      expect(database.schemaVersion, 10);
     });
 
     test('a fresh v6 database creates a usable downloads table', () async {
@@ -111,7 +111,7 @@ void main() {
 
     // The v1 row survives and the version lands on the schema this build ships.
     expect(await SettingsDao(upgraded).read('theme.preset'), 'cyan');
-    expect(upgraded.schemaVersion, 9);
+    expect(upgraded.schemaVersion, 10);
 
     // Step 2's extension tables exist and are empty. Queried directly because
     // this test is about the CHAIN running on a v1 database; the registry DAO
@@ -241,7 +241,7 @@ void main() {
 
       // The upgrade runs on first use, and the pre-existing row survives.
       expect(await SettingsDao(upgraded).read('theme.preset'), 'cyan');
-      expect(upgraded.schemaVersion, 9);
+      expect(upgraded.schemaVersion, 10);
 
       // The new v3 table exists and is writable/readable.
       final LibraryDao library = LibraryDao(upgraded);
@@ -396,7 +396,7 @@ void main() {
 
       // The upgrade runs on first use; the pre-2G data survives verbatim.
       expect(await SettingsDao(upgraded).read('downloads.concurrency'), '3');
-      expect(upgraded.schemaVersion, 9);
+      expect(upgraded.schemaVersion, 10);
 
       // Phase 2F watch progress and provenance survive the migration.
       final LibraryDao library = LibraryDao(upgraded);

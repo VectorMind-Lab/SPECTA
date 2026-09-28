@@ -26,6 +26,7 @@ final class ExtensionRecord {
     this.node,
     this.nodeLocked = false,
     this.nodeOrder = 0,
+    this.lastSuccessAt,
   });
 
   final String id;
@@ -61,6 +62,16 @@ final class ExtensionRecord {
   /// Display position. The user may rearrange nodes freely, Node 0 included.
   final int nodeOrder;
 
+  /// When this source last COMPLETED an operation, or null if it never has.
+  ///
+  /// Null is a real, meaningful state, not missing data: it means no success has
+  /// ever been recorded. It is what lets the health screen say "No data yet"
+  /// instead of reporting a confident 100% for a source nobody has ever run.
+  final DateTime? lastSuccessAt;
+
+  /// Whether any successful operation has ever been recorded.
+  bool get hasRecordedActivity => lastSuccessAt != null;
+
   /// The node label, or null when the node has not been assigned yet.
   String? get nodeLabel => node?.label;
 
@@ -84,6 +95,8 @@ final class ExtensionRecord {
     bool clearNode = false,
     bool? nodeLocked,
     int? nodeOrder,
+    DateTime? lastSuccessAt,
+    bool clearLastSuccess = false,
   }) {
     return ExtensionRecord(
       id: id ?? this.id,
@@ -108,6 +121,9 @@ final class ExtensionRecord {
       node: clearNode ? null : (node ?? this.node),
       nodeLocked: nodeLocked ?? this.nodeLocked,
       nodeOrder: nodeOrder ?? this.nodeOrder,
+      lastSuccessAt: clearLastSuccess
+          ? null
+          : (lastSuccessAt ?? this.lastSuccessAt),
     );
   }
 

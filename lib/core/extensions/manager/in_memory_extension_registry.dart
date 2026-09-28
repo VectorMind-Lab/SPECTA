@@ -70,6 +70,18 @@ class InMemoryExtensionRegistry implements ExtensionRegistry {
   }
 
   @override
+  Future<void> setLastSuccess(String id, DateTime at) async {
+    final ExtensionRecord? existing = _extensions[id];
+    if (existing == null) return;
+    // Never move a recorded success BACKWARDS: the column means "the most
+    // recent success", and an out-of-order clock must not erase the fact that
+    // the source ever worked.
+    final DateTime? previous = existing.lastSuccessAt;
+    if (previous != null && !at.isAfter(previous)) return;
+    _extensions[id] = existing.copyWith(lastSuccessAt: at);
+  }
+
+  @override
   Future<void> saveVersion(ExtensionVersionRecord record) async {
     _versions.add(record);
   }

@@ -670,7 +670,30 @@ class ExtensionManager {
         ),
       );
     }
-    return operation(runtime);
+    final SpectaResult<T> result = await operation(runtime);
+    // Record REAL activity only. An operation that returned a controlled
+    // failure has proven nothing, so it must not stamp a success — otherwise a
+    // source that fails every single call would read as "working" on the health
+    // screen. A recording failure here is deliberately swallowed: telemetry
+    // must never turn a working operation into an error for the caller.
+    if (result.isOk) {
+      try {
+        await _registry.setLastSuccess(id, DateTime.now().toUtc());
+      } on Object {
+        // Best-effort.
+      }
+    }
+    return result;
+  }
+
+  /// Records a real success. Public so the paths that complete work outside
+  /// [callOperation] (resolution, discovery) can stamp the same honest fact.
+  Future<void> recordSuccess(String id) async {
+    try {
+      await _registry.setLastSuccess(id, DateTime.now().toUtc());
+    } on Object {
+      // Best-effort telemetry; never fail a user's request over it.
+    }
   }
 
   /// Runs a health check on a loaded extension and records the result.

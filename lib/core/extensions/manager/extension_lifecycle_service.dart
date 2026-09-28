@@ -44,6 +44,21 @@ final class ManagedExtension {
   bool get nodeLocked => record.nodeLocked;
   int get nodeOrder => record.nodeOrder;
   ExtensionHealth get healthState => health.health;
+
+  /// When this source last completed an operation, or null if it never has.
+  DateTime? get lastSuccessAt => record.lastSuccessAt;
+
+  /// Whether any real success has ever been recorded.
+  bool get hasRecordedActivity => record.hasRecordedActivity;
+
+  /// What the Source Health screen shows for this node.
+  ///
+  /// Derived from recorded facts only, and used for DISPLAY. It never feeds
+  /// ranking and never reorders anything.
+  SourceHealthDisplay get healthDisplay => SourceHealthMapping.of(
+        health: healthState,
+        hasRecordedActivity: hasRecordedActivity,
+      );
 }
 
 /// The application-facing boundary for extension installation and lifecycle.

@@ -40,6 +40,12 @@ abstract class ExtensionRegistry {
   /// harmless.
   Future<void> setNodeOrder(String id, int order);
 
+  /// Records that [id] completed an operation at [at].
+  ///
+  /// Only ever called on a real success. An install, a load or a failure must
+  /// not call it: a source that has merely been installed has proven nothing.
+  Future<void> setLastSuccess(String id, DateTime at);
+
   /// Saves a version snapshot for rollback support.
   Future<void> saveVersion(ExtensionVersionRecord record);
 

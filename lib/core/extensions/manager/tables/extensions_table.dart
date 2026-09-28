@@ -80,6 +80,22 @@ class Extensions extends Table {
   /// Display position. The user may reorder freely, including moving Node 0.
   IntColumn get nodeOrder => integer().withDefault(const Constant(0))();
 
+  // ---------------------------------------------------------------------------
+  // Real activity (schema v10).
+  //
+  // `last_success_at` is written ONLY when a source actually completes an
+  // operation. It is never set at install time, and never inferred.
+  //
+  // It exists so the Source Health screen can say "No data yet" HONESTLY. A
+  // source that has never completed anything is a genuinely different thing
+  // from one that succeeded twice and then broke, and the difference cannot be
+  // reconstructed from the failure count alone - zero failures reads the same
+  // for "never tried" and "working perfectly". NULL means "never recorded".
+  // ---------------------------------------------------------------------------
+
+  /// When this source last completed an operation, or null if it never has.
+  DateTimeColumn get lastSuccessAt => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

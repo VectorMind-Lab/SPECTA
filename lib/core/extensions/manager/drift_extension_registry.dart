@@ -40,6 +40,7 @@ class DriftExtensionRegistry implements ExtensionRegistry {
             nodeSpace: Value<String?>(record.node?.spaceCode),
             nodeLocked: Value<int>(record.nodeLocked ? 1 : 0),
             nodeOrder: Value<int>(record.nodeOrder),
+            lastSuccessAt: Value<DateTime?>(record.lastSuccessAt),
           ),
         );
   }
@@ -118,6 +119,32 @@ class DriftExtensionRegistry implements ExtensionRegistry {
     )..where(($ExtensionsTable t) => t.id.equals(id))).write(
       ExtensionsCompanion(nodeOrder: Value<int>(order)),
     );
+  }
+
+  @override
+  Future<void> setLastSuccess(String id, DateTime at) async {
+    // The monotonic guard lives HERE rather than relying on the write, because
+    // the write below is unconditional: a column meaning "most recent success"
+    // must never be moved backwards by an out-of-order clock. A test caught
+    // this guard being missing on the Drift side while present in memory.
+    final DateTime? previous = await _currentLastSuccess(id);
+    if (previous != null && !at.isAfter(previous)) return;
+    await (_db.update(
+      _db.extensions,
+    )..where(($ExtensionsTable t) => t.id.equals(id))).write(
+      ExtensionsCompanion(
+        lastSuccessAt: Value<DateTime?>(at),
+        updatedAt: Value<DateTime>(at),
+      ),
+    );
+  }
+
+  /// Reads just the recorded success for [id], or null when there is none.
+  Future<DateTime?> _currentLastSuccess(String id) async {
+    final Extension? row = await (_db.select(
+      _db.extensions,
+    )..where(($ExtensionsTable t) => t.id.equals(id))).getSingleOrNull();
+    return row?.lastSuccessAt;
   }
 
   @override
@@ -236,6 +263,7 @@ class DriftExtensionRegistry implements ExtensionRegistry {
           : '${row.nodeIndex}'),
       nodeLocked: row.nodeLocked == 1,
       nodeOrder: row.nodeOrder,
+      lastSuccessAt: row.lastSuccessAt,
     );
   }
 

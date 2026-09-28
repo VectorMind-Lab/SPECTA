@@ -18,7 +18,7 @@ abstract final class SpectaMigrations {
   /// Contract metadata = v7 (extension contract revision).
   /// Canonical identity metadata = v8 (provider identity columns).
   /// Source node identity = v9 (node label / space / locked / order).
-  static const int schemaVersion = 9;
+  static const int schemaVersion = 10;
 
   /// Migration step applied when moving *to* the keyed version.
   static final Map<int, Future<void> Function(Migrator m)>
@@ -206,6 +206,18 @@ abstract final class SpectaMigrations {
       );
       await m.database.customStatement(
         'ALTER TABLE extensions ADD COLUMN node_order INTEGER NOT NULL DEFAULT 0',
+      );
+    },
+    10: (Migrator m) async {
+      // Real activity, used by the Source Health screen.
+      //
+      // Additive and NULLABLE on purpose. Every existing row lands as NULL,
+      // which is the honest value: a source installed before this column
+      // existed has no recorded success, and SPECTA will not invent one to make
+      // the screen look better. Those sources honestly read "No data yet" until
+      // they actually complete something.
+      await m.database.customStatement(
+        'ALTER TABLE extensions ADD COLUMN last_success_at INTEGER',
       );
     },
   };

@@ -71,6 +71,105 @@ final class ExtensionHealthState {
       '$recentFailureCount, apiVersion: $apiVersion)';
 }
 
+/// What the Source Health screen shows for one node.
+///
+/// ## The percentage is a DISPLAY MAPPING, not a computed score
+///
+/// SPECTA has no basis for a real "reliability score": it does not know how
+/// many times a source was asked, only how many attempts failed. A percentage
+/// derived from that would be arithmetic theatre — it would read as a
+/// measurement while being an invention.
+///
+/// So the number is a small, fixed vocabulary mapped from facts that really
+/// exist, and it is only ever shown next to the words that explain it. The
+/// mapping is deliberately coarse: 100% does not claim perfection, it claims
+/// "working, with nothing recorded against it".
+///
+/// | Real state                              | Display     |
+/// |-----------------------------------------|-------------|
+/// | never completed anything                | No data yet |
+/// | healthy, 0 recent failures              | 100%        |
+/// | degraded, 1-2 recent failures           | 50%         |
+/// | unavailable, 3+ recent failures         | 10%         |
+/// | disabled                                | 0%          |
+/// | incompatible                            | 0%          |
+///
+/// This type is DISPLAY ONLY. It never feeds ranking, never reorders the
+/// source list, and never disables anything: `source_ranker.dart` and
+/// `source_manager.dart` are untouched by design, because priority must never
+/// override quality ranking.
+enum SourceHealthDisplay {
+  /// No successful activity has ever been recorded, so there is nothing to
+  /// report. Shown as words, never as a number — a percentage here would be a
+  /// fabricated measurement.
+  noDataYet('No data yet'),
+
+  /// Working, with nothing recorded against it in the window.
+  working('100%'),
+
+  /// Usable, but has failed recently.
+  degraded('50%'),
+
+  /// Failing often enough that another source should be preferred.
+  unavailable('10%'),
+
+  /// Switched off by the user. The user's own decision, not a fault.
+  off('0%'),
+
+  /// This build cannot run it, whatever the user would prefer.
+  unsupported('0%');
+
+  const SourceHealthDisplay(this.label);
+
+  /// The exact string shown to the user. Never a bare number without a state.
+  final String label;
+}
+
+/// Pure mapping from recorded facts to what the health screen displays.
+///
+/// Separated from the widget so the mapping can be tested exhaustively with no
+/// Flutter binding, and so the rules are stated in exactly one place.
+abstract final class SourceHealthMapping {
+  /// Maps a node's real state to its display.
+  ///
+  /// [hasRecordedActivity] is the fact that separates "never tried" from
+  /// "working": it is true only after a real success has been recorded. It is
+  /// NOT derived from the failure count, because zero failures reads the same
+  /// for a source nobody has run and a source that works perfectly.
+  ///
+  /// A disabled node reads as OFF regardless of how healthy it would otherwise
+  /// look. The user switched it off, and reporting its health facts as though
+  /// it were serving traffic would misdescribe what SPECTA is doing.
+  static SourceHealthDisplay of({
+    required ExtensionHealth health,
+    required bool hasRecordedActivity,
+  }) {
+    switch (health) {
+      case ExtensionHealth.incompatible:
+        return SourceHealthDisplay.unsupported;
+      case ExtensionHealth.disabled:
+        return SourceHealthDisplay.off;
+      case ExtensionHealth.healthy:
+        return hasRecordedActivity
+            ? SourceHealthDisplay.working
+            : SourceHealthDisplay.noDataYet;
+      case ExtensionHealth.degraded:
+        return SourceHealthDisplay.degraded;
+      case ExtensionHealth.temporarilyUnavailable:
+        return SourceHealthDisplay.unavailable;
+    }
+  }
+
+  /// The plain-language state, used as the heading above the percentage.
+  static String describe(ExtensionHealth health) => switch (health) {
+        ExtensionHealth.healthy => 'Ready',
+        ExtensionHealth.degraded => 'Working with problems',
+        ExtensionHealth.temporarilyUnavailable => 'Having trouble',
+        ExtensionHealth.disabled => 'Off',
+        ExtensionHealth.incompatible => 'Not supported by this version',
+      };
+}
+
 /// Pure classification rules for [ExtensionHealth].
 ///
 /// Kept separate from the manager so the policy is testable without a

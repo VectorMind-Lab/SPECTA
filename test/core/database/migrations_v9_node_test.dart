@@ -183,7 +183,10 @@ void main() {
     addTearDown(db.close);
 
     // The upgrade ran on open.
-    expect(db.schemaVersion, 9);
+    // This build is past v9 (Slice 7 added v10), so the file lands on the
+    // schema the CURRENT build declares. What this test protects is that the
+    // v9 step runs and the data survives it - not the final version number.
+    expect(db.schemaVersion, 10);
 
     final DriftExtensionRegistry registry = DriftExtensionRegistry(db);
     final ExtensionManager manager = ExtensionManager(registry: registry);

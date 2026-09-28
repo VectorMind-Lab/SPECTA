@@ -478,6 +478,18 @@ class $ExtensionsTable extends Extensions
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _lastSuccessAtMeta = const VerificationMeta(
+    'lastSuccessAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSuccessAt =
+      GeneratedColumn<DateTime>(
+        'last_success_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -499,6 +511,7 @@ class $ExtensionsTable extends Extensions
     nodeSpace,
     nodeLocked,
     nodeOrder,
+    lastSuccessAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -654,6 +667,15 @@ class $ExtensionsTable extends Extensions
         nodeOrder.isAcceptableOrUnknown(data['node_order']!, _nodeOrderMeta),
       );
     }
+    if (data.containsKey('last_success_at')) {
+      context.handle(
+        _lastSuccessAtMeta,
+        lastSuccessAt.isAcceptableOrUnknown(
+          data['last_success_at']!,
+          _lastSuccessAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -739,6 +761,10 @@ class $ExtensionsTable extends Extensions
         DriftSqlType.int,
         data['${effectivePrefix}node_order'],
       )!,
+      lastSuccessAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_success_at'],
+      ),
     );
   }
 
@@ -799,6 +825,9 @@ class Extension extends DataClass implements Insertable<Extension> {
 
   /// Display position. The user may reorder freely, including moving Node 0.
   final int nodeOrder;
+
+  /// When this source last completed an operation, or null if it never has.
+  final DateTime? lastSuccessAt;
   const Extension({
     required this.id,
     required this.name,
@@ -819,6 +848,7 @@ class Extension extends DataClass implements Insertable<Extension> {
     this.nodeSpace,
     required this.nodeLocked,
     required this.nodeOrder,
+    this.lastSuccessAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -852,6 +882,9 @@ class Extension extends DataClass implements Insertable<Extension> {
     }
     map['node_locked'] = Variable<int>(nodeLocked);
     map['node_order'] = Variable<int>(nodeOrder);
+    if (!nullToAbsent || lastSuccessAt != null) {
+      map['last_success_at'] = Variable<DateTime>(lastSuccessAt);
+    }
     return map;
   }
 
@@ -886,6 +919,9 @@ class Extension extends DataClass implements Insertable<Extension> {
           : Value(nodeSpace),
       nodeLocked: Value(nodeLocked),
       nodeOrder: Value(nodeOrder),
+      lastSuccessAt: lastSuccessAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSuccessAt),
     );
   }
 
@@ -916,6 +952,7 @@ class Extension extends DataClass implements Insertable<Extension> {
       nodeSpace: serializer.fromJson<String?>(json['nodeSpace']),
       nodeLocked: serializer.fromJson<int>(json['nodeLocked']),
       nodeOrder: serializer.fromJson<int>(json['nodeOrder']),
+      lastSuccessAt: serializer.fromJson<DateTime?>(json['lastSuccessAt']),
     );
   }
   @override
@@ -941,6 +978,7 @@ class Extension extends DataClass implements Insertable<Extension> {
       'nodeSpace': serializer.toJson<String?>(nodeSpace),
       'nodeLocked': serializer.toJson<int>(nodeLocked),
       'nodeOrder': serializer.toJson<int>(nodeOrder),
+      'lastSuccessAt': serializer.toJson<DateTime?>(lastSuccessAt),
     };
   }
 
@@ -964,6 +1002,7 @@ class Extension extends DataClass implements Insertable<Extension> {
     Value<String?> nodeSpace = const Value.absent(),
     int? nodeLocked,
     int? nodeOrder,
+    Value<DateTime?> lastSuccessAt = const Value.absent(),
   }) => Extension(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -988,6 +1027,9 @@ class Extension extends DataClass implements Insertable<Extension> {
     nodeSpace: nodeSpace.present ? nodeSpace.value : this.nodeSpace,
     nodeLocked: nodeLocked ?? this.nodeLocked,
     nodeOrder: nodeOrder ?? this.nodeOrder,
+    lastSuccessAt: lastSuccessAt.present
+        ? lastSuccessAt.value
+        : this.lastSuccessAt,
   );
   Extension copyWithCompanion(ExtensionsCompanion data) {
     return Extension(
@@ -1026,6 +1068,9 @@ class Extension extends DataClass implements Insertable<Extension> {
           ? data.nodeLocked.value
           : this.nodeLocked,
       nodeOrder: data.nodeOrder.present ? data.nodeOrder.value : this.nodeOrder,
+      lastSuccessAt: data.lastSuccessAt.present
+          ? data.lastSuccessAt.value
+          : this.lastSuccessAt,
     );
   }
 
@@ -1050,7 +1095,8 @@ class Extension extends DataClass implements Insertable<Extension> {
           ..write('nodeIndex: $nodeIndex, ')
           ..write('nodeSpace: $nodeSpace, ')
           ..write('nodeLocked: $nodeLocked, ')
-          ..write('nodeOrder: $nodeOrder')
+          ..write('nodeOrder: $nodeOrder, ')
+          ..write('lastSuccessAt: $lastSuccessAt')
           ..write(')'))
         .toString();
   }
@@ -1076,6 +1122,7 @@ class Extension extends DataClass implements Insertable<Extension> {
     nodeSpace,
     nodeLocked,
     nodeOrder,
+    lastSuccessAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -1099,7 +1146,8 @@ class Extension extends DataClass implements Insertable<Extension> {
           other.nodeIndex == this.nodeIndex &&
           other.nodeSpace == this.nodeSpace &&
           other.nodeLocked == this.nodeLocked &&
-          other.nodeOrder == this.nodeOrder);
+          other.nodeOrder == this.nodeOrder &&
+          other.lastSuccessAt == this.lastSuccessAt);
 }
 
 class ExtensionsCompanion extends UpdateCompanion<Extension> {
@@ -1122,6 +1170,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
   final Value<String?> nodeSpace;
   final Value<int> nodeLocked;
   final Value<int> nodeOrder;
+  final Value<DateTime?> lastSuccessAt;
   final Value<int> rowid;
   const ExtensionsCompanion({
     this.id = const Value.absent(),
@@ -1143,6 +1192,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     this.nodeSpace = const Value.absent(),
     this.nodeLocked = const Value.absent(),
     this.nodeOrder = const Value.absent(),
+    this.lastSuccessAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ExtensionsCompanion.insert({
@@ -1165,6 +1215,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     this.nodeSpace = const Value.absent(),
     this.nodeLocked = const Value.absent(),
     this.nodeOrder = const Value.absent(),
+    this.lastSuccessAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -1194,6 +1245,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     Expression<String>? nodeSpace,
     Expression<int>? nodeLocked,
     Expression<int>? nodeOrder,
+    Expression<DateTime>? lastSuccessAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1217,6 +1269,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
       if (nodeSpace != null) 'node_space': nodeSpace,
       if (nodeLocked != null) 'node_locked': nodeLocked,
       if (nodeOrder != null) 'node_order': nodeOrder,
+      if (lastSuccessAt != null) 'last_success_at': lastSuccessAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1241,6 +1294,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     Value<String?>? nodeSpace,
     Value<int>? nodeLocked,
     Value<int>? nodeOrder,
+    Value<DateTime?>? lastSuccessAt,
     Value<int>? rowid,
   }) {
     return ExtensionsCompanion(
@@ -1263,6 +1317,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
       nodeSpace: nodeSpace ?? this.nodeSpace,
       nodeLocked: nodeLocked ?? this.nodeLocked,
       nodeOrder: nodeOrder ?? this.nodeOrder,
+      lastSuccessAt: lastSuccessAt ?? this.lastSuccessAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1329,6 +1384,9 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
     if (nodeOrder.present) {
       map['node_order'] = Variable<int>(nodeOrder.value);
     }
+    if (lastSuccessAt.present) {
+      map['last_success_at'] = Variable<DateTime>(lastSuccessAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1357,6 +1415,7 @@ class ExtensionsCompanion extends UpdateCompanion<Extension> {
           ..write('nodeSpace: $nodeSpace, ')
           ..write('nodeLocked: $nodeLocked, ')
           ..write('nodeOrder: $nodeOrder, ')
+          ..write('lastSuccessAt: $lastSuccessAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5692,6 +5751,7 @@ typedef $$ExtensionsTableCreateCompanionBuilder = ExtensionsCompanion Function({
   Value<String?> nodeSpace,
   Value<int> nodeLocked,
   Value<int> nodeOrder,
+  Value<DateTime?> lastSuccessAt,
   Value<int> rowid,
 });
 typedef $$ExtensionsTableUpdateCompanionBuilder = ExtensionsCompanion Function({
@@ -5714,6 +5774,7 @@ typedef $$ExtensionsTableUpdateCompanionBuilder = ExtensionsCompanion Function({
   Value<String?> nodeSpace,
   Value<int> nodeLocked,
   Value<int> nodeOrder,
+  Value<DateTime?> lastSuccessAt,
   Value<int> rowid,
 });
 
@@ -5872,6 +5933,11 @@ class $$ExtensionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get lastSuccessAt => $composableBuilder(
+    column: $table.lastSuccessAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> extensionVersionsRefs(
     Expression<bool> Function($$ExtensionVersionsTableFilterComposer f) f,
   ) {
@@ -6026,6 +6092,11 @@ class $$ExtensionsTableOrderingComposer
     column: $table.nodeOrder,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get lastSuccessAt => $composableBuilder(
+    column: $table.lastSuccessAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExtensionsTableAnnotationComposer
@@ -6109,6 +6180,11 @@ class $$ExtensionsTableAnnotationComposer
 
   GeneratedColumn<int> get nodeOrder =>
       $composableBuilder(column: $table.nodeOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastSuccessAt => $composableBuilder(
+    column: $table.lastSuccessAt,
+    builder: (column) => column,
+  );
 
   Expression<T> extensionVersionsRefs<T extends Object>(
     Expression<T> Function($$ExtensionVersionsTableAnnotationComposer a) f,
@@ -6213,6 +6289,7 @@ class $$ExtensionsTableTableManager
                 Value<String?> nodeSpace = const Value.absent(),
                 Value<int> nodeLocked = const Value.absent(),
                 Value<int> nodeOrder = const Value.absent(),
+                Value<DateTime?> lastSuccessAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExtensionsCompanion(
                 id: id,
@@ -6234,6 +6311,7 @@ class $$ExtensionsTableTableManager
                 nodeSpace: nodeSpace,
                 nodeLocked: nodeLocked,
                 nodeOrder: nodeOrder,
+                lastSuccessAt: lastSuccessAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6257,6 +6335,7 @@ class $$ExtensionsTableTableManager
                 Value<String?> nodeSpace = const Value.absent(),
                 Value<int> nodeLocked = const Value.absent(),
                 Value<int> nodeOrder = const Value.absent(),
+                Value<DateTime?> lastSuccessAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExtensionsCompanion.insert(
                 id: id,
@@ -6278,6 +6357,7 @@ class $$ExtensionsTableTableManager
                 nodeSpace: nodeSpace,
                 nodeLocked: nodeLocked,
                 nodeOrder: nodeOrder,
+                lastSuccessAt: lastSuccessAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
