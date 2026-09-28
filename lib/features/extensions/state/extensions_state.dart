@@ -7,6 +7,7 @@ import '../../../core/errors/specta_result.dart';
 import '../../../core/extensions/catalogue/extension_catalogue.dart';
 import '../../../core/extensions/catalogue/extension_catalogue_client.dart';
 import '../../../core/extensions/manager/extension_lifecycle_service.dart';
+import '../../../core/extensions/manager/extension_manager.dart';
 import '../../../core/extensions/manager/extension_providers.dart';
 import '../../../core/extensions/manager/extension_record.dart';
 
@@ -221,14 +222,30 @@ class ExtensionsNotifier extends Notifier<ExtensionsState> {
     );
   }
 
-  /// Permanently removes an extension and retires its runtime.
-  Future<SpectaResult<void>> uninstall(String id) {
-    return _mutate(
-      id: id,
-      operation: 'uninstall',
-      action: () => _service.uninstall(id),
-      failureMessage: 'The source could not be removed.',
-    );
+  /// Permanently removes an extension, retires its runtime and deletes its file.
+  ///
+  /// The manager's own structured failure is surfaced verbatim, so the user is
+  /// told *why* a delete was refused ("Node 0 is the core source") instead of
+  /// the generic "could not be removed" that [setEnabled] can get away with.
+  /// A refusal leaves the list untouched: the node is still installed.
+  Future<SpectaResult<void>> uninstall(String id) async {
+    state = state.copyWith(busy: true, errorMessage: null);
+    final SpectaResult<UninstallOutcome> result = await _service.uninstall(id);
+    if (_disposed) {
+      return result.isOk ? const Ok<void>(null) : Err<void>(result.failureOrNull!);
+    }
+
+    if (result.isErr) {
+      // No reload: nothing changed, and re-reading would only hide the reason.
+      final SpectaFailure failure = result.failureOrNull!;
+      state = state.copyWith(busy: false, errorMessage: failure.message);
+      return Err<void>(failure);
+    }
+
+    await _load();
+    if (_disposed) return const Ok<void>(null);
+    state = state.copyWith(busy: false, errorMessage: null);
+    return const Ok<void>(null);
   }
 
   /// Checks the official catalogue for newer published versions (D7).

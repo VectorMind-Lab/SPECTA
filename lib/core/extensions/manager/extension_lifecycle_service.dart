@@ -221,8 +221,22 @@ final class ExtensionLifecycleService {
   Future<void> setEnabled(String id, bool enabled) =>
       manager.setEnabled(id, enabled);
 
-  /// Permanently removes an extension and retires its runtime.
-  Future<void> uninstall(String id) => manager.uninstall(id);
+  /// Permanently removes an extension, retires its runtime and deletes its file.
+  ///
+  /// Returns a controlled failure — never a throw, never a silent no-op — when
+  /// the node is locked (Node 0) or the id is not installed.
+  Future<SpectaResult<UninstallOutcome>> uninstall(String id) =>
+      manager.uninstall(id);
+
+  /// Whether [id] may be removed at all.
+  ///
+  /// Lets the UI disable the delete affordance for Node 0 before the user taps
+  /// it. The authoritative check is still [uninstall]: this is a hint, not a
+  /// gate, and a stale answer here can never permit an illegal delete.
+  Future<bool> canUninstall(String id) async {
+    final ExtensionRecord? record = await manager.getExtension(id);
+    return record != null && !record.nodeLocked;
+  }
 
   /// Whether a rollback point exists for [id] (a previous version was
   /// snapshotted by an earlier update).

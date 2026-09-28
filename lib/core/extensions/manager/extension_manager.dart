@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:specta/core/errors/specta_failure.dart';
 import 'package:specta/core/errors/specta_result.dart';
 
+import 'package:specta/core/extensions/distribution/extension_storage.dart';
 import 'package:specta/core/extensions/identity/extension_health.dart';
 import 'package:specta/core/extensions/identity/source_node.dart';
 import 'package:specta/core/extensions/identity/trust_level.dart';
@@ -13,6 +14,28 @@ import 'package:specta/core/extensions/verification/signature_verifier.dart';
 
 import 'extension_record.dart';
 import 'extension_registry.dart';
+
+/// What a completed delete actually did.
+///
+/// Returned so the caller can be honest: a row can be gone while the bytes
+/// survive (an unreadable file, or one outside app-private storage that the
+/// guard refused to touch). Collapsing both cases into `void` would let the UI
+/// claim a clean delete it cannot prove.
+final class UninstallOutcome {
+  const UninstallOutcome({
+    required this.id,
+    required this.nodeLabel,
+    required this.fileRemoved,
+  });
+
+  final String id;
+
+  /// The node label this source held, for the confirmation message.
+  final String? nodeLabel;
+
+  /// True only when a file was actually deleted from disk.
+  final bool fileRemoved;
+}
 
 /// High-level coordinator for extension lifecycle management.
 ///
@@ -31,11 +54,20 @@ class ExtensionManager {
     this._runtimeApi,
     this._sandboxFactory,
     SignatureVerifier? verifier,
-  }) : _verifier = verifier ?? SignatureVerifier.instance;
+    SourceFileRemover? fileRemover,
+  })  : _verifier = verifier ?? SignatureVerifier.instance,
+        // Defaults to the production remover so a real app never silently
+        // leaves orphan files behind; tests inject a rooted double.
+        _fileRemover = fileRemover ?? const AppPrivateSourceFileRemover();
 
   final ExtensionRegistry _registry;
   final ExtensionRuntimeApi? _runtimeApi;
   final ExtensionJsSandbox Function()? _sandboxFactory;
+
+  /// Deletes the source file on uninstall, under an app-private containment
+  /// guard. Never null: a missing remover would silently reintroduce the
+  /// orphan-file bug this exists to close.
+  final SourceFileRemover _fileRemover;
 
   /// Verifies extension signatures. Defaults to the verifier bound to SPECTA's
   /// published public key; tests inject one bound to a throwaway key, because
@@ -307,13 +339,65 @@ class ExtensionManager {
     }
   }
 
-  /// Permanently removes an extension.
+  /// Permanently removes an extension, its rows and its file.
   ///
-  /// The runtime is retired BEFORE the registry row is deleted, so a removed
-  /// extension is never left executing.
-  Future<void> uninstall(String id) async {
+  /// Returns a controlled failure when the node is locked (Node 0) or unknown.
+  /// It never throws and never silently no-ops: a refused delete must be
+  /// distinguishable from a completed one by the caller that renders it.
+  ///
+  /// Order matters and is deliberate:
+  ///   1. The guard runs FIRST, before anything is retired or removed, so a
+  ///      refused Node 0 keeps its runtime alive and its row intact. A guard
+  ///      that ran after `_retireRuntime` would kill the user's working source
+  ///      and then refuse to delete it — the worst possible outcome.
+  ///   2. The runtime is retired before the row goes, so a removed source is
+  ///      never left executing.
+  ///   3. `filePath` is read from the record BEFORE the row is deleted, because
+  ///      afterwards it is gone — that is the orphan-file bug this closes.
+  ///   4. The file is removed only through [SourceFileRemover], which refuses
+  ///      any path outside app-private storage.
+  Future<SpectaResult<UninstallOutcome>> uninstall(String id) async {
+    final ExtensionRecord? record = await _registry.getById(id);
+    if (record == null) {
+      return Err<UninstallOutcome>(
+        _buildFailure(
+          type: ExtensionFailureType.invalidResult,
+          message: 'That source is not installed.',
+          extensionId: id,
+          operation: 'uninstall',
+        ),
+      );
+    }
+
+    if (record.nodeLocked) {
+      return Err<UninstallOutcome>(
+        _buildFailure(
+          type: ExtensionFailureType.capabilityError,
+          // The owner of SPECTA always needs one working source. The refusal is
+          // stated in the user's terms, and names the node — never the site.
+          message:
+              '${record.nodeLabel ?? 'This node'} is the core source and cannot '
+              'be removed. You can turn it off instead.',
+          extensionId: id,
+          operation: 'uninstall',
+          detail: 'Refused: node_locked = 1 for node ${record.nodeLabel}.',
+        ),
+      );
+    }
+
     await _retireRuntime(id);
+    // Read before the delete: after this line the path no longer exists anywhere.
+    final String filePath = record.filePath;
     await _registry.uninstall(id);
+
+    final bool fileRemoved = await _fileRemover.remove(filePath);
+    return Ok<UninstallOutcome>(
+      UninstallOutcome(
+        id: id,
+        nodeLabel: record.nodeLabel,
+        fileRemoved: fileRemoved,
+      ),
+    );
   }
 
   /// Enables or disables an extension.

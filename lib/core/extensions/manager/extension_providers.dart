@@ -53,6 +53,15 @@ final Provider<ControlledExtensionRuntimeApi> extensionRuntimeApiProvider =
       return api;
     });
 
+/// Removes source files on uninstall, under the app-private containment guard.
+/// Overridable in tests so no test ever resolves a real platform directory.
+final Provider<SourceFileRemover> sourceFileRemoverProvider =
+    Provider<SourceFileRemover>((Ref ref) {
+  return AppPrivateSourceFileRemover(
+    storage: ref.watch(extensionStorageProvider),
+  );
+});
+
 /// The single entry point consumers use to work with extensions.
 ///
 /// Constructing this builds a registry, the controlled request API and the
@@ -65,6 +74,8 @@ final Provider<ExtensionManager> extensionManagerProvider =
         sandboxFactory: FlutterJsSandbox.new,
         // Verification against SPECTA's published public key.
         verifier: SignatureVerifier.instance,
+        // A real delete must remove the .js as well as the rows.
+        fileRemover: ref.watch(sourceFileRemoverProvider),
       );
     });
 
