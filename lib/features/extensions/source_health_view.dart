@@ -102,3 +102,35 @@ class SourceHealthView extends ConsumerWidget {
     );
   }
 }
+
+/// The Source Health screen as a pushed page.
+///
+/// Slice 7b. [SourceHealthView] alone is a bare `Column` — correct as the body
+/// of a screen, but it carries no way to get BACK, so pushing it directly would
+/// strand the user. This wraps it in the same `Scaffold` + `AppBar` + `BackButton`
+/// shape every other pushed view in the app uses (see `DetailsView`).
+///
+/// It is deliberately separate from [SourceHealthView] rather than folded into
+/// it: the view's own tests pump the widget directly, and giving the widget its
+/// own chrome would have forced those tests to change for no behavioural reason.
+class SourceHealthPage extends StatelessWidget {
+  const SourceHealthPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: SpectaColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        leading: BackButton(onPressed: () => Navigator.of(context).maybePop()),
+        title: const Text(
+          'Source Health',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      body: const SourceHealthView(),
+    );
+  }
+}
+

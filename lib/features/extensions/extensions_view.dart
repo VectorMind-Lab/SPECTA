@@ -20,6 +20,7 @@ import 'extensions_catalogue_sheet.dart';
 import 'extensions_details_sheet.dart';
 import 'extensions_repository_sheet.dart';
 import 'extensions_url_dialog.dart';
+import 'source_health_view.dart';
 import 'state/extensions_state.dart';
 
 /// Extension Manager: the install/manage surface for SPECTA extensions.
@@ -52,6 +53,7 @@ class ExtensionsView extends ConsumerWidget {
           onBrowseRepository: () => _browseRepository(context, ref),
           onReload: () => ref.read(extensionsProvider.notifier).reload(),
           onCheckUpdates: () => _checkForUpdates(context, ref),
+          onOpenHealth: () => _openSourceHealth(context),
         ),
         Expanded(
           child: switch (state.status) {
@@ -123,6 +125,19 @@ class ExtensionsView extends ConsumerWidget {
           },
         ),
       ],
+    );
+  }
+
+  /// Opens Source Health (Slice 7b).
+  ///
+  /// This is the ONLY way into that screen. Before this existed the screen was
+  /// built, tested and shipped - and was unreachable, because nothing in `lib/`
+  /// ever constructed it. The route lives here, on the surface the user is
+  /// already looking at, so the screen and its tests now describe something a
+  /// person can actually reach.
+  void _openSourceHealth(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (BuildContext _) => const SourceHealthPage()),
     );
   }
 
@@ -485,6 +500,7 @@ class _Header extends StatelessWidget {
     required this.onBrowseRepository,
     required this.onReload,
     required this.onCheckUpdates,
+    required this.onOpenHealth,
   });
 
   final int count;
@@ -495,6 +511,7 @@ class _Header extends StatelessWidget {
   final VoidCallback onBrowseRepository;
   final VoidCallback onReload;
   final VoidCallback onCheckUpdates;
+  final VoidCallback onOpenHealth;
 
   @override
   Widget build(BuildContext context) {
@@ -577,8 +594,24 @@ class _Header extends StatelessWidget {
                     tooltip: 'Browse the official source catalogue',
                   ),
                   const SizedBox(width: 8),
+                  // Slice 7b: the entry point that makes Source Health reachable.
+                  // The icon is deliberately generic and neutral - it names no
+                  // provider and no site, matching everything else on this
+                  // surface. It lives inside the scrolling cluster so the
+                  // narrowest width still scrolls rather than overflowing.
+                  IconButton(
+                    onPressed: busy ? null : onOpenHealth,
+                    icon: const Icon(Icons.monitor_heart_outlined),
+                    tooltip: 'Source health',
+                  ),
+                  const SizedBox(width: 8),
+                  // "Install from file" rather than a bare "Install": with a
+                  // "From a link" action right there, the two routes must be
+                  // distinguishable at a glance. This action is ALWAYS present,
+                  // not only in the empty state, so a second or third source can
+                  // be added from a file.
                   SpectaSecondaryButton(
-                    label: 'Install',
+                    label: 'Install from file',
                     icon: Icons.add_rounded,
                     onPressed: busy ? null : onInstall,
                     padding: const EdgeInsets.symmetric(

@@ -372,7 +372,10 @@ void main() {
       expect(tester.takeException(), isNull);
       // Every action is still present and reachable.
       expect(find.text('From a link'), findsOneWidget);
-      expect(find.text('Install'), findsOneWidget);
+      // Slice 7b: the file install action is reachable at phone width too, and
+      // is now named for its route so it cannot be confused with "From a link".
+      expect(find.text('Install from file'), findsOneWidget);
+      expect(find.byIcon(Icons.monitor_heart_outlined), findsOneWidget);
       expect(find.byIcon(Icons.travel_explore_rounded), findsOneWidget);
       expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
     },
