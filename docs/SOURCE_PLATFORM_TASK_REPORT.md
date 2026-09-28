@@ -70,7 +70,7 @@ Governing rules for the work below:
 | Item | Status |
 |---|---|
 | Docs corrected and superseded decisions marked | see §5 of the plan |
-| Slice 1 UI implemented, tested, committed | done — `fce5070`. Device checks A1-A6 are written and analyzer-clean but **NOT RUN** (§C.3 item 1; `SOURCE_RUN_REPORT.md` §13.4) |
-| Slice 2 compatibility, documented per format, tested | done — `d54e3af`, then **fixed**: `SOURCE_RUN_REPORT.md` §13.2 found the generated shim did not parse at all. Install VERIFIED, host-engine runtime VERIFIED, device runtime NOT VERIFIED |
+| Slice 1 UI implemented, tested, committed | done — `fce5070`, **device checks A1-A6 PASSED on real hardware** (`SOURCE_RUN_REPORT.md` §13.4) |
+| Slice 2 compatibility, documented per format, tested | done — `d54e3af`, then **fixed**: `SOURCE_RUN_REPORT.md` §13.2 found the generated shim did not parse at all. Install and runtime both **VERIFIED on the device's QuickJS** (§13.4) |
 | Full suite + analyzer | **1287 passed / 39 skipped / 0 failed**, analyzer clean (`SOURCE_RUN_REPORT.md` §13.6) |
-| Real-device verification | **NOT VERIFIED.** The suite exists and is ready; the phone was disconnected when it came time to run it. Command and scope: `SOURCE_RUN_REPORT.md` §13.4
+| Real-device verification | **VERIFIED** — Galaxy A06 (`R83L20FRDFM`, Android 16), A1-A6 layout + B1-B6 foreign-source runtime, 6/6. Evidence, the 384 px panel finding, and the app-data wipe side effect: `SOURCE_RUN_REPORT.md` §13.4 |

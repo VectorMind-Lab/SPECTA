@@ -556,28 +556,25 @@ Branch `source-system-run`. Commits: `8b71945` (docs), `fce5070` (Slice 1),
 - [x] `.md` files match the implementation; no known contradictions remain
 - [x] Superseded decisions marked SUPERSEDED (§14.2, §15)
 
-## C.3 NOT VERIFIED — stated plainly
+## C.3 WHAT IS AND IS NOT VERIFIED — stated plainly
 
-These are **not** claimed as working. Updated 2026-09-28 by §13, which is the
-verification pass written to close items 1 and 2.
+These are **not** claimed as working. Updated 2026-09-28 by §13, which was
+written to close items 1 and 2 and did: **both are now VERIFIED on the device**
+and are kept here so the earlier state of the claim is not lost.
 
-1. **Real Android device — Slice 1/2 layout.** Still **NOT VERIFIED on
-   hardware.** The suite that would close it exists and is analyzer-clean —
-   `integration_test/slice12_device_verification_test.dart`, checks A1-A6 for the
-   card and the Add Source sheet at 360 px and 320 px — but the phone was not
-   attached when it came time to run it (§13.4). No layout claim in this section
-   rests on a device: all of it is `flutter_test` geometry.
-2. **Runtime execution of an adapted source.** **Partly closed — and it found a
-   blocker.** The shim was evaluated in a real JavaScript engine (§13.1), which
-   is how the defect in §13.2 was caught: every adapted source failed to parse.
-   After the fix, a foreign CommonJS source evaluates and answers `search()` and
-   `details()` with its own values. Engine caveat, stated rather than glossed:
-   that run used the host engine (V8) under the sandbox's real global shape, not
-   the device's QuickJS, because the phone was unplugged. The property under test
-   — whether a plain script global with no `module` binding can parse and run the
-   generated file — is grammar-level and engine-independent, but the device run
-   is still owed.
-   **install VERIFIED · host-engine runtime VERIFIED · device runtime NOT VERIFIED.**
+1. **Real Android device — Slice 1/2 layout.** **VERIFIED on hardware** (§13.4).
+   Checks A1-A6 ran on the Galaxy A06 (`R83L20FRDFM`, Android 16): Add Source
+   fully on-screen, node card **106.0 px** tall, all four install routes inside
+   the viewport, overflow menu intact, and the layout holding at a constrained
+   320 px with no overflow. Measured on the device's real **384 logical px**
+   panel (the plan's "360 px" was this handset's neighbour, not its size).
+2. **Runtime execution of an adapted source.** **VERIFIED on the device's real
+   QuickJS** (§13.4): a foreign CommonJS source adapts, installs, loads, and its
+   own `search()`/`details()` values reach the host; an operation the source does
+   not declare is refused with a stated reason rather than an empty result.
+   Getting here is what surfaced the blocker in §13.2 — the shim did not parse at
+   all, on any engine.
+   **install VERIFIED · runtime VERIFIED on device.**
 3. **A genuine third-party source file.** None was present in the repository.
    The foreign-format work is driven by realistic fixtures. The first real
    third-party file will need one more pass, because a real provider module may
@@ -590,15 +587,12 @@ verification pass written to close items 1 and 2.
 
 ## C.4 Recommended next step
 
-Was: "load one adapted source in the runtime under a fake sandbox and assert the
-shim forwards a call end to end." Done, and better than a fake sandbox: the
-adapter's real output was executed in a real engine (§13), which found a blocker
-that a fake sandbox would have mimicked straight past, because the bug is in the
-generated text, not in the wiring.
+Both halves are done. The device run happened (§13.4) and, unlike a fake
+sandbox, the real thing found a blocker first: the bug was in the generated text,
+so a stubbed sandbox would have mimicked straight past it.
 
-Remaining, in order: (a) run `integration_test/slice12_device_verification_test.dart`
-on the phone and replace the two NOT VERIFIED lines above with device evidence;
-(b) decide item 4.
+What is actually left: the ES-module gap in item 4 — decide transform vs. refuse
+at import — and item 3, which needs a genuine third-party file to test against.
 
 ## 12. OPEN-PLATFORM REQUIREMENT CORRECTION — 2026-09-28
 
@@ -623,20 +617,26 @@ and 7b; they are not re-validated by a docs-only change.
 
 # 13. SLICE 1 / SLICE 2 VERIFICATION PASS (2026-09-28)
 
-**Status: one blocker found and fixed, one gap recorded, device run still owed.**
+**Status: one blocker found and fixed, one gap recorded, device run PASSED
+(§13.4).**
 
-This pass set out to close §C.3 items 1 and 2 on the phone. It did not get the
-device run — the phone was unplugged by the time the suite was ready (§13.4) —
-but it got something more valuable first: it executed the compatibility adapter's
-real output in a real JavaScript engine, and that found a defect that made
-**every** adapted source unrunnable.
+This pass set out to close §C.3 items 1 and 2 on the phone. It did both, but not
+in the planned order: it first executed the compatibility adapter's real output
+in a real JavaScript engine, and that found a defect that made **every** adapted
+source unrunnable. The device run then confirmed the fix on QuickJS.
 
-## 13.2 BLOCKER FOUND — the generated shim did not parse
+## 13.1 How the adapter's output was executed
 
 The adapter's output was written to disk by the adapter itself (no hand-written
 copy) and evaluated against the sandbox's real global shape: `SpectaExtension`
 defined, and **no `module`, no `exports`, no `require`, no `fetch`** — exactly
-what `sandboxBootstrap` in `extension_runtime.dart` provides.
+what `sandboxBootstrap` in `extension_runtime.dart` provides. The identical
+generated text was later handed to the device's real QuickJS (§13.4), which is
+what turns this from a host-only claim into a device claim.
+
+## 13.2 BLOCKER FOUND — the generated shim did not parse
+
+The first result from that harness, against the shim as shipped in `d54e3af`:
 
 ```
 typeof module  -> undefined
@@ -693,29 +693,71 @@ decision, not a drive-by edit.
 
 **Engine honesty:** these runs used V8 (Node v24.16.0) through `node:vm`, in a
 context whose globals were transcribed from `sandboxBootstrap`. It is not
-QuickJS. What it proves — parse success or failure, and value forwarding, in a
-script global with no `module` — is grammar-level and the same across engines.
-What it does not prove is that the device's QuickJS behaves identically under the
-real `FlutterJsSandbox`, its timeouts and its capability gates. That is what the
-device suite is for, and it is still owed.
+QuickJS, and on its own it would only have proved the grammar. §13.4 then ran the
+same generated text on the device's real QuickJS and it passed, so the two
+together cover parse-level correctness on the host and runtime behaviour on the
+engine that ships.
 
-## 13.4 Device run — NOT RUN, and why
+## 13.4 Device run — PASSED on real hardware
 
-`integration_test/slice12_device_verification_test.dart` is written, analyzer
-clean, formatted: **A1-A6** (Slice 1 card geometry, Add Source sheet routing,
-overflow menu, 320 px constraint) and **B1-B6** (adaptation, Drift install,
-QuickJS load, foreign value forwarding, honest rejection of an unimplemented
-operation, trust and node-space isolation, clean shutdown). Every measured value
-is logged under a `SPECTA-S12` tag, so the evidence is text rather than a
-screenshot — `uiautomator` cannot see inside a Flutter surface.
+The phone came back on the bus mid-session (`R83L20FRDFM · SM_A065F ·
+android-arm64 · Android 16 (API 36)`, state `device`), and the suite ran on it.
+**6/6 passed in 14 s after a 161 s `assembleDebug`.** This supersedes the
+"NOT RUN — phone disconnected" state recorded in `88d868a`, and it closes §C.3
+item 1 and the device half of item 2.
 
-It was never executed. When the run was due, `adb devices` returned an empty list
-and `Get-PnpDevice -PresentOnly` found no Android device on the bus: the phone was
-physically disconnected. No emulator exists on this machine (`flutter emulators`
-lists none), and no substitute was passed off as the real thing — the layout
-checks in particular want the real 360 px panel.
+Evidence is text, not screenshots: every measured value is logged under a
+`SPECTA-S12` tag, because `uiautomator` cannot see inside a Flutter surface.
 
-Command to run when the phone is back:
+**Device reality first:** the panel reports **logical 384 × 853 at 1.875×**,
+textScaleFactor 1.0. The plan asked for "360 px"; this handset's 720p panel is
+384 logical px, so every check below was measured on the real 384 px viewport and
+the narrow-phone case was asserted at a constrained **320 px** rather than 360.
+
+Slice 1 — the Sources screen as the device really renders it:
+
+| Check | Device-measured result |
+|---|---|
+| A1 Add Source visible, no horizontal viewport, no overflow | `Add Source -> 167,84 .. 243,104` inside 384×853 = **true** |
+| A3 node card is compact | **card height 106.0 px** (host expectation was ≈105) |
+| A4 all four install routes on-screen | `Install from a link -> 56,557 .. 170,577` · `Import a JavaScript file -> 56,620 .. 209,640` · `Browse the official catalogue -> 56,683 .. 246,703` · `Add from a repository -> 56,746 .. 198,766` — all inside 384×853 |
+| A5 compact card still reaches details + remove | overflow menu still carries both |
+| A6 holds on a narrow phone | at **320 px**: `Add Source -> 167,84 .. 243,104` and `Node 1 label -> 61,149 .. 110,170`, both inside 320×853, no overflow |
+
+Slice 2 — a foreign source executed by **the device's own QuickJS**:
+
+```
+B1 :: format=adapted adapted=true failure=null
+B2 :: install OK id=foreign.community-device-source.f757e4c9 node=Node 1
+      trust=unverified contentType=movie
+B3 :: loadRuntime OK — QuickJS on the device evaluated the shim and the
+      embedded foreign body
+B4 :: search OK   -> [FOREIGN[ghost]foreign-build-7]
+B4 :: details OK  -> FOREIGN-DETAILS https://example.invalid/watch/ghost
+B5 :: absent latest() reported as: Source did not declare the "latest"
+      capability, so latest was refused.
+cleanup :: shutdown OK — the QuickJS context was released
+cleanup :: source is still installed after shutdown, as it should be
+```
+
+That is the claim §13.3 could only make on V8, now made on the engine that
+matters: QuickJS parsed the generated shim, ran the verbatim CommonJS body, and
+the host received the foreign source's own string back. It also confirms the
+§13.2 fix rather than merely tolerating it — the pre-fix shim would have thrown
+`SyntaxError` at B3.
+
+**Two side effects, recorded because they are real:**
+1. The previously installed release-signed APK conflicted with the debug build
+   (`INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package net.specta.app
+   signatures do not match`). The toolchain resolved it by itself — `Uninstalling
+   old version...` then a clean install — which means **the device's app data was
+   wiped** by this run. Any on-device state from the §9/§10.3 evidence runs is
+   gone. No action needed, but do not assume the phone still holds that data.
+2. The test installs and removes a foreign source and a node in the app's own
+   database on the device. It cleans up after itself; `cleanup ::` above is that
+   assertion passing.
+
+Reproduce with:
 
 ```
 cd H:\dev\SPECTA
@@ -739,10 +781,36 @@ Five host-side tests in
 ## 13.6 Counts and hygiene for this pass
 
 * `flutter test` — **1287 passed / 39 skipped / 0 failed** (was 1282; +5 from §13.5).
+* `flutter test integration_test/slice12_device_verification_test.dart -d
+  R83L20FRDFM` — **6 passed / 0 failed** on the physical device (§13.4).
 * `flutter analyze` on `lib/core/extensions/compat`,
   `test/core/extensions/compat` and the new integration test — **no issues**.
 * `dart format --set-exit-if-changed` on the touched files — clean.
 * The probe fixtures and the temporary Dart dump harness were deleted. The Node
   probe lives under `build/` (git-ignored) as `build/shim_probe/probe.mjs`; it is a
   tool, not a test, and nothing in `lib/` or `test/` depends on it.
+* The raw device transcript from §13.4 is at `build/s12/run.log` (git-ignored, so
+  treat it as ephemeral). Every line of it that matters is transcribed into
+  §13.4 above, which is the durable record.
+
+## 13.7 What this pass settles, and what it does not
+
+Settled, with device evidence: a foreign CommonJS source can be installed and
+**actually executed** by SPECTA on real hardware, and its values reach the host.
+The Slice 1 layout claims are no longer widget-test inferences. The one defect
+that made the whole compatibility layer decorative is fixed and now guarded
+structurally.
+
+Not settled: ES-module sources still cannot run (§C.3 item 4), and no genuine
+third-party source file has ever been fed through the adapter (§C.3 item 3) — the
+fixtures are realistic, not real.
+
+This pass does **not** re-open the earlier slices' device state: checks 17-20,
+including reorder across a real app restart, were closed with device evidence in
+§9 and §10.3, and §5's list describes the implementation run rather than today.
+Still open there, unchanged and not reachable from this pass: check 18 (install
+by pasted https URL) and check 21 (Node 0 refusal) both need Slice 8, and check 22
+(A7 file unlink) is not observable on a release build. One side effect of this
+run is noted in §13.4: the debug install replaced the release APK and so cleared
+the device's app data.
 
