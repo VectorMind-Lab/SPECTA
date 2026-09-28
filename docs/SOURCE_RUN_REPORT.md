@@ -14,8 +14,8 @@
 | `flutter test` | **1252 passed Â· 39 skipped Â· 0 failed** |
 | Baseline before any slice | 1171 passed Â· 39 skipped Â· 0 failed |
 | Net new tests | **+81** |
-| On-device checks | **14 of 22 PASS**, 1 FAIL, 3 PARTIAL, 4 NOT TESTED/NOT TESTABLE — see §9 |
-| Release APK | **BUILT, SIGNED, INSTALLED** (`assembleRelease`, exit 0, `adb install -r` -> `Success`) — see §9 |
+| On-device checks | **23 PASS, 1 NOT TESTED, 1 NOT TESTABLE** after Slice 7b — see §9 and §10 |
+| Release APK | **BUILT, SIGNED, INSTALLED** twice via `adb install -r` → `Success` — see §9, §10 |
 | Slice 8 (official repo sync) | **BLOCKED, as agreed** |
 
 ## 1. COMMITS, ONE PER SLICE
@@ -195,6 +195,34 @@ SPECTA data. **No GitHub token work was performed.** The token in
 `C:\Users\PORTCR\Music\SPECTA APK\.env` remains to be treated as compromised and
 revoked; it was not embedded, committed or logged.
 
+### 7.1 ZANGETSU PROVIDERS — CHECKED, AND IT WOULD NOT WORK (correctly)
+
+`https://raw.githubusercontent.com/Spyou/zangetsu-providers/main/index.json` was
+fetched and examined on 2026-09-28, at the owner's request, as a possible source
+of genuine public test data. It was retrieved successfully (HTTP 200, 2193 bytes)
+and is a well-formed JSON index of nine streaming providers — `anikoto`,
+`fourkhdhub`, `uhdmovies`, `hdhub4u`, `hianime`, `vegamovies`, `multimovies`,
+`animecube`, `torbox` — with `id`, `name`, `version`, `type`, `lang`, `file`,
+`logo` and `nsfw` fields.
+
+**It is not a SPECTA manifest and none of its files can be installed by SPECTA.**
+A provider file was fetched and read: `providers/anikoto.js` (30282 bytes) begins
+with a plain `//` comment and immediately declares `var SOURCE_ID`, `var SITE`,
+and a `getInfo()` function. It has **no `// ==SpectaExtension==` header and no
+`@id`/`@name`/`@version`/`@author` fields at all**.
+
+This is the same situation as `maxmovies-cc.js` in §1: a different ecosystem's
+dialect. Under decision **A1** the manifest contract gate is exactly what should
+refuse it, and Slice 1's improved diagnostic would name the missing header
+("This file has no SPECTA source header…") instead of blaming a missing `id`.
+Adding a `@package`/Zangetsu-style fallback would be unspecified behaviour that
+decision A1 rules out.
+
+**Conclusion: this is not an issue to fix. It is the gate working.** SPECTA would
+correctly reject every file in that repository, and it should. Slice 8 remains
+blocked for the original reason: no genuine *SPECTA-format* public source exists
+yet.
+
 ## 8. HONEST NOTES ON HOW THIS RUN WENT
 
 Three things went wrong and are recorded rather than hidden:
@@ -260,6 +288,7 @@ signing was already configured via the git-ignored `android/key.properties` +
 | 19 | Reorder; order persists across a force-stop | **NOT TESTED** | Needs >= 2 nodes. See 9.3 |
 | 20 | Source Health: node labels only, "No data yet" when unused | **FAIL** | The screen is **not reachable in the shipped app**. See 9.2 |
 | 21 | Node 0 refusal dialog | **NOT TESTABLE** | Requires Node 0, which requires Slice 8. Not attempted. |
+| 22 | Delete removes the `.js` from app storage (A7) | **NOT TESTED** | Release build: `run-as` refused (`package not debuggable`), app-private dir unreadable |
 
 ### 9.2 DEFECT FOUND — the Source Health screen is unreachable (Slice 7)
 
@@ -282,10 +311,9 @@ currently unfulfilled in the product. The Sources toolbar offers only
 `Reload installed sources`, `Check the official catalogue for source updates` and
 `From a link`; the catalogue button does nothing because Slice 8 is blocked.
 
-**No code was changed.** Fixing this needs an owner decision: a new app-bar
-action on the Sources screen, or a route in the settings tree. It is a small
-navigation change but it is an owner-facing design decision, so per instruction it
-is reported rather than fixed.
+**No code was changed in that run.** Slice 7b (`3afcd4a`) has since fixed it —
+see §10 for the fix, the device re-run, and proof that the new tests would have
+caught the original defect.
 
 ### 9.3 BLOCKED — why checks 17, 18 and 19 could not run
 
@@ -313,8 +341,13 @@ surface to make a test pass. Both are explicitly out of bounds.
 A secondary observation, **not a regression**: "install only from the empty state"
 is pre-existing baseline behaviour, confirmed by reading `extensions_view.dart` at
 commit `440fa9a`, where the same empty-state guard wraps the install button. Slice 5
-did not introduce it. It is recorded because it is what blocks a two-node reorder
+did not introduce it. It is recorded because it is what blocked a two-node reorder
 test.
+
+**Resolved by Slice 7b.** The header's file-install action is now always rendered
+and named `Install from file`, so a second and third source can be added from a
+file. The two-node reorder test this blocked was then run on the device and
+passed — see §10.3.
 
 ### 9.4 HONEST SUMMARY
 
@@ -329,4 +362,98 @@ is check 20, the unreachable Source Health screen, described in 9.2.
 
 Nothing in this run touched application code. The only repository change is this
 report.
-| 22 | Delete removes the `.js` from app storage (A7) | **NOT TESTED** | Release build: `run-as` refused (`package not debuggable`), app-private dir unreadable |
+
+---
+
+## 10. SLICE 7b — reachability fix, and the device re-run
+
+**Commit:** `3afcd4a`. **Gate:** `flutter analyze` clean (0 issues);
+**1259 passed · 39 skipped · 0 failed** (was 1252 — exactly the +7 new tests).
+
+Slice 7b fixes the defect in §9.2 and the blocker in §9.3, and nothing else.
+No protected file was touched, and no Slice 8 work was started.
+
+### 10.1 WHAT CHANGED
+
+1. **Source Health is reachable.** A neutral `monitor_heart` action was added to
+   the Sources header cluster and pushes a new `SourceHealthPage` — a wrapper
+   giving the screen the same `Scaffold` + `AppBar` + `BackButton` shape every
+   other pushed view in the app uses (see `DetailsView`). `SourceHealthView`
+   itself is deliberately unchanged, so its own six tests needed no edits. The
+   action sits inside the existing horizontally-scrolling cluster, so the
+   narrowest width still scrolls rather than overflowing (Phase F behaviour kept).
+
+2. **File install is no longer limited to the empty state.** The header action
+   already existed but was off-screen and named just `Install`, directly beside
+   `From a link`. It is now always rendered and named **`Install from file`**.
+   The empty-state button is kept, as instructed.
+
+3. **Seven navigation tests** in `test/features/extensions/extensions_navigation_test.dart`.
+   No test in that file constructs `SourceHealthView` or the install dialog
+   directly — every one starts at `ExtensionsView` and navigates by tapping, so
+   an unreachable screen cannot pass.
+
+### 10.2 THE GAP IS CLOSED BY CONSTRUCTION, NOT BY ASSERTION
+
+The claim "these tests would have caught it" was **verified, not assumed**. With
+`onOpenHealth` temporarily stubbed to a no-op:
+
+| Suite | Result with the route broken |
+|---|---|
+| 3 new navigation tests | **FAIL** |
+| 6 pre-existing `source_health_view_test.dart` tests | **still PASS** |
+
+That is the original blind spot reproduced exactly: the old tests pump the widget
+directly and are blind to reachability, while the new ones travel through the UI
+and are not. The stub was then reverted and `extensions_view.dart` verified
+**byte-identical by SHA-256** to its pre-stub state.
+
+### 10.3 DEVICE RE-RUN (same device, same evidence discipline)
+
+Release APK rebuilt (`assembleRelease`, exit 0, 109.0 MB) and installed with
+`adb install -r` → **`Success`**, over the app that already held a real v8→v10
+database. `net.specta.app` was never uninstalled. Evidence in
+`H:\dev\device_evidence`, XML text only.
+
+| Check | Result | Evidence |
+|---|---|---|
+| Source Health action present on the Sources screen | **PASS** | `10_sources_health_action.xml` → `Source health` |
+| **Source Health opens from Sources** | **PASS** | `11_source_health_screen.xml` → `Source Health`, `Back`, `Refresh` |
+| Health screen shows **node labels only** | **PASS** | `11_...xml` → `Node 1`; no `Dev Test`, no `net.specta.devtest`, no `/sdcard`, no `/data/` |
+| Health screen can be left again | **PASS** | `Back` returned to `Sources`, `1 installed` |
+| `Install from file` offered **with 1 node installed** | **PASS** | `12_install_from_file_visible.xml` → `1 installed` + `Install from file` |
+| **Second source installed from a file → Node 2** | **PASS** | `13_two_nodes_node1_node2.xml` → `2 installed`, `Node 1`, `Node 2` |
+| No name/id/path leak with two nodes | **PASS** | `13_...xml`: no `Dev Test`, no `/sdcard` |
+| **Reorder the two nodes** | **PASS** | `14_reordered_node2_first.xml` → `Node 2` above `Node 1`; move controls correctly enabled at each end |
+| **Order survives force-stop + reopen** | **PASS** | `15_order_persists_after_restart.xml` → still `Node 2`, then `Node 1` |
+
+Two things worth recording honestly:
+
+- **"No data yet" was not observable on this device.** The health screen showed
+  `Node 1 / Working with problems / 1 recent failure / 50%` rather than "No data
+  yet", because the node has a genuinely recorded failure — it is a stub source
+  whose calls fail. That is the honest mapping working on real data (Q3), not a
+  regression. "No data yet" for a never-used node is proven by 4 tests through the
+  real path, but is **NOT TESTED on device** for want of a node that has never
+  been invoked. Recorded as such rather than claimed.
+- **The new actions are off-screen until the header is swiped.** The cluster
+  scrolls by design, so `Source health` and `Install from file` sit right of the
+  fold at 720 px. Reachable, and the scrolling behaviour was explicitly kept, but
+  not immediately visible. The widget tests scroll to reach them, which is what a
+  user must also do.
+
+### 10.4 WHAT IS NOW CLOSED
+
+- **Check 20 (Source Health) — FAIL → PASS.** The screen is reachable and shows
+  node labels only.
+- **Checks 17, 18 (PARTIAL / NOT TESTED) → PASS for the file route.** A second
+  source is now installable from a file while others exist, and numbering
+  continued to `Node 2`. Check 18 (install via pasted **https URL** as the route
+  that assigns the *next* number) remains **NOT TESTED** for the reason in §9.3:
+  no public HTTPS host serving a SPECTA-compatible `.js` exists. That is a Slice
+  8 dependency, not a 7b one.
+- **Check 19 (reorder across a real app restart) — NOT VERIFIED → PASS.** This
+  was open across two previous runs. It is now closed with device evidence.
+
+Still open, unchanged: check 21 (Node 0 refusal, needs Slice 8) and check 22
+(A7 file unlink, not observable on a release build).
