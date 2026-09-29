@@ -15,6 +15,7 @@ import '../details/details_view.dart';
 import '../playback/playback_entry.dart';
 import '../playback/resume_entry.dart';
 import 'home_feed.dart';
+import 'home_genre_rails.dart';
 import 'widgets/hero_spotlight_banner.dart';
 
 /// The Home surface (Phase 2K).
@@ -25,6 +26,10 @@ import 'widgets/hero_spotlight_banner.dart';
 ///   user's enabled extensions ([homeFeedProvider]) — no hard-coded titles, no
 ///   bundled stock artwork, and no "Trending" ranking SPECTA does not compute;
 /// * Continue Watching is the persisted progress the player actually reported.
+/// * the genre rails are grouped from the catalogue's own `genre_ids`, and one
+///   appears only once its genre actually has enough items to be a section
+///   ([GenreRails.minItemsPerGenre]) - never because a genre was expected to be
+///   interesting.
 ///
 /// When there is nothing to show, Home says WHY (no extensions installed,
 /// extensions without a Home feed, nothing new, or providers unreachable)
@@ -39,6 +44,11 @@ class HomeView extends ConsumerWidget {
     final AsyncValue<TrendingFeed> trendingAsync = ref.watch(
       trendingFeedProvider,
     );
+    // Genre rails (Home rails brief, Option B). A THIRD, independent catalogue
+    // round: like Popular it can never block or blank the extension feed.
+    final AsyncValue<GenreRails> genreRailsAsync = ref.watch(
+      homeGenreRailsProvider,
+    );
     final AsyncValue<List<WatchProgress>> continueWatching = ref.watch(
       continueWatchingProvider,
     );
@@ -48,6 +58,11 @@ class HomeView extends ConsumerWidget {
     final TrendingFeed trending =
         trendingAsync.value ??
         const TrendingFeed(status: TrendingStatus.failure);
+
+    // Same discipline as the Popular rail: an unresolved or failed catalogue
+    // round contributes NO rails rather than an error block, and the genre
+    // rails are always a subset of what the catalogue actually returned.
+    final GenreRails genreRails = genreRailsAsync.value ?? const GenreRails();
 
     if (feed.isLoading && !feed.hasValue) {
       return const Center(child: CircularProgressIndicator());
@@ -64,7 +79,10 @@ class HomeView extends ConsumerWidget {
     // though its request had succeeded — the rail was simply never built.
     final bool extensionFeedIsEmpty = data == null || !data.hasItems;
     final bool nothingToShow =
-        extensionFeedIsEmpty && !trending.isVisible && inProgress.isEmpty;
+        extensionFeedIsEmpty &&
+        !trending.isVisible &&
+        !genreRails.hasRails &&
+        inProgress.isEmpty;
 
     if (nothingToShow) {
       final bool unreachable =
@@ -169,6 +187,24 @@ class HomeView extends ConsumerWidget {
                           _openDetails(context, ref, trending.items[index]),
                     ),
                   ),
+                // Genre rails (Home rails brief, Option B). One rail per genre
+                // that cleared the floor, appended AFTER the real content so
+                // discovery stays additive rather than displacing it. Each rail
+                // reuses the Popular rail's card and the same Details route, so
+                // a catalogue item behaves identically wherever it appears.
+                for (final GenreRail rail in genreRails.rails)
+                  _Rail(
+                    title: rail.genre,
+                    height: 210,
+                    itemWidth: railPosterWidth,
+                    itemCount: rail.items.length,
+                    itemBuilder: (int index) => _DiscoveryCard(
+                      item: rail.items[index],
+                      width: railPosterWidth,
+                      onTap: () =>
+                          _openDetails(context, ref, rail.items[index]),
+                    ),
+                  ),
                 const SizedBox(height: 24),
               ],
             ),
@@ -178,12 +214,12 @@ class HomeView extends ConsumerWidget {
     );
   }
 
-  /// Pull-to-refresh: re-runs BOTH Home rounds.
+  /// Pull-to-refresh: re-runs ALL Home rounds.
   ///
-  /// The extension round and the catalogue round are separate requests with
+  /// The extension round and the catalogue rounds are separate requests with
   /// separate lifetimes, so invalidating only one leaves the screen showing a
   /// mixture of old and new content. The invalidations are fired together and
-  /// then awaited, so the indicator stays up until the slower of the two has
+  /// then awaited, so the indicator stays up until the slowest of them has
   /// actually answered rather than snapping shut early.
   ///
   /// The catalogue round reads through the shared TTL cache, so a refresh
@@ -192,9 +228,11 @@ class HomeView extends ConsumerWidget {
   Future<void> _refresh(BuildContext context, WidgetRef ref) async {
     ref.invalidate(homeFeedProvider);
     ref.invalidate(trendingFeedProvider);
+    ref.invalidate(homeGenreRailsProvider);
     await Future.wait(<Future<void>>[
       ref.read(homeFeedProvider.future),
       ref.read(trendingFeedProvider.future),
+      ref.read(homeGenreRailsProvider.future),
     ]);
   }
 
