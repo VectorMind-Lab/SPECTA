@@ -86,8 +86,21 @@ class FlutterJsSandbox extends ExtensionJsSandbox {
   }
 
   @override
-  Future<String> evaluate(String code) async {
-    final JsEvalResult result = _runtime.evaluate(code);
+  Future<String> evaluate(String code, {int? evalFlags}) async {
+    // The production engine IS a QuickJsRuntime2 (see _createDefaultRuntime),
+    // so this branch is the live path, not a fallback. The type test is kept
+    // because the constructor accepts any JavascriptRuntime: an injected
+    // runtime that cannot honour flags still evaluates correctly in script
+    // mode rather than throwing.
+    final JsEvalResult result;
+    if (evalFlags != null && _runtime is QuickJsRuntime2) {
+      result = (_runtime as QuickJsRuntime2).evaluate(
+        code,
+        evalFlags: evalFlags,
+      );
+    } else {
+      result = _runtime.evaluate(code);
+    }
     if (result.isError) {
       throw JsEvalException('JS evaluation error', detail: result.stringResult);
     }

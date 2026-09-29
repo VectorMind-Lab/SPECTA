@@ -10,6 +10,11 @@ import 'package:specta/core/extensions/contract/extension_source.dart';
 import 'package:specta/core/extensions/contract/extension_contract.dart';
 import 'package:specta/core/extensions/contract/result_models.dart';
 
+// JSEvalFlag only. The runtime stays engine-agnostic in behaviour: it passes an
+// opaque flag value through the sandbox interface and never touches the engine
+// itself. This single constant is what module mode is named by.
+import 'package:flutter_js/flutter_js.dart' show JSEvalFlag;
+
 import 'runtime_api.dart';
 
 /// Bootstrap JavaScript injected into every extension sandbox.
@@ -131,8 +136,19 @@ class ExtensionRuntime {
     // uncaught one would propagate out of the manager into the UI layer. That
     // would break the invariant that a failing extension never takes SPECTA
     // down with it.
+    //
+    // ES module support (2E): if the extension source uses `import`/`export`
+    // syntax, it is evaluated with the QuickJS MODULE eval flag so the engine
+    // parses it as an ES module rather than a script. Without this, any
+    // extension that uses ES module syntax fails with a SyntaxError during
+    // `evaluate` - QuickJS evaluates in script mode by default, where
+    // `import`/`export` are syntax errors.
+    final bool isModule = _isEsModule(jsCode);
     try {
-      await _sandbox.evaluate(jsCode);
+      await _sandbox.evaluate(
+        jsCode,
+        evalFlags: isModule ? JSEvalFlag.MODULE : null,
+      );
     } catch (e) {
       return Err<void>(
         _runtimeFailure(
@@ -646,6 +662,30 @@ class ExtensionRuntime {
   static String _describe(Object error) => error is JsEvalException
       ? (error.detail ?? error.message)
       : error.toString();
+
+  /// Detects whether [source] uses ES module syntax.
+  ///
+  /// Returns true when the source contains a top-level `import` or `export`
+  /// statement, which QuickJS requires to be evaluated with the MODULE eval
+  /// flag rather than as a script.
+  ///
+  /// A lexical check is sufficient here because the source reaching this point
+  /// has already passed manifest validation (the header block is stripped before
+  /// the body arrives), and the body is expected to be either plain script or
+  /// well-formed ES module code - not script with string-embedded keywords in a
+  /// shape that would fool a heuristic. The engine remains the final arbiter: a
+  /// false positive makes QuickJS reject as a module a file that could have
+  /// parsed as a script, and a false negative produces a SyntaxError that
+  /// surfaces through the existing "Source failed to load" path. Neither can
+  /// take the app down, which is why a heuristic is acceptable where a full
+  /// parser would not earn its complexity.
+  static bool _isEsModule(String source) {
+    final RegExp importExport = RegExp(
+      r'^\s*(import\s+|export\s+|export\s*\{)',
+      multiLine: true,
+    );
+    return importExport.hasMatch(source);
+  }
 
   ExtensionFailure _runtimeFailure({
     required ExtensionFailureType type,

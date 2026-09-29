@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_js/flutter_js.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:specta/core/errors/specta_failure.dart';
 import 'package:specta/core/errors/specta_result.dart';
@@ -1296,6 +1297,97 @@ void main() {
 
       expect(result.isOk, isTrue);
       expect(result.valueOrNull!.single.type, MediaType.series);
+    });
+  });
+
+  /// ES module evaluation (2E). The runtime must decide script-versus-module
+  /// BEFORE evaluating, because QuickJS rejects `import`/`export` in script
+  /// mode with a SyntaxError.
+  ///
+  /// These use the fake sandbox, so they always run and they assert the
+  /// DECISION. Whether the engine then honours the flag is covered by the
+  /// real-engine tests in `flutter_js_sandbox_test.dart`.
+  group('ExtensionRuntime - ES module evaluation flags (2E)', () {
+    /// The recorded flags for [source], or null when it was evaluated with none.
+    int? flagsFor(FakeJsSandbox sandbox, String source) {
+      final Iterable<(String, int)> matches = sandbox.evalCallsWithFlags.where(
+        ((String, int) entry) => entry.$1 == source,
+      );
+      return matches.isEmpty ? null : matches.first.$2;
+    }
+
+    test('a plain script is evaluated without the module flag', () async {
+      final FakeJsSandbox sandbox = FakeJsSandbox();
+      const String script = 'class Extension extends SpectaExtension {}';
+
+      await loadRuntime(sandbox, FakeRuntimeApi(), jsCode: script);
+
+      expect(sandbox.evalCalls, contains(script));
+      expect(flagsFor(sandbox, script), isNull);
+    });
+
+    test('a top-level export selects module mode', () async {
+      final FakeJsSandbox sandbox = FakeJsSandbox();
+      const String source = 'class Extension {}\nexport { Extension };';
+
+      await loadRuntime(sandbox, FakeRuntimeApi(), jsCode: source);
+
+      expect(flagsFor(sandbox, source), JSEvalFlag.MODULE);
+    });
+
+    test('a top-level import selects module mode', () async {
+      final FakeJsSandbox sandbox = FakeJsSandbox();
+      const String source = "import { helper } from './helper.js';";
+
+      await loadRuntime(sandbox, FakeRuntimeApi(), jsCode: source);
+
+      expect(flagsFor(sandbox, source), JSEvalFlag.MODULE);
+    });
+
+    test('export with no space before the brace is still detected', () async {
+      final FakeJsSandbox sandbox = FakeJsSandbox();
+      const String source = 'const a = 1;\nexport{a};';
+
+      await loadRuntime(sandbox, FakeRuntimeApi(), jsCode: source);
+
+      expect(flagsFor(sandbox, source), JSEvalFlag.MODULE);
+    });
+
+    test('leading whitespace does not hide the export', () async {
+      final FakeJsSandbox sandbox = FakeJsSandbox();
+      const String source = '\n\n    export const a = 1;';
+
+      await loadRuntime(sandbox, FakeRuntimeApi(), jsCode: source);
+
+      expect(flagsFor(sandbox, source), JSEvalFlag.MODULE);
+    });
+
+    test('the sandbox bootstrap is never evaluated as a module', () async {
+      final FakeJsSandbox sandbox = FakeJsSandbox();
+
+      await loadRuntime(
+        sandbox,
+        FakeRuntimeApi(),
+        jsCode: 'class Extension extends SpectaExtension {}',
+      );
+
+      // The bootstrap is SPECTA's own script; treating it as a module would
+      // put the SpectaExtension base class out of global scope and break every
+      // extension at once.
+      expect(sandbox.evalCalls, contains(sandboxBootstrap));
+      expect(flagsFor(sandbox, sandboxBootstrap), isNull);
+    });
+
+    test('a keyword inside a string does not select module mode', () async {
+      final FakeJsSandbox sandbox = FakeJsSandbox();
+      const String source =
+          "class Extension {}\nconst s = 'export const x = 1;';";
+
+      await loadRuntime(sandbox, FakeRuntimeApi(), jsCode: source);
+
+      // The check is anchored to line starts, so an embedded keyword that is
+      // not at the start of a line is not treated as module syntax.
+      expect(flagsFor(sandbox, source), isNull);
     });
   });
 }

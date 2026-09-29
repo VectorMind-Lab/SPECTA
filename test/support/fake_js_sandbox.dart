@@ -66,6 +66,14 @@ class FakeJsSandbox extends ExtensionJsSandbox {
   /// All expressions passed to [evaluateAsync], in order.
   final List<String> asyncEvalCalls = <String>[];
 
+  /// Calls to [evaluate] that supplied an explicit [evalFlags], in order.
+  ///
+  /// Deliberately SEPARATE from [evalCalls] rather than replacing it. Every
+  /// evaluation is still recorded in [evalCalls]; most call sites pass no flags
+  /// at all, so folding the two together would silently break the existing
+  /// `.evaluate(...)` assertions this fake already supports.
+  final List<(String, int)> evalCallsWithFlags = <(String, int)>[];
+
   /// Registered message handlers keyed by channel.
   final Map<String, JsMessageHandler> handlers = <String, JsMessageHandler>{};
 
@@ -112,8 +120,13 @@ class FakeJsSandbox extends ExtensionJsSandbox {
   }
 
   @override
-  Future<String> evaluate(String code) async {
+  Future<String> evaluate(String code, {int? evalFlags}) async {
+    // Recorded on every call, flags or not: evalCalls keeps its existing
+    // meaning so the assertions already written against it stay valid.
     evalCalls.add(code);
+    if (evalFlags != null) {
+      evalCallsWithFlags.add((code, evalFlags));
+    }
     if (shouldFailEval) {
       throw JsEvalException(evalErrorMessage);
     }

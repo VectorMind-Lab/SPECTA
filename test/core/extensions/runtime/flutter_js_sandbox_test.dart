@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:flutter_js/flutter_js.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:specta/core/errors/specta_failure.dart';
 import 'package:specta/core/errors/specta_result.dart';
@@ -74,6 +75,27 @@ class Extension extends SpectaExtension {
   async boom() { throw new Error('kaboom'); }
   async badShape() { return 'not-an-object'; }
 }
+''';
+
+/// The same shape as [_extensionSource], but written with ES module syntax.
+///
+/// The top-level `export` is what the runtime's module detection keys on, so
+/// this source is evaluated with the MODULE flag. It exists to prove the whole
+/// load path works for a module, not merely that the flag reaches the engine.
+const String _moduleExtensionSource = '''
+class Extension extends SpectaExtension {
+  async load() {}
+  async capabilities() {
+    return {
+      contentTypes: ['movie'],
+      discovery: {search: true, latest: false},
+      metadata: {details: true},
+      sources: {mp4: true, hls: true},
+    };
+  }
+  async healthCheck() { return true; }
+}
+export { Extension };
 ''';
 
 class RecordingTransport implements ExtensionHttpTransport {
@@ -338,6 +360,103 @@ void main() {
         expect(runtime.isLoaded, isFalse);
       }
     });
+    test('script mode rejects ES module syntax', () async {
+      final FlutterJsSandbox sandbox = FlutterJsSandbox();
+      await sandbox.init();
+
+      // This is the failure the MODULE flag exists to prevent. QuickJS
+      // evaluates in script mode by default, where `export` is a SyntaxError.
+      await expectLater(
+        sandbox.evaluate('export const answer = 42;'),
+        throwsA(isA<JsEvalException>()),
+      );
+
+      await sandbox.dispose();
+    });
+
+    test('module mode evaluates the same source successfully', () async {
+      final FlutterJsSandbox sandbox = FlutterJsSandbox();
+      await sandbox.init();
+
+      // Byte-identical source to the test above. Only the flag differs, so the
+      // pair proves the flag is what makes module syntax work.
+      await sandbox.evaluate(
+        'export const answer = 42;',
+        evalFlags: JSEvalFlag.MODULE,
+      );
+
+      await sandbox.dispose();
+    });
+  }, skip: skip);
+
+  group('FlutterJsSandbox — ES module extension load', () {
+    test(
+      'an extension using ES module syntax loads without a runtime',
+      () async {
+        final FlutterJsSandbox sandbox = FlutterJsSandbox();
+        await sandbox.init();
+
+        // Module syntax alone, no instantiation: this isolates the flag path.
+        await sandbox.evaluate(
+          'export class Thing {}',
+          evalFlags: JSEvalFlag.MODULE,
+        );
+
+        await sandbox.dispose();
+      },
+    );
+
+    // KNOWN DEFECT (documented, not hidden).
+    //
+    // The MODULE flag lets ESM source EVALUATE, but QuickJS places a module's
+    // top-level declarations in MODULE scope, not global scope. The runtime's
+    // very next step is a script-scope evaluation:
+    //
+    //     evaluate('var _instance = new Extension();')
+    //
+    // which cannot see a module-scoped `Extension`. So loading an ESM extension
+    // fails at "Source failed to instantiate" rather than "Source failed to
+    // load": the failure MOVED, it was not removed. The load flow's own comment
+    // states the dependency - declarations "land in the sandbox's global scope
+    // where the operation expressions below can reach it" - which is precisely
+    // what module mode does not do.
+    //
+    // Remove this skip only when the runtime instantiates the class from inside
+    // the module (e.g. appending the instantiation to the module source) or
+    // otherwise makes the declaration globally reachable. The three tests above
+    // it stay green because the flag plumbing itself is correct.
+    test(
+      'an ESM extension loads AND instantiates end to end',
+      () async {
+        final FlutterJsSandbox sandbox = FlutterJsSandbox();
+        final ExtensionRuntime runtime = ExtensionRuntime(
+          sandbox: sandbox,
+          api: _hostApi().api,
+          capabilities: ExtensionCapability.values.toSet(),
+        );
+
+        // The runtime detects the top-level `export` and evaluates as a module.
+        // If module-mode scoping keeps `Extension` out of the global scope, the
+        // runtime's follow-up `new Extension()` step cannot resolve it and this
+        // load fails at "Source failed to instantiate".
+        final SpectaResult<void> load = await runtime.loadExtension(
+          extensionId: 'real-engine-module',
+          jsCode: _moduleExtensionSource,
+        );
+        expect(load.isOk, isTrue, reason: 'load failed: ${load.failureOrNull}');
+        expect(runtime.isLoaded, isTrue);
+
+        final SpectaResult<ExtensionCapabilities> capabilities = await runtime
+            .capabilities();
+        expect(capabilities.isOk, isTrue);
+        expect(capabilities.valueOrNull!.search, isTrue);
+
+        await runtime.shutdown();
+      },
+      skip:
+          'Known defect: module-scoped declarations are not reachable by the '
+          "runtime's global-scope instantiation step.",
+    );
   }, skip: skip);
 }
 

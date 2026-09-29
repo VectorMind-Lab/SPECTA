@@ -153,7 +153,13 @@ abstract class ExtensionJsSandbox {
 
   void onMessage(String channel, JsMessageHandler handler);
 
-  Future<String> evaluate(String code);
+  /// Evaluates [code] as a synchronous script.
+  ///
+  /// When the host passes [evalFlags] (a QuickJS `JSEvalFlag` value), the sandbox
+  /// forwards it to the engine so script-mode and module-mode evaluation can be
+  /// selected independently. A null [evalFlags] falls back to the engine's
+  /// default (script mode).
+  Future<String> evaluate(String code, {int? evalFlags});
 
   Future<String> evaluateAsync(String expression);
 
