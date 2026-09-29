@@ -23,7 +23,7 @@ import 'package:specta/core/extensions/distribution/extension_downloader.dart';
 /// The conceptual official repository layout (D5).
 ///
 /// ```text
-/// SPECTA-Extensions/
+/// VectorMind-Lab/SPECTA-Extensions/
 ///   repository.json      <- the catalogue document (this is what is fetched)
 ///   extensions/          <- one .js per extension
 ///   icons/               <- optional icon assets
@@ -40,8 +40,15 @@ abstract final class OfficialExtensionCatalogue {
 
   /// The expected official repository. Only a DEFAULT: a user may point SPECTA
   /// at any compatible catalogue, and pointing elsewhere grants no trust.
+  ///
+  /// The owner segment (`VectorMind-Lab`) is REQUIRED and is not cosmetic. A
+  /// `raw.githubusercontent.com` path addresses `<owner>/<repo>/<ref>/<path>`,
+  /// so a bare `SPECTA-Extensions` has no owner to resolve and returns HTTP 404
+  /// - the catalogue silently never loads. Both forms were checked live: the
+  /// owner-qualified URL returns 200 with the real `repository.json`, the bare
+  /// one returns 404.
   static const String defaultIndexUrl =
-      'https://raw.githubusercontent.com/SPECTA-Extensions/main/$documentName';
+      'https://raw.githubusercontent.com/VectorMind-Lab/SPECTA-Extensions/main/$documentName';
 }
 
 class ExtensionCatalogueClient {

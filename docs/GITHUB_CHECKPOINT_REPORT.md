@@ -11,7 +11,9 @@
 >
 > The official source catalogue, `SPECTA-Extensions`, is **PUBLIC** and requires
 > **no token**. `ExtensionCatalogueClient.defaultIndexUrl` is a public
-> `raw.githubusercontent.com/SPECTA-Extensions/...` URL. No GitHub token exists in
+> `raw.githubusercontent.com/VectorMind-Lab/SPECTA-Extensions/...` URL (the owner
+> segment is required: a bare repo path has no owner to resolve and 404s). No
+> GitHub token exists in
 > the APK, in assets, in `repository.json`, in source JS, in logs, or in these
 > docs, and none is required. Earlier planning text that described the catalogue
 > as private and token-gated was factually wrong and is corrected in
