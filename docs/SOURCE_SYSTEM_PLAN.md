@@ -376,6 +376,12 @@ written against this section.**
 header (`// ==Extension==` with `@package`) rather than SPECTA's
 `// ==SpectaExtension==` with `@id`. Decision **A1 locks that gate in place.**
 
+> **SUPERSEDED 2026-09-30 (commit 630eb45).** A1 is no longer in force as written.
+> The manifest gate still exists, but a recognised foreign dialect is now adapted
+> rather than refused, so "the recognised set is only SPECTA's own spelling" is no
+> longer true. The original paragraph is kept below as the record of the decision
+> that was taken; the resolution is at the end of §13.2.
+
 H1 says "any source, from anywhere, any type of file."
 
 **These cannot both be true, and this is a decision, not a wording problem.**
@@ -395,6 +401,15 @@ question is which of three things "any type of source" means:
   intact.
 
 **Recommendation: (b), or (c) if openness matters more than execution.**
+
+> **RESOLVED 2026-09-30 (commit 630eb45): option (b) was implemented.** The
+> alias table in `source_format_detector.dart` resolves contract operations through
+> spellings (`getHome`→`latest`, `getDetail`→`details`,
+> `getVideoSources`→`getSources`), and the generated shim calls the author's real
+> member name. Real third-party providers now adapt, install and execute, proven on
+> the device's QuickJS engine. **A1 is superseded**: the execution gate still
+> exists, but the recognised dialect set is no longer only SPECTA's own spelling.
+> See `SOURCE_RUN_REPORT.md` §14.
 Option (a) is the only one that requires actively reversing a locked security
 decision, and I will not do that on an ambiguous reading of "any type". Both the
 Zangetsu files and `maxmovies-cc.js` point to (b).

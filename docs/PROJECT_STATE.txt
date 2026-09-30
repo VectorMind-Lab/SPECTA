@@ -153,7 +153,7 @@ end, and a live install FROM a repository entry (the device test reads the index
 and resolves entries but installs nothing). Findings in
 docs/phase_reports/SOURCES_REPORT.md.
 
-﻿Last updated: 2026-09-26 â€” PHASE D PARTIAL: EXTENSION DISTRIBUTION AND INSTALLATION.
+﻿Last updated: 2026-09-26 — PHASE D PARTIAL: EXTENSION DISTRIBUTION AND INSTALLATION.
 D adds two installation routes that CONVERGE on the existing Extension Manager:
 device import (unchanged SAF picker), direct HTTPS, and the official catalogue.
 New `lib/core/extensions/distribution/` provides an HTTPS-only URL policy (http
@@ -161,8 +161,8 @@ is refused, never upgraded; embedded credentials refused; loopback/private/
 link-local refused), a size-capped downloader with a transport seam, a dart:io
 transport that re-validates every redirect hop, and an app-private write location
 with a file-name sanitiser for the attacker-influenced extension id. Downloads
-are written to storage and then handed to `installFromFile` â€” the same manager
-entry point the picker uses â€” so there is one validation pipeline, not two.
+are written to storage and then handed to `installFromFile` — the same manager
+entry point the picker uses — so there is one validation pipeline, not two.
 The catalogue (`repository.json`, schemaVersion 1) is DISCOVERY ONLY: it carries
 no signature or trust field, and an unsigned extension from an official-looking
 host still installs as `unverified`. Trust remains the manifest signature.
@@ -183,7 +183,7 @@ clean; extension suites 384 passed; full suite 1085 passed
 / 39 skipped / 0 failed. Deferred: real-device verification and the live catalogue run to Phase F
 (device QA); publishing SPECTA-Extensions is a separate task.
 Findings in `docs/phase_reports/D_report.md`.
-Last updated: 2026-09-25 â€” PHASE C4 COMPLETE: USER-FACING METADATA INTEGRATION.
+Last updated: 2026-09-25 — PHASE C4 COMPLETE: USER-FACING METADATA INTEGRATION.
 C4 connects the C1â€“C3 metadata core to the actual UI. New shared
 `SpectaArtwork` widget is the single place remote artwork loads (no widget builds
 provider URLs; no/failed/in-flight all render one neutral placeholder). Details
@@ -218,11 +218,11 @@ Two real defects were found ONLY by that device run and are now fixed:
 (1) Search discarded catalogue results when no extension was installed, showing
 only the install prompt; (2) the AniList GraphQL field set was rejected by the
 live API with HTTP 400 because `coverImage` requires a sub-selection and
-`startDate` is a date object, not a string â€” both were masked by stubbed tests.
+`startDate` is a date object, not a string — both were masked by stubbed tests.
 Lesson: a stubbed client cannot validate a third-party schema.
 Findings in `docs/phase_reports/C4_report.md`.
 
-Last updated: 2026-09-25 â€” PHASE C3 COMPLETE: TMDB AND TVMAZE INTEGRATION.
+Last updated: 2026-09-25 — PHASE C3 COMPLETE: TMDB AND TVMAZE INTEGRATION.
 C3 connects the already-built TMDB and TVMaze catalogue clients to the metadata
 layer through a provider-neutral enrichment seam
 (`lib/core/metadata/catalogue_enricher.dart`). No client, DTO, transport or
@@ -237,7 +237,7 @@ key control. Verification: `flutter analyze` clean; C3 + regression subset 285
 passed; full suite 1027 passed / 39 skipped / 0 failed. Findings in
 `docs/phase_reports/C3_report.md`.
 
-Last updated: 2026-09-25 â€” PHASE C2 COMPLETE: ANIME INFRASTRUCTURE.
+Last updated: 2026-09-25 — PHASE C2 COMPLETE: ANIME INFRASTRUCTURE.
 C2 adds a credential-free AniList GraphQL client, defensive AniList models,
 normalization into C1 anime identity, and shared-cache integration under the
 `anilist` namespace of the existing `metadata_cache` table. No new networking
@@ -247,7 +247,7 @@ TVMaze. No schema change, no migration, and no Home/Search/Details wiring.
 Verification: `flutter analyze` clean; C2 suite 34 passed; full suite 1009
 passed / 39 skipped / 0 failed. Findings in `docs/phase_reports/C2_report.md`.
 
-Last updated: 2026-09-25 â€” PHASE C1 COMPLETE: ANIME IDENTITY AND CONTRACT ARCHITECTURE.
+Last updated: 2026-09-25 — PHASE C1 COMPLETE: ANIME IDENTITY AND CONTRACT ARCHITECTURE.
 C1 adds the distinct `anime` media type, AniList-backed canonical identity
 (`anilist:<id>` with identity version 2), optional extension contract revisions
 (legacy `2.0.0`, anime `2.1.0`), runtime `externalIds` parsing, and additive
@@ -278,16 +278,16 @@ subtitles preserved). LIVE validation (real archive.org, real network, real
 DartIoHttpTransport, production request policy): 30 real search results; a real
 item resolved to a real MP4 URL which an INDEPENDENT HEAD request confirmed as
 200 video/mp4; an impossible query returned an empty success; a restricted item
-(is_dark) was rejected honestly. NO lib/ FILE CHANGED â€” the reference extension
+(is_dark) was rejected honestly. NO lib/ FILE CHANGED — the reference extension
 is a new file under extensions/, its fixtures under test/, plus reports.
 Provider-agnosticism is now ENFORCED BY TEST: a suite scans every .dart file
 under lib/ for provider markers and fails on any hit (result: zero). An
 abandoned, uncommitted, non-building "API Adapter" subsystem found in the
 working tree was AUDITED (docs/API_ADAPTER_SUBSYSTEM_AUDIT.md) and PRESERVED in
-stash@{0} â€” not restored, not deleted, not built on. Validation: analyze CLEAN;
+stash@{0} — not restored, not deleted, not built on. Validation: analyze CLEAN;
 default suite 33 Phase-2I tests pass with the bridge active (full suite 850
 passed / 1 skipped / 0 failed, was 817/0/0); live suite 4/4.
-Superseded header line: 2026-09-23 â€” PHASE 2H COMPLETE: EXTENSION INTEGRATION & LIFECYCLE FOUNDATION.
+Superseded header line: 2026-09-23 — PHASE 2H COMPLETE: EXTENSION INTEGRATION & LIFECYCLE FOUNDATION.
 The extension runtime is now an application-level, persistent subsystem. There
 is exactly ONE installation boundary: ExtensionLifecycleService.installFromFile
 -> ExtensionManager -> manifest parse -> API-compatibility gate -> Ed25519
@@ -301,7 +301,7 @@ retires the previous runtime (never a second identity) while preserving the
 user's disabled choice, and uninstall/shutdownAll dispose every engine; a load
 that fails disposes its own sandbox and is never published. Installed
 extensions, their enabled/disabled state and their trust survive application
-restart â€” PROVED against a real on-disk SQLite file that is closed and reopened
+restart — PROVED against a real on-disk SQLite file that is closed and reopened
 (a throwaway test-only Ed25519 key mints the Official case; no production key
 is involved, and no signing key was created or modified). The Extensions screen
 is now the real install/manage surface: list with name, version, author, trust
@@ -320,8 +320,8 @@ PATH 817 passed / 0 skipped / 0 failed (extension suites alone 351/351); debug
 APK SUCCESS (237,656,613 bytes). One order-sensitive pre-existing discovery test
 flaked once under full-suite parallel load and passed both in isolation and on
 the subsequent full run; it is unrelated to Phase 2H (evidence in
-docs/PHASE_2H_IMPLEMENTATION_AUDIT.md Â§14).
-Superseded header line: 2026-09-22 â€” FINAL D-3 DEVICE RE-VALIDATION COMPLETE.
+docs/PHASE_2H_IMPLEMENTATION_AUDIT.md §14).
+Superseded header line: 2026-09-22 — FINAL D-3 DEVICE RE-VALIDATION COMPLETE.
 The adb-reverse transport was EXONERATED (the failure reproduced without it);
 two transport-independent SPECTA defects were demonstrated with no network and
 no plugin, then FIXED with owner authorization and DEVICE-VALIDATED (3/3 device
@@ -336,26 +336,26 @@ transport after the Ethernet adapter had been disabled and the host was
 unreachable by ARP; re-enabling it restored the link. P2GC-1 PASS
 (2097176/2097176, gate verified, no .part, declared total preserved),
 P2GC-2 PASS (cancel requested, .part removed, record never completed), and
-P2GC-3 was run 12 times â€” PASS on runs 2, 3, 7, 10, 11, 12, with 3 CONSECUTIVE
+P2GC-3 was run 12 times — PASS on runs 2, 3, 7, 10, 11, 12, with 3 CONSECUTIVE
 PASS on runs 10-12. Every P2GC-3 failure was environmental, never a
 stale-event symptom: run 1 = SQLite `database is locked` (two reconcilers
 racing the same on-device DB); run 4 = device LAN connection reset at
 894656/2097176 bytes; runs 5, 6, 8 = WorkManager registration race at
 `bytes=0` before the transfer started; run 9 = SQLite `database is locked`
 again. No run ever showed an old attempt's event cancelling, failing,
-completing or corrupting the new attempt â€” the D-3 generation gate held on
+completing or corrupting the new attempt — the D-3 generation gate held on
 device throughout. Offline totals: analyze CLEAN; 764 passed / 9 skipped /
 0 failed (the earlier full-suite run that showed 1 failed was a transient
-Drift/Dart-isolate test-fixture race in two DOWNLOAD tests â€”
+Drift/Dart-isolate test-fixture race in two DOWNLOAD tests —
 `download_manager_test` "a freed slot advances the queue exactly one job" and
-`download_providers_test` "provider state derives from real persisted state" â€”
+`download_providers_test` "provider state derives from real persisted state" —
 caused by `Callbacks into the Dart VM are currently prohibited` plus
 `Can't re-open a database after closing it`; it is NOT a discovery test, NOT a
 D-3 symptom, and NOT a production defect); D-3 suite 9/9; downloads-focused
 166/166. Offline playback remains NOT TESTABLE (no product seam).
 See the CORRECTION 2026-09-22 blocks below, docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md
 and docs/PHASE_2G_C_D3_INVESTIGATION_REPORT.md.
-Superseded header line: 2026-09-21 â€” Phase 2G-C ENGINE INTEGRATION COMPLETE;
+Superseded header line: 2026-09-21 — Phase 2G-C ENGINE INTEGRATION COMPLETE;
 REAL DEVICE VALIDATION PARTIAL on Samsung Galaxy A06 (SM-A065F, Android 16).
 The pre-flight (Sections 34â€“39 of the 2G-C authorization), 2G-C engine
 integration, documentation reconciliation, and this audit are all done.
@@ -373,17 +373,17 @@ Real device validation (2026-09-21, over adb reverse): P2GC-1 FAIL
 (8192/8192 bytes, expected 2097176), P2GC-2 PASS, P2GC-3 FAIL
 (isTransferActive false, timing). Integration test: 1 passed, 2 failed out of
 3. See docs/PHASE_2G_C_ENGINE_AUDIT.md.
-CORRECTION 2026-09-22 (direct transport, "adb reverse used: NO" â€” verified):
+CORRECTION 2026-09-22 (direct transport, "adb reverse used: NO" — verified):
 that transport-focused verdict was incomplete. The controlled 2,097,176-byte
 MP4 is reachable and transferable DIRECTLY from the device over the LAN, and
-the same failure signature REPRODUCED with adb reverse removed â€” so adb
+the same failure signature REPRODUCED with adb reverse removed — so adb
 reverse was not the cause. On a fresh install the real file IS downloaded and
 finalized byte-exact (2,097,176 bytes, no .part) while the persisted record
 mis-reports the count. TWO SPECTA DEFECTS are demonstrated with no network and
 no plugin (scripted engine + real FileDownloadCompletionFinalizer + real
 DownloadManager): (D-1) the finalizer returns `engineBytes > 0 ? engineBytes :
 size`, so a TRUNCATED file (8028 of a declared 2097176 bytes) is accepted and
-persisted as `completed` media â€” the audit claim that the gate rejected the
+persisted as `completed` media — the audit claim that the gate rejected the
 wrong-sized file is FALSE (the rejection came from a test assertion);
 (D-2) BackgroundDownloaderEngine's `complete` handler reports totalBytes equal
 to its own stale byte count, and DownloadManager prefers that over the
@@ -403,25 +403,25 @@ seam", 26 files, +7833/-237). Push verified: origin/master == 94f9283.
 Verified before that commit: analyze clean, 618 passed / 9 skipped
 (after the 2G-B source-audit regression test; 617 before it), real JS 627,
 debug APK SUCCESS.
-Verdict: PHASE 1 COMPLETE â€” REAL DEVICE VERIFIED â€” PRIVATE GITHUB REPOSITORY.
-PHASE 2 IN PROGRESS (2A through 2G-C complete; 2H COMPLETE â€” extension
-integration & lifecycle foundation; 2I COMPLETE â€” first real reference
+Verdict: PHASE 1 COMPLETE — REAL DEVICE VERIFIED — PRIVATE GITHUB REPOSITORY.
+PHASE 2 IN PROGRESS (2A through 2G-C complete; 2H COMPLETE — extension
+integration & lifecycle foundation; 2I COMPLETE — first real reference
 extension, Internet Archive, verified end to end against the live provider).
-Next: Phase 2 sub-stage 2J â€” PRODUCTION HARDENING across extension lifecycle,
+Next: Phase 2 sub-stage 2J — PRODUCTION HARDENING across extension lifecycle,
 sources, playback, downloads, database and offline behaviour.
-Next: Phase 2 sub-stage 2K â€” V1 UX/product completion (Home, Search, Details,
+Next: Phase 2 sub-stage 2K — V1 UX/product completion (Home, Search, Details,
 Player, Downloads, Extensions: loading/empty/error states, phone + Android TV).
-Next: Phase 2 sub-stage 2L â€” release preparation (versioning, signing config,
+Next: Phase 2 sub-stage 2L — release preparation (versioning, signing config,
 minify/shrink, permissions, release APK) and V1 acceptance.
 Next: the official extension catalogue in a separate SPECTA-Extensions
-repository â€” still future work, NOT YET AUTHORIZED â€” DO NOT START.
+repository — still future work, NOT YET AUTHORIZED — DO NOT START.
 Previous (COMPLETE) sub-stage 2G-C (background_downloader adapter, real MP4
-transfer, .part/Range, source refresh, engine reconciliation) â€” AUTHORIZED,
+transfer, .part/Range, source refresh, engine reconciliation) — AUTHORIZED,
 blocked only on the pre-flight report + validation gate, both recorded in
 docs/PHASE_2G_C_PREFLIGHT_REPORT.md.
 
 GitHub checkpoint (2026-09-17, completed and VERIFIED by a second
-investigation pass â€” see docs/GITHUB_CHECKPOINT_REPORT.md):
+investigation pass — see docs/GITHUB_CHECKPOINT_REPORT.md):
 - Private repository `VectorMind-Lab/SPECTA` exists; branch `master` pushed.
 - Local HEAD == remote HEAD: ad68512 at checkpoint close; advanced by the
   Phase 2A commit afterwards.
@@ -440,14 +440,14 @@ investigation pass â€” see docs/GITHUB_CHECKPOINT_REPORT.md):
   NOT created.
 
 Phase 2 (authorized 2026-09-17):
-- Sub-stage 2A (application/UI foundation) COMPLETE â€” see
+- Sub-stage 2A (application/UI foundation) COMPLETE — see
   docs/PHASE_2_REPORT.md. Approved launch flow (Splash â†’ Main App shell)
   wired; real Home view over the design fixtures; Settings with persisted
   appearance/downloads/extensions controls; diagnostics preserved under
   Settings; placeholder statuses corrected to their true sub-stage.
 - flutter analyze: No issues found. flutter test: 274 passed, 9 skipped
   (real-engine group), 0 failed. No lib/core/ changes; no new dependencies.
-- Sub-stage 2B (search/discovery pipeline) COMPLETE â€” see
+- Sub-stage 2B (search/discovery pipeline) COMPLETE — see
   docs/PHASE_2B_REPORT.md. lib/core/discovery/ (models, normalizer,
   deduplicator, coordinator + Riverpod service); search session state and
   Search UI wired to real discovery; runtime search/latest parsing hardened
@@ -457,7 +457,7 @@ Phase 2 (authorized 2026-09-17):
   9 skipped (real-engine group), 0 failed. No database change; no new
   dependency. Device verification not required (no device attached; pure
   Dart pipeline + widget UI).
-- Sub-stage 2C (metadata manager / details pipeline) COMPLETE â€” see
+- Sub-stage 2C (metadata manager / details pipeline) COMPLETE — see
   docs/PHASE_2C_REPORT.md. lib/core/metadata/ (canonical MetadataItem with
   per-reference provenance, MetadataNormalizer, MetadataManager + service);
   details session state (race-safe, honest partial failure) and minimal
@@ -466,7 +466,7 @@ Phase 2 (authorized 2026-09-17):
   malformed rows skipped, bad ratings dropped).
   flutter analyze: No issues found. flutter test: 379 passed, 9 skipped,
   0 failed. No database change; no new dependency; no getSources() usage.
-- Sub-stage 2D (source manager) COMPLETE â€” see docs/PHASE_2D_REPORT.md.
+- Sub-stage 2D (source manager) COMPLETE — see docs/PHASE_2D_REPORT.md.
   lib/core/sources/ (QualityPreference, ExtensionSourceOutcome, SourcePool/
   RankedSource with per-extension provenance, structural SourceValidator,
   deterministic SourceRanker, SourceManager resolve/refresh + service);
@@ -477,30 +477,30 @@ Phase 2 (authorized 2026-09-17):
   defensive response caps; failure isolation per extension.
   flutter analyze: No issues found. flutter test: 418 passed, 9 skipped,
   0 failed. No database change; no new dependency.
-- Sub-stage 2E (player integration) COMPLETE â€” see docs/PHASE_2E_REPORT.md.
+- Sub-stage 2E (player integration) COMPLETE — see docs/PHASE_2E_REPORT.md.
   lib/core/playback/ (transport-agnostic PlaybackEngine contract + sealed
   event set, MediaKitPlaybackEngine, PlaybackProgressSink + in-memory 2E
   impl) and lib/features/playback/ (PlaybackStatus + snapshot models with
   copyWith, race-safe PlaybackSessionNotifier with ordered fallback and
   refresh-once, SPECTA player surface with phone/TV controls, detailsâ†’player
   entry). Reuses the Phase 1 ExtensionSource contract and the 2D SourcePool +
-  source session UNCHANGED â€” no second source model, no second refresh API,
+  source session UNCHANGED — no second source model, no second refresh API,
   no duplicate validation/ranking. Honest state machine: `playing` requires
   MEASURED media flow (a progress tick with position > 0), never mpv's
   optimistic playing=true. 8 defects found and fixed during the recovery
   audit, including a real post-dispose contract violation reproduced on
   device. flutter analyze: No issues found. flutter test: 446 passed,
   9 skipped (real-engine group), 0 failed. DEVICE: 5/5 PASS (SM-A065F,
-  Android 16) â€” real MP4 (322 ms to first frame), real HLS, ordered
+  Android 16) — real MP4 (322 ms to first frame), real HLS, ordered
   fallback, progress sink; log docs/evidence_p2e_device_run_2026-09-19.log.
   APK build: SUCCESS. No database change; no new dependency; no
-  SPECTA-Extensions; README corrected (see report Â§10).
-- Sub-stage 2F (library / history / watch-progress persistence) COMPLETE â€”
+  SPECTA-Extensions; README corrected (see report §10).
+- Sub-stage 2F (library / history / watch-progress persistence) COMPLETE —
   see docs/PHASE_2F_REPORT.md. lib/core/library/ (WatchProgress model,
   LibraryStore contract, Drift LibraryDao, Riverpod providers) and
   lib/core/playback/'s PersistentPlaybackProgressSink; the 2E
   PlaybackProgressSink seam was extended with OPTIONAL descriptive fields and
-  rebound to persistence â€” the player itself was NOT rewritten. Schema v3:
+  rebound to persistence — the player itself was NOT rewritten. Schema v3:
   one additive, registered migration step creating `watch_progress` keyed by
   the player's own identity (movie key, or `key|s<S>e<E>` for an episode, so
   Episode 2 can never update Episode 1). Library and Home Continue Watching
@@ -508,17 +508,17 @@ Phase 2 (authorized 2026-09-17):
   duplicated watch_history table). NO 2G downloads, NO 2H catalogue, no new
   dependency. flutter analyze: No issues found. flutter test: 475 passed,
   9 skipped, 0 failed; real JS bridge 484 passed, 0 skipped. DEVICE: 2/2 PASS
-  (SM-A065F, Android 16) â€” on-device PRAGMA user_version = 3, settings and
+  (SM-A065F, Android 16) — on-device PRAGMA user_version = 3, settings and
   watch_progress reachable, persistent sink round trip, verification rows
   removed; log docs/evidence_p2f_device_run_2026-09-19.log. APK build:
   SUCCESS (277,511,502 bytes).
-- Sub-stage 2F RESUME-BY-KEY FOLLOW-UP COMPLETE â€” see
+- Sub-stage 2F RESUME-BY-KEY FOLLOW-UP COMPLETE — see
   docs/PHASE_2F_RESUME_FOLLOWUP_REPORT.md. Continue Watching / Library /
   History items now RE-OPEN through the existing pipeline. The persisted
   identity (`<normTitle>|<type>|<year>`) is self-describing and is parsed back
   exactly; the discovery provenance that metadataFor needs is persisted in a
   new additive schema v4 table `media_references` (reusing the discovery
-  layer's DiscoveryReference â€” no second reference model, no stored source
+  layer's DiscoveryReference — no second reference model, no stored source
   URL). `resumeWith` rebuilds the DiscoveryItem, re-runs the metadata layer,
   selects the exact SeriesEpisode (season AND episode), and calls the
   UNCHANGED 2E `startPlayback`; sources are always re-resolved through the
@@ -527,12 +527,12 @@ Phase 2 (authorized 2026-09-17):
   restart). Failures are structured and honest (no references / metadata
   unavailable / episode missing). flutter analyze: No issues found.
   flutter test: 503 passed, 9 skipped, 0 failed; real JS bridge 512 passed,
-  0 skipped. DEVICE: 3/3 PASS (SM-A065F, Android 16) â€” on-device
+  0 skipped. DEVICE: 3/3 PASS (SM-A065F, Android 16) — on-device
   PRAGMA user_version = 4, media_references reachable, provenance round trip;
   log docs/evidence_p2f_resume_device_run_2026-09-19.log. APK build: SUCCESS
   (277,535,750 bytes). No new dependency; no 2G/2H work.
 - Sub-stage 2G-A (download foundation stabilization + Persistence Contract)
-  COMPLETE â€” see docs/PHASE_2G_A_REPORT.md. Forensic audit of the pre-existing
+  COMPLETE — see docs/PHASE_2G_A_REPORT.md. Forensic audit of the pre-existing
   uncommitted download work classified it PARTIAL_PHASE_2G_WORK; four
   corrections applied (failure model moved into the sealed SpectaFailure
   hierarchy, NetworkPolicyVerdict.allowed â†’ isAllowed, analyzer issues, real
@@ -545,7 +545,7 @@ Phase 2 (authorized 2026-09-17):
   flutter analyze: No issues found. flutter test: 557 passed, 9 skipped,
   0 failed; real JS 566 passed, 0 skipped. No manager, engine, package, UI,
   or commit created in 2G-A.
-- Sub-stage 2G-B (DownloadManager, queue & providers) COMPLETE â€” see
+- Sub-stage 2G-B (DownloadManager, queue & providers) COMPLETE — see
   docs/PHASE_2G_B_REPORT.md. lib/core/downloads/ now contains the full
   SPECTA-owned orchestration layer: DownloadManager (941 lines: FIFO queue
   pump, concurrency 3 default/9 max with clamping, persist-before-engine,
@@ -572,20 +572,20 @@ copies are updated together; if only one exists in future, keep the root copy.
 
 Documents, in order of recency (newest wins where they disagree):
   -3b. docs/PHASE_2G_C_D3_INVESTIGATION_REPORT.md (D-3 dedicated
-        investigation: attempt identity / stale-event isolation â€” mechanism
+        investigation: attempt identity / stale-event isolation — mechanism
         confirmed by negative control, fixed, offline-verified; device
-        re-validation outstanding â€” newest record)
+        re-validation outstanding — newest record)
   -3. docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md (2G-C follow-up: the
         adb-reverse transport REMOVED from the path, direct-LAN device
         validation, and the two transport-independent SPECTA defects that are
-        demonstrated but NOT fixed â€” newest record; read this BEFORE the engine
+        demonstrated but NOT fixed — newest record; read this BEFORE the engine
         audit)
-  -2b. docs/PHASE_2G_C_ENGINE_AUDIT.md (2G-C engine integration audit â€” NOTE:
+  -2b. docs/PHASE_2G_C_ENGINE_AUDIT.md (2G-C engine integration audit — NOTE:
         its "completion gate correctly detected/rejected the mismatch" claims
         are FALSIFIED by -3; the gate has no byte-integrity check)
   -2. docs/PHASE_2G_C_PREFLIGHT_REPORT.md (2G-C pre-flight: documentation
         truth audit, five verified defect fixes, request policy hardening,
-        validation gate â€” newest record)
+        validation gate — newest record)
   -1b. docs/PHASE_2G_B_SOURCE_AUDIT.md (2G-B source audit: one defect fixed,
         regression-tested; READY FOR PHASE 2G-C verdict)
   -1. docs/PHASE_2G_B_REPORT.md         (2G-B: DownloadManager, queue,
@@ -594,13 +594,13 @@ Documents, in order of recency (newest wins where they disagree):
                                         Persistence Contract, architecture
                                         decision)
   0. docs/PHASE_2F_RESUME_FOLLOWUP_REPORT.md (2F resume-by-key follow-up)
-  0b. docs/PHASE_2F_REPORT.md          (Phase 2 sub-stage record â€” 2F)
-  1. docs/PHASE_2E_REPORT.md           (Phase 2 sub-stage record â€” 2E;
+  0b. docs/PHASE_2F_REPORT.md          (Phase 2 sub-stage record — 2F)
+  1. docs/PHASE_2E_REPORT.md           (Phase 2 sub-stage record — 2E;
                                         includes the recovery audit and the
                                         device-verification record)
-  2. docs/PHASE_2D_REPORT.md           (Phase 2 sub-stage record â€” 2D)
-  3. docs/PHASE_2B_REPORT.md           (Phase 2 sub-stage record â€” 2B)
-  4. docs/PHASE_2_REPORT.md            (Phase 2 sub-stage record â€” 2A)
+  2. docs/PHASE_2D_REPORT.md           (Phase 2 sub-stage record — 2D)
+  3. docs/PHASE_2B_REPORT.md           (Phase 2 sub-stage record — 2B)
+  4. docs/PHASE_2_REPORT.md            (Phase 2 sub-stage record — 2A)
   5. docs/PHASE_1_CLOSURE_REPORT.txt   (closure session + device verification)
   6. docs/PHASE_1_REPORT.txt           (second audit report)
   7. docs/PHASE_0_REPORT.md
@@ -608,14 +608,14 @@ Documents, in order of recency (newest wins where they disagree):
 
 1. CURRENT PHASE
 ----------------
-Phase 2 â€” now AUTHORIZED (2026-09-17) and IN PROGRESS, executed in controlled
+Phase 2 — now AUTHORIZED (2026-09-17) and IN PROGRESS, executed in controlled
 sub-stages (2A UI foundation â†’ 2H extension catalogue). Sub-stages 2Aâ€“2F (plus
 the 2F resume follow-up) and 2G-A/2G-B are complete and verified; the 2G-C
 PRE-FLIGHT (documentation truth audit + five verified defect fixes + request
-policy hardening) is complete â€” see docs/PHASE_2G_C_PREFLIGHT_REPORT.md.
-2G-C ENGINE INTEGRATION COMPLETE â€” 2H is open.
+policy hardening) is complete — see docs/PHASE_2G_C_PREFLIGHT_REPORT.md.
+2G-C ENGINE INTEGRATION COMPLETE — 2H is open.
 
-Phase 1 â€” Extension Foundation. Implemented, audited, corrected, tested,
+Phase 1 — Extension Foundation. Implemented, audited, corrected, tested,
 buildable, and VERIFIED ON A REAL ANDROID DEVICE (2026-09-16).
 
 Do not treat the earlier "Phase 2 = real scrapers, player wiring, downloads"
@@ -626,7 +626,7 @@ in docs/PHASE_2_REPORT.md section 10 are the plan of record.
 2. COMPLETED WORK
 -----------------
 
-Phase 2A â€” Application/UI foundation (2026-09-17, docs/PHASE_2_REPORT.md):
+Phase 2A — Application/UI foundation (2026-09-17, docs/PHASE_2_REPORT.md):
 [x] Approved launch flow wired: Splash (branding + man facing the city) ->
     main app shell; hasSeenSplash persisted; theme driven by the persisted
     preset provider (brand default cyan/teal).
@@ -642,7 +642,7 @@ Phase 2A â€” Application/UI foundation (2026-09-17, docs/PHASE_2_REPORT.md)
 [x] Verification: flutter analyze clean; flutter test 274 passed / 9 skipped
     (real-engine group) / 0 failed; no lib/core/ change; no new dependency.
 
-Phase 2B â€” Search/discovery pipeline (2026-09-17, docs/PHASE_2B_REPORT.md):
+Phase 2B — Search/discovery pipeline (2026-09-17, docs/PHASE_2B_REPORT.md):
 [x] lib/core/discovery/ established: SearchRequest + DiscoveryItem/
     DiscoveryResult with per-reference provenance (DiscoveryObservation),
     DiscoveryNormalizer (title/whitespace/casing/year/type/URL/reference
@@ -668,7 +668,7 @@ Phase 2B â€” Search/discovery pipeline (2026-09-17, docs/PHASE_2B_REPORT.md
     9 skipped (real-engine group), 0 failed (66 new tests: normalizer,
     deduplicator, coordinator, search state, search UI, runtime parsing).
 
-Phase 2C â€” Metadata manager / details pipeline (2026-09-17,
+Phase 2C — Metadata manager / details pipeline (2026-09-17,
 docs/PHASE_2C_REPORT.md):
 [x] lib/core/metadata/ established: canonical MetadataItem (movie/series)
     with one ReferenceMetadata per contributing provider reference
@@ -680,12 +680,12 @@ docs/PHASE_2C_REPORT.md):
     capability-checked, 20s bounded timeout, failure-isolated outcomes
     as data) + metadataServiceProvider.
 [x] Identity: metadata key == discovery evidence key (normalized title,
-    type, year) â€” no invented global identity; cross-provider merging only
+    type, year) — no invented global identity; cross-provider merging only
     through discovery-established references.
 [x] Details session state (detailsSessionProvider): idle/loading/success/
     failure + honest partial failure; monotonic generation race guard
     (stale opens rejected, tested); discovery data renders immediately
-    while loading â€” nothing fabricated.
+    while loading — nothing fabricated.
 [x] Minimal details UI: header (title/year/type/genres/rating/runtime),
     overview, seasons with expandable episodes, Retry; D-pad reachable
     (back button + tappable cards); search result cards now open details.
@@ -699,19 +699,19 @@ docs/PHASE_2C_REPORT.md):
     passed, 9 skipped (real-engine group), 0 failed (39 new tests:
     parser robustness, normalizer, manager, session state, UI).
 
-Phase 2D â€” Source manager (2026-09-17, docs/PHASE_2D_REPORT.md):
+Phase 2D — Source manager (2026-09-17, docs/PHASE_2D_REPORT.md):
 [x] lib/core/sources/ established: QualityPreference (auto/480p/720p/
     1080p/4K), ExtensionSourceOutcome (success/skipped/failed/invalid as
     data), SourcePool (selected + ranked fallbacks + per-extension
     outcomes), RankedSource (candidate + extensionId + reference + score).
-    Reuses the Phase 1 ExtensionSource contract unchanged â€” no duplicate
+    Reuses the Phase 1 ExtensionSource contract unchanged — no duplicate
     model; MP4 + HLS only, no DASH/DRM.
 [x] SourceManager.resolve: parallel getSources over the Phase 1 manager,
     capability-checked, 20s bounded timeout, failure-isolated outcomes;
     structural validation (scheme allow-list http/https, header-name
     injection guard, subtitle URL required, 2048-char URL cap, 32-header
     cap, 100-candidate per-extension cap); dedup (same URL from one
-    extension collapses, from two stays â€” distinct CDN risk); ranking
+    extension collapses, from two stays — distinct CDN risk); ranking
     (preference-driven, NOT highest-quality-first; unknown quality
     explicitly scored below known; adaptive bonus under auto;
     deterministic tie-breaks score -> tier -> type -> URL).
@@ -729,11 +729,11 @@ Phase 2D â€” Source manager (2026-09-17, docs/PHASE_2D_REPORT.md):
     passed, 9 skipped (real-engine group), 0 failed (39 new tests:
     validator, ranker, manager, session state).
 
-Phase 2E â€” Player integration (2026-09-19, docs/PHASE_2E_REPORT.md):
+Phase 2E — Player integration (2026-09-19, docs/PHASE_2E_REPORT.md):
 [x] lib/core/playback/ established: transport-agnostic PlaybackEngine
     contract + sealed PlaybackEngineEvent set, MediaKitPlaybackEngine
     (event bridging, candidate-transition suppression, idempotent disposal),
-    PlaybackProgressSink + InMemoryPlaybackProgressSink (2E seam only â€”
+    PlaybackProgressSink + InMemoryPlaybackProgressSink (2E seam only —
     NO persistence, no schema change).
 [x] lib/features/playback/: PlaybackStatus (idle/loading/playing/paused/
     buffering/switchingSource/completed/failed), PlaybackSnapshot (+copyWith
@@ -745,7 +745,7 @@ Phase 2E â€” Player integration (2026-09-19, docs/PHASE_2E_REPORT.md):
     auto-hiding touch controls; TV D-pad focus + autofocused anchor),
     detailsâ†’player entry with provenance-driven episode targeting.
 [x] Honest playback truth: `playing` requires a progress tick with
-    position > 0 (mpv reports playing=true optimistically â€” observed on
+    position > 0 (mpv reports playing=true optimistically — observed on
     device for a URL that cannot connect). A mid-stream engine error is a
     recoverable stall; a real interruption times out into the next candidate.
 [x] Defects found and fixed during the recovery audit (8): terminal snapshot
@@ -762,11 +762,11 @@ Phase 2E â€” Player integration (2026-09-19, docs/PHASE_2E_REPORT.md):
     no new dependency, no database change.
 [x] Verification: flutter analyze No issues found; flutter test 446 passed,
     9 skipped (real-engine group), 0 failed (34 focused 2E tests + 5 new).
-[x] DEVICE VERIFICATION PASS â€” 5/5 (SM-A065F, Android 16): engine construct,
+[x] DEVICE VERIFICATION PASS — 5/5 (SM-A065F, Android 16): engine construct,
     real MP4 (322 ms to first frame), real HLS + setRate, ordered fallback
     through the real engine, progress sink. Raw log:
     docs/evidence_p2e_device_run_2026-09-19.log.
-[x] APK build SUCCESS â€” build/app/outputs/flutter-apk/app-debug.apk,
+[x] APK build SUCCESS — build/app/outputs/flutter-apk/app-debug.apk,
     277,459,792 bytes, 2026-09-19 02:01 (Gradle assembleDebug 149.7 s).
 [x] README/docs/README.md corrected: pre-Phase-1-closure claims ("runtime not
     shipped", "sandbox untested", "signing provisional", "no capability
@@ -808,11 +808,11 @@ Phase 1 closure session (docs/PHASE_1_CLOSURE_REPORT.txt):
     latest, details, sources); undeclared = refused, with mutation evidence.
 [x] Controlled request API (ControlledExtensionRuntimeApi) with an explicit
     transport policy (schemes, methods, sizes, redirects, timeout clamp) over
-    dart:io â€” no new dependency.
+    dart:io — no new dependency.
 [x] FlutterJsSandbox executed against the real QuickJS engine in the test
     suite (9 tests; three real-engine defects found and fixed); runtime limit
     semantics measured (neither memoryLimit nor timeout is enforced by the
-    bundled bridge â€” documented, not assumed).
+    bundled bridge — documented, not assumed).
 [x] Extension subsystem wired into the app graph (extension_providers.dart +
     SpectaStartup in main.dart); reachability proven in the APK kernel.
 [x] Health model (descriptive only) implemented.
@@ -823,7 +823,7 @@ Phase 1 device verification session (this pass, 2026-09-16):
     no lib/ product code changed; the only project change is the SDK-provided
     integration_test dev dependency).
 [x] The full Phase 1 runtime was exercised inside the real app process on a
-    physical device â€” three consecutive runs, 10/10 each. Details in section 3
+    physical device — three consecutive runs, 10/10 each. Details in section 3
     and docs/PHASE_1_CLOSURE_REPORT.txt section 22.
 [x] No runtime defect surfaced. Zero product-code changes were needed.
 
@@ -836,7 +836,7 @@ flutter analyze                           | No issues found
 flutter test (real JS bridge on PATH)     | 275/275 passed (tool/run_tests_real_js.sh)
 flutter test (no bridge, plain)           | 266 passed, 9 skipped (real-engine group)
 integration test on device (x3 runs)      | 10/10 passed, 0 failed, 0 skipped
-flutter build apk --debug                 | SUCCESS â€” app-debug.apk
+flutter build apk --debug                 | SUCCESS — app-debug.apk
                                           | 274,359,431 bytes, 2026-09-16 15:39
 
 Phase 2A re-verification (2026-09-17):
@@ -858,7 +858,7 @@ flutter test (no bridge, plain)           | 418 passed, 9 skipped, 0 failed
 Phase 2E verification (2026-09-19):
 flutter analyze                           | No issues found
 flutter test (no bridge, plain)           | 446 passed, 9 skipped, 0 failed
-flutter build apk --debug                 | SUCCESS â€” app-debug.apk,
+flutter build apk --debug                 | SUCCESS — app-debug.apk,
                                           | 277,459,792 bytes, 2026-09-19 02:01
 integration test on device (SM-A065F)     | 5/5 passed, 0 failed, 0 skipped
                                           | (docs/evidence_p2e_device_run_2026-09-19.log)
@@ -867,7 +867,7 @@ Phase 2F verification (2026-09-19):
 flutter analyze                           | No issues found
 flutter test (no bridge, plain)           | 475 passed, 9 skipped, 0 failed
 flutter test (real JS bridge)             | 484 passed, 0 skipped, 0 failed
-flutter build apk --debug                 | SUCCESS â€” app-debug.apk,
+flutter build apk --debug                 | SUCCESS — app-debug.apk,
                                           | 277,511,502 bytes, 2026-09-19 03:48
 integration test on device (SM-A065F)     | 2/2 passed, 0 failed, 0 skipped
                                           | on-device user_version = 3;
@@ -877,7 +877,7 @@ Phase 2F resume-by-key follow-up (2026-09-19):
 flutter analyze                           | No issues found
 flutter test (no bridge, plain)           | 503 passed, 9 skipped, 0 failed
 flutter test (real JS bridge)             | 512 passed, 0 skipped, 0 failed
-flutter build apk --debug                 | SUCCESS â€” app-debug.apk,
+flutter build apk --debug                 | SUCCESS — app-debug.apk,
                                           | 277,535,750 bytes, 2026-09-19 04:21
 integration test on device (SM-A065F)     | 3/3 passed, 0 failed, 0 skipped
                                           | on-device user_version = 4;
@@ -900,7 +900,7 @@ Phase 2E device record (2026-09-19):
         honestly failed at the 45 s open limit). Native-player recreation was
         tried and did NOT help; the test was at fault, not the player. The
         fallback candidate now uses an independent origin (W3C). See report
-        Â§12.1. This wall-clock is a real measurement, not an estimate.
+        §12.1. This wall-clock is a real measurement, not an estimate.
 
 Device verification evidence (2026-09-16, 15:26â€“15:40 local, UTC+3):
   Device        Samsung SM-A065F (Galaxy A06), arm64-v8a
@@ -908,7 +908,7 @@ Device verification evidence (2026-09-16, 15:26â€“15:40 local, UTC+3):
   Connection    USB (adb device id R83L20FRDFM)
   App           net.specta.app, launched and rendered (proc observed in logcat)
   Harness       flutter test integration_test/... -d R83L20FRDFM
-  Runs          15:26, 15:31, 15:32, 15:35 local â€” 10/10 passed each run
+  Runs          15:26, 15:31, 15:32, 15:35 local — 10/10 passed each run
 
 What the device run exercised (all inside the real app process):
   1.  App startup: Riverpod graph built extensionManagerProvider; home screen
@@ -952,30 +952,30 @@ recorded, not explained away; a byte-level delta audit was out of scope.
 4. PENDING WORK
 ---------------
 Phase 2 sub-stages (authorized, in the approved order):
-[x] 2B Search/discovery pipeline â€” DONE 2026-09-17: models + normalizer +
+[x] 2B Search/discovery pipeline — DONE 2026-09-17: models + normalizer +
     deduplicator + coordinator, search state/UI wired, runtime parsing
     hardened, 66 new tests, analyze clean, full suite 340+9/0.
-[x] 2C Metadata manager / details pipeline â€” DONE 2026-09-17: canonical
+[x] 2C Metadata manager / details pipeline — DONE 2026-09-17: canonical
     MetadataItem + provenance, normalizer, manager, details session state
     + minimal details UI, runtime details() parsing hardened, 39 new
     tests, analyze clean, full suite 379+9/0. TMDB not implemented
     (not authorized); no database change.
-[x] 2D Source manager â€” DONE 2026-09-17: source pool with per-extension
+[x] 2D Source manager — DONE 2026-09-17: source pool with per-extension
     provenance, structural validator, deterministic ranker, resolve +
     refresh over the existing contract, race-safe session state, 39 new
     tests, analyze clean, full suite 418+9/0. No player UI added.
-[x] 2E Player integration â€” DONE 2026-09-19: MediaKit behind a PlaybackEngine
+[x] 2E Player integration — DONE 2026-09-19: MediaKit behind a PlaybackEngine
     seam, honest state machine, ordered fallback, refresh-once through 2D's
     contract, phone/TV surface, in-memory progress seam. 8 defects fixed,
     34 focused tests, analyze clean, full suite 446+9/0, DEVICE 5/5 PASS,
     APK build SUCCESS. No database change; no new dependency. See
     docs/PHASE_2E_REPORT.md.
-[x] 2F Library / history / watch progress persistence â€” DONE 2026-09-19:
+[x] 2F Library / history / watch progress persistence — DONE 2026-09-19:
     schema v3 (`watch_progress`) with a registered additive migration, 2E sink
     extended + rebound to persistent storage, Library/Home wired to real data,
     19 new tests (DAO, sink, migration, library UI), analyze clean, full suite
     475+9/0, DEVICE 2/2 PASS, APK built. No new dependency; no 2G/2H work.
-[x] 2G Download foundation â€” DONE 2026-09-20 (2G-A + 2G-B; uncommitted by
+[x] 2G Download foundation — DONE 2026-09-20 (2G-A + 2G-B; uncommitted by
     design): schema v5 (`downloads`) with a tested v4â†’v5 migration, download
     identity = 2F media key (+`|s<S>e<E>` for episodes), sealed-failure
     integration, Persistence Contract implemented and test-proven,
@@ -985,32 +985,32 @@ Phase 2 sub-stages (authorized, in the approved order):
     test cases counted in the directory; manager file alone has 39); full
 suite 618+9sk after the 2G-B source-audit regression test (617 before
      it) / real JS 627; APK build SUCCESS. NO real transfer, NO
-     downloader dependency, NO UI yet â€” that is 2G-C, NOW DONE
+     downloader dependency, NO UI yet — that is 2G-C, NOW DONE
      (see below). See docs/PHASE_2G_A_REPORT.md and
      docs/PHASE_2G_B_REPORT.md.
-[âœ“] 2G-C Download engine integration â€” DONE 2026-09-21
+[âœ“] 2G-C Download engine integration — DONE 2026-09-21
      Real-device validation: PARTIAL (Samsung Galaxy A06 / Android 16).
-     P2GC-1: FAIL â€” 8192/8192 bytes (expected 2097176). Transfer
+     P2GC-1: FAIL — 8192/8192 bytes (expected 2097176). Transfer
      chain functional; server verified healthy.
      P2GC-2: PASS (cancelled state persisted, no final media).
-     P2GC-3: FAIL â€” isTransferActive returned false (timing).
+     P2GC-3: FAIL — isTransferActive returned false (timing).
      Integration test: 1 passed, 2 failed out of 3.
      Analyze clean; 750 passed / 9 skipped / 0 failed; real JS 721.
      FOLLOW-UP 2026-09-22 (direct transport): the real MP4 transfer is PROVEN
      over the LAN with NO adb reverse (device HEAD Content-Length 2097176;
      full body read on the device; the server pushed the complete body for
      every app request). Fresh-install device run PRE-fix: 2 passed / 1 failed
-     â€” the media was byte-exact (2,097,176), the record was not. Two
+     — the media was byte-exact (2,097,176), the record was not. Two
      transport-independent defects were demonstrated, then FIXED with owner
      authorization and DEVICE-VALIDATED. POST-fix: 3 passed / 0 failed on the
      direct transport (record bytes == file bytes); P2GC-1 also PASSES over a
      92-second slow transfer; P2GC-3 is flaky in some configurations (D-3,
      open). Analyze clean; 755 passed / 9 skipped / 0 failed; 2G-C focused
      156 passed. Docs: docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md.
-     D-3 INVESTIGATION 2026-09-22 (resumed takeover session): the Â§6.4
-     hypothesis is CONFIRMED â€” a stale terminal status from attempt N CAN
+     D-3 INVESTIGATION 2026-09-22 (resumed takeover session): the §6.4
+     hypothesis is CONFIRMED — a stale terminal status from attempt N CAN
      settle attempt N+1 of the same taskId (demonstrated by a negative
-     control: 5/9 new tests fail with the gate disabled) â€” and is FIXED by
+     control: 5/9 new tests fail with the gate disabled) — and is FIXED by
      attempt-identity generation gating in the adapter (strictly increasing
      task creation times; adopted transfers adopt the surviving task's own
      generation). Offline verification: analyze clean; D-3 suite 9 passed;
@@ -1019,7 +1019,7 @@ suite 618+9sk after the 2G-B source-audit regression test (617 before
      transport): P2GC-1 PASS (2097176/2097176, gate verified), P2GC-2 PASS,
      P2GC-3 3 consecutive PASS on the final code (runs 5-7; runs 1-4 recorded
      with causes: fixture race fixed in test, two environmental connection
-     resets honestly failed, one gate defect found and fixed â€” raw dart:io
+     resets honestly failed, one gate defect found and fixed — raw dart:io
      exceptions now classified as storageFailure, regression test gate6).
      Post-fix offline: analyze clean; full suite 765 passed / 9 skipped /
      0 failed. Offline playback NOT TESTABLE (no product seam). Docs:
@@ -1028,23 +1028,23 @@ suite 618+9sk after the 2G-B source-audit regression test (617 before
 [ ] 2H Extension catalogue integration (separate SPECTA-Extensions repository;
     creation deferred until this stage actually requires it).
 
-Phase 2G-C â€” Download engine integration â€” DONE 2026-09-21
+Phase 2G-C — Download engine integration — DONE 2026-09-21
 Real-device validation: PARTIAL on Samsung Galaxy A06 (SM-A065F, Android 16, API 36).
-Device: R83L20FRDFM (the original record wrote "R83L20FRDM", a typo â€” `adb devices` reports R83L20FRDFM, the id every harness run has used). APK: build\app\outputs\flutter-apk\app-debug.apk (207,711,670 bytes).
+Device: R83L20FRDFM (the original record wrote "R83L20FRDM", a typo — `adb devices` reports R83L20FRDFM, the id every harness run has used). APK: build\app\outputs\flutter-apk\app-debug.apk (207,711,670 bytes).
 Test server: host port 8712, test.mp4 (2,097,176 bytes). adb reverse tcp:8712â†’8712.
-P2GC-1 (real MP4 download): FAIL â€” completed but 8192/8192 bytes instead of 2097176. Transfer chain functional (enqueue â†’ progress â†’ completed â†’ file exists, no .part). Server verified healthy (HTTP 200, Content-Length 2097176). Transfer volume insufficient on device (likely WorkManager/OEM constraint). CORRECTED 2026-09-22 â€” this sentence originally read "Completion gate correctly detected mismatch." That is FALSE: the production gate has no byte-integrity check. The observed rejection came from a TEST assertion (expect(await finalFile.length(), expectedBytes)) while the record was persisted as `completed 8192/8192`; the same gate ACCEPTS a truncated file. See docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md section 8.3.
-P2GC-2 (cancellation): PASS â€” cancelled state persisted, no final media, .part file preserved after cancel. Late events cannot resurrect record.
-P2GC-3 (restart reconciliation): FAIL â€” `isTransferActive(testId)` returned false (expected true). Likely timing: 8KB transfer completed in 3s, before the `isTransferActive` probe. UnmountedRefException in teardown is a documented race in test source.
+P2GC-1 (real MP4 download): FAIL — completed but 8192/8192 bytes instead of 2097176. Transfer chain functional (enqueue â†’ progress â†’ completed â†’ file exists, no .part). Server verified healthy (HTTP 200, Content-Length 2097176). Transfer volume insufficient on device (likely WorkManager/OEM constraint). CORRECTED 2026-09-22 — this sentence originally read "Completion gate correctly detected mismatch." That is FALSE: the production gate has no byte-integrity check. The observed rejection came from a TEST assertion (expect(await finalFile.length(), expectedBytes)) while the record was persisted as `completed 8192/8192`; the same gate ACCEPTS a truncated file. See docs/PHASE_2G_C_DIRECT_TRANSPORT_REPORT.md section 8.3.
+P2GC-2 (cancellation): PASS — cancelled state persisted, no final media, .part file preserved after cancel. Late events cannot resurrect record.
+P2GC-3 (restart reconciliation): FAIL — `isTransferActive(testId)` returned false (expected true). Likely timing: 8KB transfer completed in 3s, before the `isTransferActive` probe. UnmountedRefException in teardown is a documented race in test source.
 Integration test result: 1 passed, 2 failed, 0 skipped out of 3.
 Docs: docs/PHASE_2G_C_ENGINE_AUDIT.md.
 
 Phase 1 carry-overs (honest, none Phase 2 blockers yet):
-[ ] No CPU or memory ceiling for extension JS â€” measured, not enforced by the
+[ ] No CPU or memory ceiling for extension JS — measured, not enforced by the
     bundled QuickJS bridge; a runaway script can occupy the isolate (a
     background-isolate JS engine is the future option; not implemented).
 [ ] Production private key is stored as a raw seed in a PKCS#8-looking PEM;
     standard tools reject it. Must be resolved before building a signing tool.
-[x] Redirect targets are not re-evaluated against the scheme allow-list â€”
+[x] Redirect targets are not re-evaluated against the scheme allow-list —
     FIXED by the 2G-C pre-flight: every hop is re-evaluated against the full
     policy, private hosts are blocked, and credential headers are not
     forwarded cross-host (best-effort; does not fully defeat DNS rebinding).
@@ -1052,14 +1052,14 @@ Phase 1 carry-overs (honest, none Phase 2 blockers yet):
 [ ] Trust classification is data, not enforcement: unverified extensions still
     install and enable. A later policy layer must decide what to do with them.
 [ ] Import-flow hardening (copy to app-private storage + content-hash verify
-    at load) â€” future work with the 2H import UI; load-time trust
+    at load) — future work with the 2H import UI; load-time trust
     re-classification from the file is now enforced (2G-C pre-flight).
 [ ] Release signing uses the debug key; no minify/shrink config. Real keystore
     decision required before distribution; re-check android.permission.DUMP in
     a release build.
 [ ] Android backup not configured (allowBackup defaults on); the DB holds
-    watch history â€” owner decision pending.
-[ ] Cleartext HTTP: policy allows http; manifest has no cleartext config â€”
+    watch history — owner decision pending.
+[ ] Cleartext HTTP: policy allows http; manifest has no cleartext config —
     verify on a release build before adding any manifest attribute.
 [ ] Single-device verification (SM-A065F only); TV detection is a viewport
     approximation.
@@ -1067,7 +1067,7 @@ Phase 1 carry-overs (honest, none Phase 2 blockers yet):
     distribution (e.g. Google Play) is likely restricted.
 [ ] flutter_js 0.8.7 maintenance status is a dependency risk; KGP warning
     (cryptography_flutter, flutter_js) stands.
-[ ] Project path contains a space ("SPECTA APK") â€” folder rename recommended,
+[ ] Project path contains a space ("SPECTA APK") — folder rename recommended,
     not performed.
 [ ] Android cmdline-tools absent; flutter doctor warns. Not build-blocking.
 [ ] Housekeeping: README.md/docs/README.md and PROJECT_STATE.txt/
@@ -1085,7 +1085,7 @@ Agreed by the product owner (2026-09-15):
 - SQLite access:             Drift (drift 2.35.0 / drift_flutter 0.3.1 /
                              sqlite3 3.6.0, native-assets model)
 - Playback:                  MediaKit (2E: wired behind the PlaybackEngine
-                             seam â€” media_kit 1.2.6 / media_kit_video 2.0.1 /
+                             seam — media_kit 1.2.6 / media_kit_video 2.0.1 /
                              media_kit_libs_video 1.0.7; MP4 + HLS only)
 - JS runtime:                flutter_js 0.8.7 (QuickJS on Android)
 - Cryptography:              cryptography 2.9.0 + cryptography_flutter 2.3.4
@@ -1134,7 +1134,7 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
   follow-up have none and fail resume HONESTLY until played again. Resume
   re-fetches metadata and sources every time (never stale sources). The
   evidence-based metadata identity can collide for identical normalized
-  (title, type, year) â€” pre-existing, unchanged by resume; a stricter provider
+  (title, type, year) — pre-existing, unchanged by resume; a stricter provider
   identity is a separate architectural task.
 - No CPU/memory ceiling for extension JavaScript (measured limitation).
 - Not an OS-level sandbox; in-process restricted-API boundary.
@@ -1160,11 +1160,11 @@ unregistered or backwards versions throw (SpectaMigrations.apply).
   Source pools are in-memory only; no source persistence before 2E/2G
   demonstrate a need.
 - Details UI remains metadata-led; 2E added a Play action (movies) and
-  per-episode play targets (series) instead of a source-selection UI â€” the
+  per-episode play targets (series) instead of a source-selection UI — the
   source pool is resolved from provenance, never chosen by hand from a list.
 - Device verification for 2B/2C/2D: not performed (no device attached; pure
   Dart pipeline + widget UI verified by unit/widget tests only). 2E IS device
-  verified (5/5, SM-A065F) â€” see section 3.
+  verified (5/5, SM-A065F) — see section 3.
 - Source validation is structural only; no network reachability probes
   (deliberate: probes belong to playback's failure path through 2D's
   fallback seam).
@@ -1187,7 +1187,7 @@ None. The full suite is green on the pre-flight tree (712 passed / 9 skipped /
 0 failed; real JS 721; analyze clean; debug APK SUCCESS). One observation is
 carried, not blocking: run-1 of the pre-flight baseline saw a single
 order-dependent test flake (discovery coordinator provenance test; passes in
-isolation and on re-run) â€” recorded in the pre-flight report.
+isolation and on re-run) — recorded in the pre-flight report.
 
 Environment notes:
 - The pub cache resolves under C:\Users\PORTCR\AppData\Local\Pub\Cache, not
@@ -1196,7 +1196,7 @@ Environment notes:
 - C: has limited free space; keep SDK/caches on H:.
 - The project directory IS a Git repository (branch `master`, pushed to the
   private remote `VectorMind-Lab/SPECTA`). The GitHub checkpoint of
-  2026-09-17 stands; the repo was NOT deleted â€” the earlier
+  2026-09-17 stands; the repo was NOT deleted — the earlier
   GITHUB_ERROR_CORRECTION_REPORT.md episode concerned a DIFFERENT accidental
   main-app repository, and the VectorMind-Lab/SPECTA remote has been
   continuous since the second checkpoint pass. Reports written before Git existed
@@ -1206,7 +1206,7 @@ Environment notes:
 
 8. NEXT RECOMMENDED STEP
 --------------------------
-Phase 2 sub-stage 2H (NOT AUTHORIZED) â€” extension catalogue
+Phase 2 sub-stage 2H (NOT AUTHORIZED) — extension catalogue
 integration (separate SPECTA-Extensions repository; creation
 deferred until this stage actually requires it). DO NOT START
 2H without explicit authorization.
@@ -1262,3 +1262,38 @@ proven to parse natively and to be structurally correct, but never evaluated in
 flutter_js; install is VERIFIED, resolve is NOT. (3) No genuine third-party source
 file was available in-repo; foreign formats are driven by realistic fixtures, so
 the first real one needs another pass.
+
+================================================================================
+OPENNESS CORRECTION (2026-09-30, commit 630eb45)
+================================================================================
+
+Everything above describes the state as of 2026-09-28. Three items in that record
+are now superseded, and they are corrected here rather than left to mislead the
+next person:
+
+1. "Runtime execution of an ADAPTED source in a live JS sandbox is UNVERIFIED"
+   and "No genuine third-party source file was available in-repo" are BOTH no
+   longer true. Five real, independently written providers are committed verbatim
+   under test/support/fixtures/third_party/ (anikoto, animecube, fourkhdhub,
+   hdhub4u, torbox) from a public third-party repository. They execute on the
+   real QuickJS engine AND on the physical device (Galaxy A06, Android 16):
+   adapt, install, load, and answer search and details. 6/6 device checks passed.
+
+2. Test count. The 1282/39 figure above was that pass. Current measured total is
+   1378 passed / 2 skipped / 0 failed. The skipped count dropped from 39 to 2
+   because the skips were time-gated tests that now run.
+
+3. The compatibility layer is no longer limited to SPECTA's own spellings. A
+   global fetch() is installed over the existing request() channel, contract
+   operations resolve through a spelling alias table, and a JSON repository index
+   is classified as its own kind rather than as broken JavaScript. See
+   SOURCE_RUN_REPORT.md section 14.
+
+STILL OPEN, and not re-opened by that commit:
+
+* Live playback through a real provider is NOT proven on device. The device run
+  proves install and execute against local fixture bodies, not a real site.
+* The TmdbProviderMatcher is still unwired, so a TMDB catalogue title has no path
+  to a resolvable source.
+* test/app/application_bootstrap_test.dart has a 30 s timeout that is tight under
+  full-suite load and flaked once. It passes in isolation. Not yet fixed.

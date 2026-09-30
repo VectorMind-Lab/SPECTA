@@ -411,10 +411,17 @@ Architecture as implemented:
 
 What IS enforced today (each verified in source or against the package):
 
-  1. No network primitive in the engine. flutter_js only wires fetch/XHR when
-     the host calls enableFetch() (lib/extensions/fetch.dart) or asks for
-     getJavascriptRuntime(xhr: true). SPECTA calls neither, and grep confirms
-     enableFetch appears only in comments.
+  1. No unmediated network primitive in the engine. flutter_js only wires
+     fetch/XHR when the host calls enableFetch() (lib/extensions/fetch.dart) or
+     asks for getJavascriptRuntime(xhr: true). SPECTA calls neither.
+
+     SUPERSEDED 2026-09-30 (commit 630eb45): a global `fetch()` is now defined by
+     the host shim. It is NOT a second network path - it is a front for the same
+     `request()` channel, under the same `network` capability gate and the same
+     ExtensionRequestPolicy checks. Before this commit a provider written against
+     the WHATWG global died with "ReferenceError: 'fetch' is not defined". The
+     sandbox isolation described here is unchanged; only the spelling providers
+     expect changed. See SOURCE_RUN_REPORT.md §14.1.
   2. Two bridge channels, no more. ExtensionRuntime registers exactly
      `specta_request` and `specta_log` via sandbox.onMessage. A message on any
      other channel has no handler and is dropped (tested).

@@ -9,7 +9,7 @@
 
 Most of what Zangetsu does, SPECTA either already has or has deliberately chosen not to do. AniList is not a missing feature - it is deeply integrated. The real gap is narrow: a handful of user-facing surfaces are absent, and one approved change (Home genre rails) is now specified below.
 
-Measured baseline carried forward from `SOURCE_RUN_REPORT.md`: **1252 passed / 39 skipped / 0 failed**, `flutter analyze` clean (2026-09-28, slices 1-7). Slices 8-12 took the suite to **1287 passed / 39 skipped / 0 failed**; the 14 tests added by this work take it to **1301 passed / 39 skipped / 0 failed**.
+Measured baseline carried forward from `SOURCE_RUN_REPORT.md`: **1252 passed / 39 skipped / 0 failed**, `flutter analyze` clean (2026-09-28, slices 1-7). Slices 8-12 took the suite to **1287 passed / 39 skipped / 0 failed**; the 14 tests added by this work take it to **1301 passed / 39 skipped / 0 failed**. Current measured total is **1378 passed / 2 skipped / 0 failed** (2026-09-30, after the global `fetch()` bridge, the foreign-name alias table and the JSON-index routing fix) — see `SOURCE_RUN_REPORT.md` §14.
 
 ## Already built - do not rebuild
 

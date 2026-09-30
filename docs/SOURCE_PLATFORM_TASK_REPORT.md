@@ -72,5 +72,5 @@ Governing rules for the work below:
 | Docs corrected and superseded decisions marked | see §5 of the plan |
 | Slice 1 UI implemented, tested, committed | done — `fce5070`, **device checks A1-A6 PASSED on real hardware** (`SOURCE_RUN_REPORT.md` §13.4) |
 | Slice 2 compatibility, documented per format, tested | done — `d54e3af`, then **fixed**: `SOURCE_RUN_REPORT.md` §13.2 found the generated shim did not parse at all. Install and runtime both **VERIFIED on the device's QuickJS** (§13.4) |
-| Full suite + analyzer | **1287 passed / 39 skipped / 0 failed**, analyzer clean (`SOURCE_RUN_REPORT.md` §13.6) |
+| Full suite + analyzer | **1378 passed / 2 skipped / 0 failed**, analyzer clean (2026-09-30; was 1287/39, see `SOURCE_RUN_REPORT.md` §14) |
 | Real-device verification | **VERIFIED** — Galaxy A06 (`R83L20FRDFM`, Android 16), A1-A6 layout + B1-B6 foreign-source runtime, 6/6. Evidence, the 384 px panel finding, and the app-data wipe side effect: `SOURCE_RUN_REPORT.md` §13.4 |

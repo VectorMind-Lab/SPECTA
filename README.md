@@ -6,6 +6,32 @@ source failures.
 
 ## Status
 
+**Extension openness: foreign providers now VERIFIED on real hardware (2026-09-30).**
+The platform claims to accept "any source, from anywhere, any type of file", and
+until now that was not true of anything written by someone else. Three defects
+made it open in name only:
+
+1. a provider written against the standard WHATWG `fetch()` died at its first
+   network call, because only SPECTA's own `request()` was exposed;
+2. operation detection required SPECTA's own spellings, so a real provider
+   exporting `getHome`/`getDetail`/`getVideoSources` was reported as implementing
+   *none* of the contract;
+3. a valid JSON repository index was parsed as JavaScript and reported as broken.
+
+All three are fixed. A global `fetch()` is now defined over the **existing**
+`request()` channel - not a second network path, the same `network` capability gate
+and the same request policy - contract operations resolve through a spelling alias
+table, and JSON is classified before JavaScript.
+
+Proven against **real, independently written providers** committed verbatim under
+`test/support/fixtures/third_party/`, not against fixtures written to fit. On a
+physical Galaxy A06 (Android 16) a foreign source adapts, installs, loads on the
+device's QuickJS engine, and answers `search` and `details`.
+
+Current state: `flutter test` **1378 passed / 2 skipped / 0 failed**, `flutter
+analyze` clean, device checks **6/6**. Full detail and what remains unproven:
+`docs/SOURCE_RUN_REPORT.md` §14.
+
 **Extension Sources / Providers: VERIFIED (2026-09-26).**
 Four installation routes now converge on a single `ExtensionManager` boundary:
 a `.js` file picked from the phone with the Android system picker, a direct

@@ -333,9 +333,13 @@ SECURITY MODEL — accurate statement
   It is NOT an OS sandbox, NOT a process boundary, and NOT resource-safe.
 
   What it does enforce: no native bindings are registered (no DOM, no
-  filesystem, no process, no platform objects); `enableFetch()` is never called,
-  so extension code cannot reach the network except through the controlled
-  `request()` channel; only two host channels exist (`specta_request`,
+  filesystem, no process, no platform objects); the engine's own `enableFetch()`
+  is not used, so there is no unmediated engine-level network path; a global
+  `fetch()` IS defined by the host shim, but it is a thin front for the same
+  controlled `request()` channel and passes the same `network` capability gate and
+  the same ExtensionRequestPolicy checks (scheme allow-list, private/loopback host
+  blocking, redirect rules, body limits). See SOURCE_RUN_REPORT.md 14.1; only
+  two host channels exist (`specta_request`,
   `specta_log`); declared capabilities are checked on every operation and every
   channel call; and every evaluation is wrapped so a JS exception never crashes
   the host.

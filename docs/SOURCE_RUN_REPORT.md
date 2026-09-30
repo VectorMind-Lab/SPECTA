@@ -11,9 +11,9 @@
 | | |
 |---|---|
 | `flutter analyze` | **No issues found** (0 issues) |
-| `flutter test` | **1252 passed Â· 39 skipped Â· 0 failed** |
-| Baseline before any slice | 1171 passed Â· 39 skipped Â· 0 failed |
-| Net new tests | **+81** |
+| `flutter test` | **1378 passed · 2 skipped · 0 failed** (2026-09-30, current — see §14) |
+| Baseline before any slice | 1171 passed · 39 skipped · 0 failed |
+| Net new tests | **+207** |
 | On-device checks | **23 PASS, 1 NOT TESTED, 1 NOT TESTABLE** after Slice 7b — see §9 and §10 |
 | Release APK | **BUILT, SIGNED, INSTALLED** twice via `adb install -r` → `Success` — see §9, §10 |
 | Slice 8 (official repo sync) | **BLOCKED, as agreed** |
@@ -25,7 +25,7 @@
 | baseline | `440fa9a` | baseline before Slices 1â€“7 | 1171 / 39 / 0 |
 | 1 | `e23303b` | Extension â†’ Source copy; fix misleading manifest diagnostic | 1172 / 39 / 0 |
 | 2 | `0ed20e0` | Node identity model (pure, no DB, no UI) | 1190 / 39 / 0 |
-| 3 | `7332323` | Node persistence â€” schema v8 â†’ v9, proven on a real v8 file | 1193 / 39 / 0 |
+| 3 | `7332323` | Node persistence — schema v8 â†’ v9, proven on a real v8 file | 1193 / 39 / 0 |
 | 4 | `1622466` | Node 0 undeletable + a real delete removes the file (A7 + D) | 1209 / 39 / 0 |
 | 5 | `23afddf` | Source card shows the node label and nothing else | 1219 / 39 / 0 |
 | 6 | `b51c831` | Persisted user reordering, Node 0 not pinned (A4 / Q5) | 1229 / 39 / 0 |
@@ -33,18 +33,18 @@
 
 ## 2. WHAT EACH SLICE ACTUALLY DID
 
-### Slice 1 â€” terminology and one real diagnostic bug
+### Slice 1 — terminology and one real diagnostic bug
 User-facing "Extension" copy became "Source". Separately, a file missing the
 `// ==SpectaExtension==` header was reporting `Missing required field: id`,
 which blamed the user's file for a problem SPECTA could have described
 precisely. It now names the absent header.
 
-### Slice 2 â€” node identity
+### Slice 2 — node identity
 Pure `SourceNodeSpace`, `SourceNode` and a first-free-index allocator. Official
 labels are `Node 0`, `A`â€“`Z`, then `AA`, `AB`, â€¦; user labels are `Node 1`,
 `Node 2`, â€¦ The two spaces are disjoint, so a label can never be ambiguous.
 
-### Slice 3 â€” persistence (schema v8 â†’ v9)
+### Slice 3 — persistence (schema v8 â†’ v9)
 Additive columns only: `node_index`, `node_space`, `node_locked`, `node_order`.
 Nothing is dropped or rewritten, so every installed row, rollback point and
 failure log survives.
@@ -57,36 +57,36 @@ columns as an upgraded one.
 
 > Two fixture bugs were found and fixed while building this test, and both would
 > have made the test prove nothing: the fixture first wrote text timestamps where
-> Drift stores epoch seconds, and it initially never set `user_version` â€” so
+> Drift stores epoch seconds, and it initially never set `user_version` — so
 > drift skipped step 9 entirely.
 
-### Slice 4 â€” Node 0 and a true delete (A7 + D)
+### Slice 4 — Node 0 and a true delete (A7 + D)
 `uninstall` returns a controlled `ExtensionFailure` naming the node the user
 sees; it never throws and never silently no-ops. Node A and every user node
 delete normally.
 
 **The orphan-file bug (A7) is closed.** The path is read from the record
 *before* the row is deleted, then unlinked through a new `SourceFileRemover`
-whose guard normalises both sides â€” `..` segments and a sibling sharing a name
+whose guard normalises both sides — `..` segments and a sibling sharing a name
 prefix cannot escape. The root itself is never "inside" it. An already-absent
 file is success, not failure, and the outcome reports `fileRemoved` honestly.
 
 16 tests run against a **real temp filesystem with the production remover**
 (only the root is redirected).
 
-### Slice 5 â€” the card shows the node label only
+### Slice 5 — the card shows the node label only
 Primary line is `Node 0` / `Node 1` / `Node A` and nothing else. Name, author,
-id and version moved behind a details sheet â€” one tap away, so nothing is
+id and version moved behind a details sheet — one tap away, so nothing is
 hidden. The green dot is unchanged and still gated **only** on
 `TrustLevel.official`; it remains a provenance mark, not a quality score.
 
 The remove-confirmation dialog now names the node rather than the source's
 name, since it is the most-read dialog in a destructive flow.
 
-### Slice 6 â€” persisted reordering (A4 / Q5)
+### Slice 6 — persisted reordering (A4 / Q5)
 `reorder(id, index)` takes a position in the visible order, clamps rather than
 rejects, and renumbers every other node in one pass so the result is a dense
-`0..n-1`. Node identity is untouched by a move, and **Node 0 is not pinned** â€”
+`0..n-1`. Node identity is untouched by a move, and **Node 0 is not pinned** —
 it moves like anything else and stays undeletable wherever it lands.
 
 Reorder is reachable by **button as well as drag**, so it works with a D-pad on
@@ -96,9 +96,9 @@ TV and with a screen reader.
 > `onReorderItem`, which already corrects `newIndex`. The manual off-by-one that
 > had been written would have double-applied, so it was removed rather than kept.
 
-### Slice 7 â€” Source Health (E / Q3)
+### Slice 7 — Source Health (E / Q3)
 Node labels only, plus real recorded state. The percentage is a **display
-mapping, not a computed score** â€” SPECTA cannot compute a real reliability
+mapping, not a computed score** — SPECTA cannot compute a real reliability
 figure, because it knows how many attempts failed, not how many were made.
 
 | Real state | Display |
@@ -114,7 +114,7 @@ figure, because it knows how many attempts failed, not how many were made.
 `extensions.last_success_at`, written **only** on a genuinely completed
 operation, never at install. Zero failures reads the same for "never tried" and
 "working perfectly", and the difference cannot be reconstructed from the failure
-count â€” so a new column was the honest way to get it. It is nullable, so every
+count — so a new column was the honest way to get it. It is nullable, so every
 pre-v10 row lands NULL: SPECTA does not invent a success to make the screen
 look better.
 
@@ -128,7 +128,7 @@ in-memory registry had. An out-of-order clock could move "most recent success"
 backwards and silently erase the fact that a source had ever worked. A test
 caught it; the guard now exists on both sides and a test asserts they agree.
 
-## 4. PROTECTED FILES â€” VERIFIED UNTOUCHED
+## 4. PROTECTED FILES — VERIFIED UNTOUCHED
 
 Diffed against the baseline commit `440fa9a`:
 
@@ -155,21 +155,21 @@ for what is still open and why.**
 Everything below was **NOT VERIFIED** in the implementation run.
 
 - **No device was connected.** No on-device behaviour was exercised.
-- The Node 0 refusal **dialog** on a real device â€” NOT VERIFIED.
-- The card / details sheet / health screen **visual audit** â€” NOT VERIFIED.
-- Reorder **surviving a real application restart** â€” NOT VERIFIED on device.
+- The Node 0 refusal **dialog** on a real device — NOT VERIFIED.
+- The card / details sheet / health screen **visual audit** — NOT VERIFIED.
+- Reorder **surviving a real application restart** — NOT VERIFIED on device.
   (It *is* proven at the database level against a real on-disk SQLite file that
-  is closed and reopened â€” that is a database restart, not an app restart.)
-- Delete removing the `.js` **on a real device's app-private storage** â€”
+  is closed and reopened — that is a database restart, not an app restart.)
+- Delete removing the `.js` **on a real device's app-private storage** —
   NOT VERIFIED. (Proven on a real temp filesystem with the production remover.)
-- A genuine v8 â†’ v10 upgrade **on a user's actual device** â€” NOT VERIFIED.
+- A genuine v8 â†’ v10 upgrade **on a user's actual device** — NOT VERIFIED.
   (Proven against a hand-built, exact-v8/v9 on-disk file.)
-- No streaming-site name on any source surface **by screenshot** â€” NOT VERIFIED.
+- No streaming-site name on any source surface **by screenshot** — NOT VERIFIED.
   (Proven by walking the whole widget tree in tests, which is a different and
   weaker guarantee than a screenshot audit.)
-- **Release APK build** â€” see Â§9.
+- **Release APK build** — see §9.
 
-## 6. TOOLCHAIN â€” WHY H: AT ALL
+## 6. TOOLCHAIN — WHY H: AT ALL
 
 The project path on C: contains spaces (`C:\Users\PORTCR\Music\SPECTA APK\SPECTA`),
 which broke Flutter's hooks-runner. The repo's own `gradle.properties` already
@@ -183,7 +183,7 @@ documented it: *"repeatedly corrupted caches"*.
 
 `flutter analyze` also went from ~203 s to ~4 s on the short path.
 
-## 7. SLICE 8 â€” STILL BLOCKED, AS AGREED
+## 7. SLICE 8 — STILL BLOCKED, AS AGREED
 
 Not started, by instruction. Still waiting on:
 
@@ -814,3 +814,77 @@ by pasted https URL) and check 21 (Node 0 refusal) both need Slice 8, and check 
 run is noted in §13.4: the debug install replaced the release APK and so cleared
 the device's app data.
 
+## 14. OPENNESS CORRECTION — 2026-09-30 (commit 630eb45)
+
+Three defects that made the platform open in name only. All three were found by
+testing against **real, independently written providers** committed verbatim under
+`test/support/fixtures/third_party/`, not against fixtures written by us.
+
+### 14.1 No global `fetch()`
+
+A provider written against the WHATWG global died at its first network call with
+`ReferenceError: 'fetch' is not defined`, even though the sandbox itself was fine.
+`ExtensionRuntime` now defines a global `fetch()` over the **existing** `request()`
+channel. This is not a second network path: it reuses the same `network` capability
+gate and the same `ExtensionRequestPolicy` checks, so nothing is reachable through
+`fetch` that was not already reachable through `request()`. It is installed only
+when the engine does not already define `fetch`, so a runtime that ever gains a
+native one keeps it.
+
+**This supersedes the earlier claim, in `PHASE_2H_ENTRY_AUDIT.md`, that
+`enableFetch()` is "NEVER called (no direct network)".** That sentence is now
+wrong twice over: there is no `enableFetch()` anywhere in `lib/`, and a global
+`fetch` is installed deliberately. Network access is still mediated; it is just no
+longer invisible to providers that expect the standard global.
+
+### 14.2 Operation detection required SPECTA's own spellings
+
+A real repository (Zangetsu) exports `getHome` where SPECTA wants `latest`,
+`getDetail` where SPECTA wants `details`, and `getVideoSources` where SPECTA wants
+`getSources`. Those files were reported as implementing **none** of the contract.
+The contract slot is now resolved through an alias table, and the shim calls the
+author's real member name.
+
+The table maps **spellings** to contract slots — never authors, hosts or sites. A
+new ecosystem is supported by the names its code happens to use, not by being
+recognised. An unknown author is treated exactly like a known one.
+
+This is the outcome of **option (b)** in `SOURCE_SYSTEM_PLAN.md` §13.2
+("adapters for known dialects"). Decision **A1 is therefore superseded**: the
+execution gate is still a gate, but the recognised dialect set is no longer just
+SPECTA's own spelling.
+
+### 14.3 A JSON repository index was parsed as JavaScript
+
+Valid `index.json` listing working providers was reported as "implements none of
+the operations". JSON is now classified **before** the JavaScript path and routed
+to the repository reader as a document of the wrong kind, not as unrecognised
+code. `SourceFormat` gains `repositoryIndex` alongside `native`, `adapted` and
+`unrecognised`.
+
+### 14.4 Evidence
+
+| Check | Result |
+|---|---|
+| `flutter test` | **1378 passed / 2 skipped / 0 failed** |
+| `flutter analyze` | **No issues found** (full project) |
+| `integration_test/slice12_device_verification_test.dart -d R83L20FRDFM` | **6 passed / 0 failed** on the physical device (Galaxy A06, Android 16) |
+| New tests | `test/core/extensions/runtime/fetch_bridge_test.dart` (13), `test/core/extensions/compat/third_party_execution_test.dart` |
+
+Device re-run confirms on real hardware: a foreign source adapts, installs, **loads
+on the device's QuickJS engine**, and answers `search` and `details`. An absent
+`latest()` is refused with a stated reason rather than failing silently. The
+QuickJS context is released on `shutdown` and the source stays installed.
+
+**One known flake, not a regression:** `test/app/application_bootstrap_test.dart`
+("reading the launch bootstrap starts an interrupted download recovery") timed out
+at 30 s under full-suite load. It passes in isolation. The 30 s limit is the whole
+budget for a bootstrap that opens a database; under a loaded machine it is tight.
+
+### 14.5 What this pass does NOT settle
+
+* Live playback through a real provider is still unproven on device. The device run
+  proves **install and execute**, using a provider whose bodies are local fixtures.
+* The `TmdbProviderMatcher` remains unwired, so tapping a TMDB catalogue title has
+  no path to a resolvable source.
+* An unconnected device is required for ?14.4; the run is not reproducible from CI.

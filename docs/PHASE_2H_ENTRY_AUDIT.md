@@ -49,9 +49,9 @@ All 24 files under lib/core/extensions exist as REAL production code (no stubs):
 - verification/signing_protocol.dart - SpectaSigningProtocol, payload format SPECTA-EXT-SIG-V1 (length-prefixed canonical metadata JSON + UTF-8 body).
 - verification/signature_verifier.dart - Ed25519 via package:cryptography.
 - verification/trusted_keys.dart - hardcoded public key uDm0fWmDu0dQ/32eXEw7O78VhqEA72YYcEpXPECxAYc=. Private key NOT in repo.
-- catalogue/extension_type.dart - ExtensionContentType: movie, series, moviesSeries.
-- runtime/extension_runtime.dart - ExtensionRuntime, the coordinator.
-- runtime/flutter_js_sandbox.dart - FlutterJsSandbox. Uses flutter_js -> QuickJsRuntime2 (Android) / JavaScriptCore (iOS). stackSize 1MB. enableHandlePromises. enableFetch() NEVER called (no direct network). Only 2 host channels: specta_request, specta_log.
+- catalogue/extension_type.dart - ExtensionContentType: movie, series, anime, moviesSeries, moviesSeriesAnime.
+- runtime/extension_runtime.dart - ExtensionRuntime, the coordinator. Defines a global `fetch()` over the existing `request()` channel (same `network` capability gate, same ExtensionRequestPolicy checks); installed only when the engine does not already define one.
+- runtime/flutter_js_sandbox.dart - FlutterJsSandbox. Uses flutter_js -> QuickJsRuntime2 (Android) / JavaScriptCore (iOS). stackSize 1MB. enableHandlePromises. Only 2 host channels: specta_request, specta_log.
 - runtime/runtime_api.dart - ExtensionJsSandbox abstract, ExtensionRequest, ExtensionResponse.
 - runtime/controlled_runtime_api.dart - ControlledExtensionRuntimeApi. Real HTTP via dart:io HttpClient with deadline, streaming read with 8MB cap, socket cleanup, TLS/HTTP/socket error mapping.
 - runtime/request_policy.dart (540 lines) - comprehensive policy: schemes {https,http}, methods {GET,POST,HEAD}, maxResponseBytes 8MB, maxRequestBodyBytes 64KB, maxUrlLength 2048, maxRedirects 5, defaultTimeout 15s (max 60s), blockPrivateHosts true, allowHttpsToHttpRedirect false. Private host blocking by name, IP literal, and DNS resolution. Redirect re-evaluation per-hop with header sanitization.
