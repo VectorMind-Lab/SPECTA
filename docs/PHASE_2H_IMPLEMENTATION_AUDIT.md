@@ -135,7 +135,7 @@ Unchanged and re-verified by the new restart test:
 - **No signing key was created, modified, printed, logged, embedded or
   requested.** The persistence test mints its `official` case with a throwaway
   key pair generated inside the test; the production private key remains
-  outside this repository (`H:\specta_signing`, untouched). `trusted_keys.dart`
+  outside this repository, in an offline directory, untouched). `trusted_keys.dart`
   was not modified.
 
 ## 7. Persistence

@@ -1,4 +1,4 @@
-﻿/// Phase D â€” extension distribution and installation (D2/D3/D4/D7/D8).
+/// Phase D â€” extension distribution and installation (D2/D3/D4/D7/D8).
 ///
 /// Every test here proves the SAME point from a different angle: the URL and
 /// catalogue routes converge on the Extension Manager pipeline rather than
@@ -277,24 +277,24 @@ void main() {
       const String repoJson =
           '{\n    "name": "Example Repo",\n'
           '    "iconUrl": "https://example.com/i.png"\n}';
-      final String message = describeUnimportableSource(
-        repoJson,
-        ManifestParseException('no manifest header found'),
-      );
-      expect(message, contains('catalogue'));
+      // A JSON document is now classified by the compatibility layer, which
+      // runs BEFORE the manifest parser, so this is asserted at that layer
+      // rather than through the parser's last-resort explanation.
+      final String message = resolveImportableSource(repoJson).failure!.message;
+      expect(message, contains('repository index'));
       expect(message, isNot(contains('too large')));
       expect(message, isNot(contains('Manifest parsing failed')));
     });
 
     test('a JSON array body is also recognised as a catalogue', () {
-      final String message = describeUnimportableSource(
+      final String message = resolveImportableSource(
         '[{"name":"x"}]',
-        ManifestParseException('no manifest header found'),
-      );
-      expect(message, contains('catalogue'));
+      ).failure!.message;
+      expect(message, contains('repository index'));
+      expect(message, isNot(contains('JavaScript')));
     });
 
-    test('ordinary non-extension text gets a plain-language explanation', () {
+    test('ordinary non-source text gets a plain-language explanation', () {
       final String message = describeUnimportableSource(
         'just some random text',
         ManifestParseException('no manifest header found'),
@@ -302,7 +302,7 @@ void main() {
       // The text carries no `// ==SpectaExtension==` header, so the honest
       // explanation names the missing header instead of reporting whichever
       // required field the parser happened to check first.
-      expect(message, contains('no SPECTA source header'));
+      expect(message, contains('// ==SpectaExtension=='));
       expect(message, isNot(contains('too large')));
     });
 
@@ -312,14 +312,42 @@ void main() {
         // This is the case captured on a real device: a file from another
         // ecosystem. It has plenty of `@` lines, just not SPECTA's, so
         // reporting "Missing required field: id" was actively misleading.
+        //
+        // Note this is the FALLBACK explanation. A real foreign provider is
+        // adapted upstream by `resolveImportableSource` and never reaches it;
+        // the `maxmovies` dialect below is only refused when it implements
+        // nothing SPECTA can call.
         final String message = describeUnimportableSource(
           '// ==Extension==\n// @name x\n// @version 1.0.0\n'
           '// @package net.example.ext\n// ==/Extension==\n',
           ManifestParseException('Missing required field: id'),
         );
-        expect(message, contains('no SPECTA source header'));
+        expect(message, contains('// ==SpectaExtension=='));
         expect(message, isNot(contains('Missing required field')));
         expect(message, isNot(contains('id')));
+      },
+    );
+
+    test(
+      'a foreign dialect with usable operations is ADAPTED, not described',
+      () {
+        // The `// ==Extension==` dialect is another ecosystem's header, not
+        // garbage. When it implements recognisable operations it must be
+        // adapted and installed rather than refused with a header complaint.
+        const String foreign =
+            '// ==Extension==\n// @name x\n// @version 1.0.0\n'
+            '// @package net.example.ext\n// ==/Extension==\n'
+            'function search(q, p) { return { results: [] }; }\n'
+            'function getSources(ref) { return { sources: [] }; }\n';
+        final ResolvedImportableSource resolved = resolveImportableSource(
+          foreign,
+        );
+        expect(resolved.failure, isNull);
+        expect(resolved.wasAdapted, isTrue);
+        expect(
+          resolved.analysis?.entryPoints,
+          containsAll(<String>['search', 'getSources']),
+        );
       },
     );
 
@@ -351,7 +379,11 @@ void main() {
 
       expect(result.isErr, isTrue);
       final SpectaFailure failure = result.failureOrNull!;
-      expect(failure.message, contains('catalogue'));
+      // The JSON document is recognised as a repository index by the
+      // compatibility layer, so that is what the user is told. The important
+      // part of this test is unchanged: it is refused, nothing is written, and
+      // the explanation is not a size problem.
+      expect(failure.message, contains('repository index'));
       expect(failure.message, isNot(contains('too large')));
       expect(
         (failure as ExtensionDistributionFailure).type,
@@ -361,7 +393,102 @@ void main() {
     });
   });
 
-  group('D3/D4 â€” catalogue contract is discovery, never trust', () {
+  group(
+    'a third-party source installed by URL takes the same path as one from the device',
+    () {
+      /// The real shape of a foreign provider: no SPECTA header, no exports,
+      /// operations named its own host's way.
+      const String foreignProvider = '''
+// A community provider for another host.
+var SITE = 'https://example.invalid';
+
+function getInfo() {
+  return { name: 'Community Films', version: '2.1.0', type: 'movie' };
+}
+function search(query, page) { return { results: [] }; }
+function getHome() { return { results: [] }; }
+function getDetail(ref) { return { id: ref }; }
+function getVideoSources(ref) { return { sources: [] }; }
+''';
+
+      test('a foreign provider is installed from a URL, not refused', () async {
+        final ExtensionLifecycleService service = ExtensionLifecycleService(
+          manager: manager,
+          downloader: ExtensionDownloader(
+            _FakeTransport(body: foreignProvider),
+          ),
+          storage: _TempStorage(temp),
+        );
+
+        final SpectaResult<ExtensionRecord> result = await service
+            .installFromUrl(
+              'https://raw.githubusercontent.com/community/providers/films.js',
+            );
+
+        expect(result.isOk, isTrue, reason: result.failureOrNull?.message);
+        final ExtensionRecord record = result.valueOrNull!;
+        expect(record.name, 'Community Films');
+        // The derived id, not a guessed one: a foreign file has no @id.
+        expect(record.id, startsWith('foreign.'));
+        // Unsigned, therefore unverified, exactly as any other imported file.
+        expect(record.trustLevel, TrustLevel.unverified);
+        expect(await registry.getAll(), hasLength(1));
+      });
+
+      test(
+        'the ADAPTED source is what gets stored, so a restart still works',
+        () async {
+          final ExtensionLifecycleService service = ExtensionLifecycleService(
+            manager: manager,
+            downloader: ExtensionDownloader(
+              _FakeTransport(body: foreignProvider),
+            ),
+            storage: _TempStorage(temp),
+          );
+          await service.installFromUrl(
+            'https://raw.githubusercontent.com/community/providers/films.js',
+          );
+
+          // The stored file must be the adapted source, complete with the
+          // generated header. Storing the raw download would leave a file with
+          // no manifest, which fails to load after a restart.
+          final List<File> stored = temp.listSync().whereType<File>().toList();
+          expect(stored, isNotEmpty, reason: 'nothing was written');
+          final String body = stored.first.readAsStringSync();
+          expect(body, contains('// ==SpectaExtension=='));
+          expect(body, contains('// @format adapted'));
+          // And the author's own code is still there, untouched.
+          expect(body, contains('function getVideoSources'));
+        },
+      );
+
+      test('a JSON index by URL is reported as a repository, not installed',
+          () async {
+        final ExtensionLifecycleService service = ExtensionLifecycleService(
+          manager: manager,
+          downloader: ExtensionDownloader(
+            _FakeTransport(
+              body: '{"name":"Providers","sources":[{"id":"a",'
+                  '"name":"A","file":"a.js"}]}',
+            ),
+          ),
+          storage: _TempStorage(temp),
+        );
+
+        final SpectaResult<ExtensionRecord> result = await service
+            .installFromUrl(
+              'https://raw.githubusercontent.com/community/providers/index.json',
+            );
+
+        expect(result.isErr, isTrue);
+        expect(result.failureOrNull!.message, contains('repository index'));
+        // Nothing was written: a catalogue is not a source.
+        expect(await registry.getAll(), isEmpty);
+      });
+    },
+  );
+
+  group('D3/D4 — catalogue contract is discovery, never trust', () {
     Map<String, Object?> doc(List<Object?> entries) => <String, Object?>{
       'schemaVersion': 1,
       'repositoryId': 'net.specta.official',

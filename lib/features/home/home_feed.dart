@@ -76,7 +76,7 @@ final class HomeFeed {
       'Your installed sources do not provide a Home feed. Use Search to '
           'find something to watch.',
     HomeFeedStatus.failure =>
-      'Your extensions could not be reached. Check your connection and '
+      'Your sources could not be reached. Check your connection and '
           'try again.',
   };
 

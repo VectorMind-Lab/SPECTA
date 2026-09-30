@@ -24,8 +24,10 @@ enum SpectaDestination {
   ),
   extensions(
     label: 'Sources',
-    icon: Icons.extension_outlined,
-    selectedIcon: Icons.extension_rounded,
+    // A puzzle-piece glyph reads as "extension" even next to a "Sources"
+    // label, so the tab uses a sources-shaped icon instead.
+    icon: Icons.dynamic_feed_outlined,
+    selectedIcon: Icons.dynamic_feed_rounded,
   ),
   settings(
     label: 'Settings',

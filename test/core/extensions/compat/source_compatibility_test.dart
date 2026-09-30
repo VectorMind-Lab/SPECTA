@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:specta/core/extensions/compat/foreign_source_adapter.dart';
 import 'package:specta/core/extensions/compat/source_format_detector.dart';
@@ -382,6 +384,244 @@ void main() {
       // No signature was ever supplied, so the green dot must remain absent.
       expect(manifest.hasSignature, isFalse);
       expect(manifest.signature, isNull);
+    });
+  });
+
+  // ===========================================================================
+  // REAL third-party providers.
+  //
+  // Everything above uses fixtures written to match what SPECTA already
+  // understood. These groups use the UNMODIFIED files from a real, independent
+  // provider repository, because the original failures were only ever visible
+  // against real files: those providers export nothing at all and name their
+  // operations `getHome` / `getDetail` / `getVideoSources`.
+  // ===========================================================================
+
+  group('a real third-party provider is adapted onto the contract', () {
+    late Map<String, String> files;
+
+    setUpAll(() {
+      final Directory dir = Directory('test/support/fixtures/third_party');
+      if (!dir.existsSync()) {
+        fail(
+          'The real third-party fixtures are missing from ${dir.path}. See '
+          'test/support/fixtures/third_party/README.md for provenance.',
+        );
+      }
+      files = <String, String>{
+        for (final FileSystemEntity e in dir.listSync())
+          // Only the JavaScript. The folder also holds a README, and a markdown
+          // document is not a source file - including it would make this suite
+          // assert that a README installs.
+          if (e is File && e.path.toLowerCase().endsWith('.js'))
+            e.uri.pathSegments.last: e.readAsStringSync(),
+      };
+    });
+
+    test('every shipped real provider is recognised and adapted', () {
+      expect(files.keys, isNotEmpty, reason: 'no fixtures were found to test');
+      for (final MapEntry<String, String> entry in files.entries) {
+        final ResolvedImportableSource resolved = resolveImportableSource(
+          entry.value,
+          sourcePath: entry.key,
+        );
+        expect(
+          resolved.failure,
+          isNull,
+          reason: '${entry.key} was refused: ${resolved.failure?.message}',
+        );
+        expect(
+          resolved.analysis?.format,
+          SourceFormat.adapted,
+          reason: '${entry.key} should be adapted, not native',
+        );
+        expect(resolved.wasAdapted, isTrue);
+      }
+    });
+
+    test('every real provider fills all four contract operations', () {
+      for (final MapEntry<String, String> entry in files.entries) {
+        final ForeignSourceAnalysis analysis = SourceFormatDetector.analyse(
+          entry.value,
+        );
+        // Each of these files defines search, getHome, getDetail and
+        // getVideoSources. If any stop resolving, the source installs and then
+        // fails on the first call - the exact bug this covers.
+        expect(
+          analysis.entryPoints,
+          containsAll(<String>['search', 'latest', 'details', 'getSources']),
+          reason: '${entry.key} resolved only ${analysis.entryPoints}',
+        );
+      }
+    });
+
+    test('a real provider is mapped onto the names it actually uses', () {
+      for (final MapEntry<String, String> entry in files.entries) {
+        final Map<String, String> members = SourceFormatDetector.analyse(
+          entry.value,
+        ).operationMembers;
+        // These providers name the operations their own way, so the shim must
+        // call THOSE names, not the contract names.
+        expect(members['latest'], 'getHome', reason: entry.key);
+        expect(members['details'], 'getDetail', reason: entry.key);
+        expect(members['getSources'], 'getVideoSources', reason: entry.key);
+        // `search` shares a name with the contract and must map to itself.
+        expect(members['search'], 'search', reason: entry.key);
+      }
+    });
+
+    test("the generated shim calls the provider's real function names", () {
+      for (final MapEntry<String, String> entry in files.entries) {
+        final String source = resolveImportableSource(entry.value).source;
+        // The forwarders must name the author's members...
+        expect(source, contains("__spectaCall('getHome'"), reason: entry.key);
+        expect(source, contains("__spectaCall('getDetail'"), reason: entry.key);
+        expect(
+          source,
+          contains("__spectaCall('getVideoSources'"),
+          reason: entry.key,
+        );
+        // ...and must not call names the file does not define.
+        expect(
+          source,
+          isNot(contains("__spectaCall('latest'")),
+          reason: entry.key,
+        );
+        expect(
+          source,
+          isNot(contains("__spectaCall('getSources'")),
+          reason: entry.key,
+        );
+      }
+    });
+
+    test("a real provider's own body is preserved verbatim", () {
+      for (final MapEntry<String, String> entry in files.entries) {
+        // Adaptation wraps the author's code; it never edits it.
+        expect(
+          resolveImportableSource(entry.value).source,
+          contains(entry.value),
+          reason: entry.key,
+        );
+      }
+    });
+
+    test('a real provider keeps the version it declares about itself', () {
+      // Regression: metadata was read one key per line, so a provider returning
+      // { name: ..., type: ..., version: '1.0.8' } on ONE line lost its version.
+      final ForeignSourceAnalysis anikoto = SourceFormatDetector.analyse(
+        files['anikoto.js']!,
+      );
+      expect(anikoto.name, 'AniKoto');
+      expect(anikoto.version, isNotNull);
+      expect(anikoto.contentTypeCode, 'anime');
+    });
+    test('adapting a real provider still confers no trust', () {
+      for (final MapEntry<String, String> entry in files.entries) {
+        final ExtensionManifest manifest = ManifestParser.parse(
+          resolveImportableSource(entry.value).source,
+        );
+        expect(manifest.hasSignature, isFalse, reason: entry.key);
+      }
+    });
+  });
+
+  group('a JSON repository index is routed, not misread as JavaScript', () {
+    /// The real shape of the index that was reported as broken: a root object
+    /// with a `sources` array of relative file paths.
+    const String zangetsuIndex = '''
+{
+  "name": "Zangetsu Providers",
+  "description": "Streaming sources for the Zangetsu app.",
+  "sources": [
+    { "id": "anikoto", "name": "AniKoto", "version": "1.0.8",
+      "type": "anime", "file": "providers/anikoto.js" },
+    { "id": "hdhub4u", "name": "HDHub4u", "version": "1.2.4",
+      "type": "movie", "file": "providers/hdhub4u.js" }
+  ]
+}
+''';
+
+    test('is detected as a repository index, not unrecognised JavaScript', () {
+      // The bug: `_looksLikeJavaScriptModule` accepted anything starting with
+      // `{`, so every JSON index went down the JavaScript path and was refused
+      // with "implements none of the operations".
+      final ForeignSourceAnalysis analysis = SourceFormatDetector.analyse(
+        zangetsuIndex,
+      );
+      expect(analysis.format, SourceFormat.unrecognised);
+      expect(analysis.rejectionReason, contains('repository index'));
+    });
+
+    test('is never described as a JavaScript module', () {
+      for (final String document in <String>[
+        zangetsuIndex,
+        '[{"id":"a","file":"a.js"}]',
+        '{"sources":[]}',
+      ]) {
+        final String? reason = SourceFormatDetector.analyse(document)
+            .rejectionReason;
+        expect(reason, isNotNull);
+        expect(reason, isNot(contains('operations')));
+        expect(reason, isNot(contains('JavaScript')));
+      }
+    });
+
+    test('the message reports how many sources it lists', () {
+      // Saying "your index holds 2 providers" is far more useful than a bare
+      // refusal.
+      expect(
+        SourceFormatDetector.analyse(zangetsuIndex).rejectionReason,
+        contains('2 sources'),
+      );
+    });
+
+    test(
+      'a bare object-literal JavaScript file is still treated as JavaScript',
+      () {
+        // The JSON check must not swallow real JS, which legitimately starts
+        // with `{` as an expression statement.
+        const String jsObject = '''
+function search(q) { return { results: [] }; }
+module.exports = { search };
+''';
+        final ResolvedImportableSource resolved = resolveImportableSource(
+          jsObject,
+        );
+        expect(resolved.failure, isNull);
+        expect(resolved.analysis?.format, SourceFormat.adapted);
+      },
+    );
+  });
+
+  group('operation aliases are spellings, never a provider allowlist', () {
+    test('an unknown author using the same names is treated identically', () {
+      // No provider name, host or URL appears in the alias table, so nobody is
+      // special-cased: it only maps NAMES onto contract slots.
+      const String unknown = '''
+function search(q, p) { return { results: [] }; }
+function getHome() { return { results: [] }; }
+function getDetail(ref) { return { id: ref }; }
+function getVideoSources(ref) { return { sources: [] }; }
+''';
+      final ResolvedImportableSource resolved = resolveImportableSource(
+        unknown,
+      );
+      expect(resolved.failure, isNull);
+      expect(resolved.analysis?.entryPoints, contains('getSources'));
+      expect(
+        resolved.analysis?.operationMembers['getSources'],
+        'getVideoSources',
+      );
+    });
+
+    test('a file that implements nothing is still refused', () {
+      // Widening the name table must not make everything acceptable.
+      final ResolvedImportableSource resolved = resolveImportableSource(
+        'function helper() { return 1; }\nmodule.exports = { helper };',
+      );
+      expect(resolved.failure, isNotNull);
+      expect(resolved.failure!.message, contains('none of the operations'));
     });
   });
 }

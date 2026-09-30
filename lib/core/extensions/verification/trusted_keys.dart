@@ -3,10 +3,10 @@ import 'dart:convert';
 /// SPECTA's trusted Ed25519 public key for extension signature verification.
 ///
 /// The corresponding private signing key is NEVER stored in this repository
-/// or the application.  It lives only on an offline, secured signing machine
-/// (kept at `H:\specta_signing\specta_ed25519_private.pem` for this
-/// development environment).  Production signing must be performed on a
-/// properly secured, air-gapped machine.
+/// or the application.  It lives only on an offline, secured signing machine,
+/// in a directory outside this repository that is never committed.
+/// Production signing must be performed on a properly secured, air-gapped
+/// machine.
 ///
 /// Trust classification flow:
 /// 1. Parse the extension manifest `@signature` field (`ed25519:BASE64`).
@@ -18,7 +18,7 @@ abstract final class TrustedKeys {
   ///
   /// Generated for this SPECTA Phase 1 build on 2026-09-15.
   /// The private key was generated alongside it and stored outside the
-  /// repository at H:\specta_signing\.
+  /// repository, in an offline directory that is never committed.
   static const String publicKeyBase64 =
       'uDm0fWmDu0dQ/32eXEw7O78VhqEA72YYcEpXPECxAYc=';
 

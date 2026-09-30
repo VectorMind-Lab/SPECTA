@@ -89,7 +89,7 @@ void main() {
     final DiscoveryTestHarness h = DiscoveryTestHarness();
     final ProviderContainer container = await _pumpSearch(tester, h);
 
-    expect(find.text('Search across your enabled extensions'), findsOneWidget);
+    expect(find.text('Search across your enabled sources'), findsOneWidget);
     expect(container.read(searchSessionProvider).status, SearchStatus.idle);
   });
 
@@ -172,7 +172,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.close_rounded));
     await tester.pump();
 
-    expect(find.text('Search across your enabled extensions'), findsOneWidget);
+    expect(find.text('Search across your enabled sources'), findsOneWidget);
     expect(container.read(searchSessionProvider).status, SearchStatus.idle);
   });
 

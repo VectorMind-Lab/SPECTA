@@ -24,13 +24,62 @@ import 'runtime_api.dart';
 /// access) and `log`; there is no filesystem, database, contact, SMS or
 /// device-identifier API for extension code to reach.
 ///
-/// Contract note: [ExtensionRuntime.loadExtension] instantiates a class named
-/// `Extension` (`new Extension()`), so an extension must declare that class.
-/// Extending `SpectaExtension` is what gives it `request`/`log`, but the
-/// runtime does not verify the base class — it verifies declared
-/// capabilities, which is why they are declared explicitly rather than
-/// inferred from the presence of a JavaScript method.
+/// It ALSO defines a global `fetch()`. This is not a second network path: it is
+/// a thin shim over the same `specta_request` channel, so it inherits the same
+/// `network` capability gate and the same [ExtensionRequestPolicy] checks
+/// (scheme allow-list, private/loopback host blocking, redirect rules, URL and
+/// body limits). Nothing is reachable through `fetch` that is not already
+/// reachable through `request`.
+///
+/// Why it exists: third-party providers written for browser-like hosts call the
+/// WHATWG global `fetch()` rather than SPECTA's `request()`. Without a global
+/// `fetch`, every such provider dies at its first network call with
+/// `ReferenceError: 'fetch' is not defined` — the sandbox itself is fine, the
+/// provider simply has no name to call. The earlier "sources could not be
+/// reached" state on a fully installed, healthy source was caused by exactly
+/// this missing global.
+///
+/// It is installed only when the engine does not already define `fetch`, so a
+/// runtime that ever gains a native `fetch` keeps it. `enableFetch()` is still
+/// never called, so the sandbox stays a bare QuickJS runtime with no DOM.
 const String sandboxBootstrap = r'''
+// A response object shaped the way real providers actually read it.
+//
+// This is NOT the WHATWG `Response` shape, and the difference is deliberate.
+// Measured against the five shipped third-party providers on a device, the
+// reads are: `r.body` (17), `r.headers` (4), plus `r.status`/`r.ok`. They
+// treat `body` as a PLAIN PROPERTY and parse it themselves with
+// `JSON.parse(r.body || 'null')` — they never call `.text()` or `.json()`.
+//
+// A strict WHATWG shim (body reachable only through async `.text()`/`.json()`)
+// therefore compiles, runs, and silently yields `undefined` for every one of
+// those reads, which surfaces as "no results" with no error anywhere. Both
+// shapes are supported: the WHATWG methods are kept so code written against a
+// browser host also works, and the properties are the real path.
+class SpectaResponse {
+  constructor(payload) {
+    this.status = payload.status;
+    this.ok = payload.ok;
+    this.url = payload.url;
+    this.headers = payload.headers || {};
+    this.error = payload.error;
+    this.errorType = payload.errorType;
+    this.body = payload.body === undefined || payload.body === null
+      ? ''
+      : String(payload.body);
+    this._json = payload.json;
+  }
+
+  // WHATWG-compatible accessors, for providers written against a browser host.
+  async text() { return this.body; }
+
+  async json() {
+    if (this._json !== null && this._json !== undefined) return this._json;
+    if (this.body === '') return null;
+    return JSON.parse(this.body);
+  }
+}
+
 class SpectaExtension {
   async request(requestData) {
     const response = await sendMessage('specta_request', JSON.stringify(requestData));
@@ -43,6 +92,52 @@ class SpectaExtension {
   async capabilities() { return {}; }
   async healthCheck() { return true; }
   async shutdown() {}
+}
+
+if (typeof globalThis.fetch === 'undefined') {
+  globalThis.fetch = async function (input, init) {
+    init = init || {};
+    let url = (typeof input === 'string') ? input : (input ? input.url : undefined);
+    if (url === undefined || url === null || url === '') {
+      throw new TypeError('fetch: a URL is required');
+    }
+    let body = init.body;
+    if (body !== undefined && body !== null && typeof body !== 'string') {
+      try { body = JSON.stringify(body); } catch (e) { body = String(body); }
+    }
+    const headers = {};
+    const rawHeaders = init.headers;
+    if (rawHeaders) {
+      if (Array.isArray(rawHeaders)) {
+        for (const pair of rawHeaders) {
+          if (Array.isArray(pair) && pair.length >= 2) headers[String(pair[0])] = String(pair[1]);
+        }
+      } else {
+        for (const key in rawHeaders) { headers[key] = String(rawHeaders[key]); }
+      }
+    }
+    // `timeoutMs` is the name the shipped providers use; `timeout` is what
+    // SPECTA's own `request()` contract uses. Accept both so neither source
+    // silently falls back to the default. A fractional/zero value is left to
+    // the host, which clamps it.
+    const rawTimeout = init.timeoutMs !== undefined ? init.timeoutMs : init.timeout;
+    const timeout = typeof rawTimeout === 'number' && isFinite(rawTimeout) && rawTimeout > 0
+      ? Math.round(rawTimeout)
+      : 15000;
+
+    const rawResponse = await sendMessage('specta_request', JSON.stringify({
+      url: String(url),
+      method: String(init.method || 'GET').toUpperCase(),
+      headers: headers,
+      query: {},
+      body: body === undefined ? null : body,
+      timeout: timeout
+    }));
+    let payload;
+    try { payload = JSON.parse(rawResponse); }
+    catch (e) { throw new Error('fetch: host returned a malformed response'); }
+    return new SpectaResponse(payload);
+  };
 }
 ''';
 

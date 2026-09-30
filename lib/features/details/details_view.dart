@@ -146,7 +146,7 @@ class DetailsView extends ConsumerWidget {
       return 'The metadata catalogue could not complete this title. Check your '
           'connection and try again.';
     }
-    return 'Details could not be loaded — the extensions could not be '
+    return 'Details could not be loaded — the sources could not be '
         'reached. Check your connection and try again.';
   }
 
@@ -332,7 +332,7 @@ class _NoSourceNotice extends StatelessWidget {
             child: Text(
               'No streaming source for this title yet. It came from the '
               'metadata catalogue, which does not provide streams — install an '
-              'extension that covers it to play.',
+              'source that covers it to play.',
               style: TextStyle(
                 fontSize: 12,
                 height: 1.4,

@@ -116,7 +116,7 @@ class _SearchViewState extends ConsumerState<SearchView> {
           child: switch (state.status) {
             SearchStatus.idle => const SpectaEmptyState(
               icon: Icons.travel_explore_rounded,
-              message: 'Search across your enabled extensions',
+              message: 'Search across your enabled sources',
             ),
             SearchStatus.loading => const Center(
               child: CircularProgressIndicator(),
@@ -130,7 +130,7 @@ class _SearchViewState extends ConsumerState<SearchView> {
             SearchStatus.allFailed => const SpectaEmptyState(
               icon: Icons.cloud_off_rounded,
               message:
-                  'Search failed — your extensions could not be reached. '
+                  'Search failed — your sources could not be reached. '
                   'Check your connection and try again.',
             ),
             // The extension status alone must not decide what is on screen.
@@ -177,7 +177,7 @@ class _ResultList extends StatelessWidget {
                 color: SpectaColors.warning,
               ),
               title: Text(
-                'Some extensions failed to respond; showing available '
+                'Some sources failed to respond; showing available '
                 'results',
                 style: TextStyle(
                   fontSize: 12,
@@ -283,8 +283,8 @@ class _DiscoveryCard extends ConsumerWidget {
                     item.references.isEmpty
                         ? 'Anime catalogue — no streaming source yet'
                         : (item.isCrossExtension
-                              ? 'Found on ${item.references.length} extensions'
-                              : 'Found on 1 extension'),
+                              ? 'Found on ${item.references.length} sources'
+                              : 'Found on 1 source'),
                     style: TextStyle(
                       fontSize: 11,
                       color: accent.withValues(alpha: 0.8),

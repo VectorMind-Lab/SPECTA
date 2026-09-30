@@ -6,6 +6,7 @@ import 'package:specta/core/extensions/catalogue/extension_catalogue.dart';
 import 'package:specta/core/extensions/distribution/dart_io_extension_download_transport.dart';
 import 'package:specta/core/extensions/distribution/extension_downloader.dart';
 import 'package:specta/core/extensions/distribution/extension_storage.dart';
+import 'package:specta/core/extensions/compat/source_format_detector.dart';
 import 'package:specta/core/extensions/identity/extension_health.dart';
 import 'package:specta/core/extensions/identity/source_node.dart';
 import 'package:specta/core/extensions/identity/trust_level.dart';
@@ -56,9 +57,9 @@ final class ManagedExtension {
   /// Derived from recorded facts only, and used for DISPLAY. It never feeds
   /// ranking and never reorders anything.
   SourceHealthDisplay get healthDisplay => SourceHealthMapping.of(
-        health: healthState,
-        hasRecordedActivity: hasRecordedActivity,
-      );
+    health: healthState,
+    hasRecordedActivity: hasRecordedActivity,
+  );
 }
 
 /// The application-facing boundary for extension installation and lifecycle.
@@ -132,29 +133,33 @@ final class ExtensionLifecycleService {
     }
 
     // The id used for the file name is the one the manager will install under.
-    // It is taken from the downloaded manifest, and sanitised before use, so a
-    // hostile id cannot write outside the target directory.
+    // It comes from the SAME resolution the manager performs, so a foreign
+    // provider is adapted and named here exactly as it will be registered
+    // there. Reading the manifest directly — as this once did — refused every
+    // third-party file before the compatibility layer was ever consulted, which
+    // is why installing a provider by URL failed while importing the same file
+    // from the device worked. The id is sanitised before use, so a hostile id
+    // still cannot write outside the target directory.
     final String code = download.valueOrNull!.sourceCode;
-    final String? extensionId = _idFromSource(code);
-    if (extensionId == null) {
-      // The download SUCCEEDED — the bytes arrived. What is missing is a
-      // `// ==SpectaExtension==` manifest, so this file simply is not an
-      // extension. This used to report `tooLarge`, which told the user their
-      // file was too big when it was in fact a 343-byte JSON catalogue: the
-      // overwhelmingly common cause is a repo.json pasted into "Install from a
-      // link". The explanation comes from the same helper the manager uses, so
-      // both routes describe the mistake identically.
+    final ResolvedImportableSource resolved = resolveImportableSource(code);
+    final ForeignSourceAnalysis? analysis = resolved.analysis;
+    final String? extensionId = analysis?.id;
+    if (extensionId == null || resolved.failure != null) {
+      // The download SUCCEEDED — the bytes arrived. What is missing is
+      // something SPECTA can run, and the compatibility layer has already said
+      // precisely what and why: a JSON repository index, or a module
+      // implementing no recognisable operation. This used to report
+      // `tooLarge`, which told the user their file was too big when it was in
+      // fact a 343-byte JSON catalogue.
       return Err<ExtensionRecord>(
         ExtensionDistributionFailure(
           type: ExtensionDistributionFailureType.notAnExtension,
           stage: 'verify',
-          message: describeUnimportableSource(
-            code,
-            ManifestParseException(
-              'Downloaded file has no readable manifest id.',
-            ),
-          ),
-          detail: 'Downloaded file has no readable manifest id.',
+          message:
+              resolved.failure?.message ?? 'That link is not a SPECTA source.',
+          detail:
+              resolved.failure?.detail ??
+              'Downloaded file could not be resolved as a source.',
         ),
       );
     }
@@ -162,7 +167,14 @@ final class ExtensionLifecycleService {
     final SpectaResult<String> written = await ExtensionFileStore.write(
       directory.valueOrNull!,
       extensionId,
-      code,
+      // The ADAPTED bytes, not the downloaded ones. A foreign provider carries
+      // no `// ==SpectaExtension==` header of its own, so persisting the raw
+      // download would store a file the runtime cannot load; the manager would
+      // then re-adapt it on read and the stored copy would never match what is
+      // executed. Writing `resolved.source` makes the stored file exactly the
+      // source that is registered, which is also what makes it self-describing
+      // on a later restart.
+      resolved.source,
     );
     if (written.isErr) return Err<ExtensionRecord>(written.failureOrNull!);
 
@@ -188,14 +200,6 @@ final class ExtensionLifecycleService {
   /// Used only to choose a file name. A null result (unparseable manifest) is
   /// rejected here; a WRONG id is caught by the manager, which installs under
   /// the id in the manifest itself.
-  static String? _idFromSource(String sourceCode) {
-    try {
-      return ManifestParser.parse(sourceCode).id;
-    } on Object {
-      return null;
-    }
-  }
-
   /// Returns every installed extension (enabled and disabled), each with its
   /// derived health, in display order.
   ///

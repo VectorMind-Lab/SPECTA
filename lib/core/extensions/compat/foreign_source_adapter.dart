@@ -85,6 +85,11 @@ abstract final class ForeignSourceAdapter {
     String jsSource,
   ) {
     final Set<String> operations = analysis.entryPoints;
+    // The member the author's file ACTUALLY uses for each contract operation.
+    // Calling the contract name unconditionally is what made every adapted
+    // third-party source install successfully and then fail on the first call.
+    final Map<String, String> members = analysis.operationMembers;
+    String member(String operation) => members[operation] ?? operation;
     return '''
 // ---------------------------------------------------------------------------
 // SPECTA compatibility prelude (generated).
@@ -113,12 +118,26 @@ $jsSource
 
 const __spectaForeign = (function () {
   try {
-    if (typeof module !== 'undefined' && module.exports) return module.exports;
-    if (typeof exports !== 'undefined' && exports) return exports;
+    // A CommonJS module's export, but only when it actually exported something.
+    // The prelude above always creates an EMPTY `module.exports`, so returning it
+    // unconditionally would shadow a script that exports nothing and simply
+    // declares top-level functions - which is exactly the shape every real
+    // third-party provider uses. An empty export is treated as "no export".
+    if (typeof module !== 'undefined' && module.exports
+        && Object.keys(module.exports).length > 0) {
+      return module.exports;
+    }
+    if (typeof exports !== 'undefined' && exports
+        && Object.keys(exports).length > 0) {
+      return exports;
+    }
   } catch (e) {
-    // A module that throws while exporting simply has no export; the guards
-    // below handle a global or a class instead.
+    // A module that throws while exporting simply has no export; the global
+    // lookup below handles it.
   }
+  // No usable export: fall back to the script global itself, where a
+  // non-module file's top-level `function search() {}` declarations live.
+  if (typeof globalThis !== 'undefined') return globalThis;
   return null;
 })();
 
@@ -148,19 +167,19 @@ class Extension extends SpectaExtension {
   }
 ${operations.contains('search') ? '''
   async search(query, page) {
-    return await this.__spectaCall('search', [query, page]);
+    return await this.__spectaCall('${member('search')}', [query, page]);
   }
 ''' : ''}${operations.contains('latest') ? '''
   async latest(page) {
-    return await this.__spectaCall('latest', [page]);
+    return await this.__spectaCall('${member('latest')}', [page]);
   }
 ''' : ''}${operations.contains('details') ? '''
   async details(reference) {
-    return await this.__spectaCall('details', [reference]);
+    return await this.__spectaCall('${member('details')}', [reference]);
   }
 ''' : ''}${operations.contains('getSources') ? '''
   async getSources(reference) {
-    return await this.__spectaCall('getSources', [reference]);
+    return await this.__spectaCall('${member('getSources')}', [reference]);
   }
 ''' : ''}
   async healthCheck() {

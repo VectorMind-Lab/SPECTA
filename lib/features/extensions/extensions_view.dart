@@ -285,7 +285,55 @@ class ExtensionsView extends ConsumerWidget {
         .read(extensionsProvider.notifier)
         .installFromUrl(url.trim());
     if (!context.mounted) return;
+
+    // A JSON index pasted into "Install from a link" is not a mistake to be
+    // merely reported - it is a repository the user clearly meant to open.
+    // Offering the action that actually works is better than a dead end, and it
+    // costs nothing when the link really was a source file.
+    if (result.isErr && isRepositoryIndexUrl(url.trim())) {
+      final bool open = await _confirmOpenRepository(context);
+      if (open && context.mounted) {
+        await _openRepositoryAt(context, ref, url.trim());
+      }
+      return;
+    }
     _reportInstall(context, result);
+  }
+
+  /// Whether [url] names a JSON index rather than a single source file.
+  ///
+  /// A hint based purely on the path, used only to OFFER the repository route.
+  /// The decision to install still comes from the manager, so a `.json` file
+  /// that is somehow a real source is never diverted by this check alone.
+  static bool isRepositoryIndexUrl(String url) {
+    final Uri? uri = Uri.tryParse(url.trim());
+    final String path = (uri?.path ?? '').toLowerCase();
+    return path.endsWith('.json');
+  }
+
+  Future<bool> _confirmOpenRepository(BuildContext context) async {
+    final bool? answer = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('That link is a source repository'),
+        content: const Text(
+          'This address points to a JSON index that lists sources, rather '
+          'than to a single source file. Open it as a repository to browse '
+          'the sources it lists and install them one at a time?',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          SpectaPrimaryButton(
+            label: 'Open repository',
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+          ),
+        ],
+      ),
+    );
+    return answer ?? false;
   }
 
   /// Browses the official catalogue and installs one entry at a time (D6).
@@ -341,13 +389,28 @@ class ExtensionsView extends ConsumerWidget {
     );
     if (url == null || url.trim().isEmpty || !context.mounted) return;
 
+    await _openRepositoryAt(context, ref, url.trim());
+  }
+
+  /// Opens [indexUrl] in the repository sheet and installs a chosen entry.
+  ///
+  /// Shared by the "Add from a repository" action and by the recovery path taken
+  /// when a user pastes a JSON index into "Install from a link", so both routes
+  /// end in exactly the same place with the same install action.
+  Future<void> _openRepositoryAt(
+    BuildContext context,
+    WidgetRef ref,
+    String indexUrl,
+  ) async {
+    if (!context.mounted) return;
+
     final ExtensionCatalogueEntry? entry =
         await showModalBottomSheet<ExtensionCatalogueEntry>(
           context: context,
           isScrollControlled: true,
           builder: (BuildContext sheetContext) => ExtensionsRepositorySheet(
             client: ref.read(extensionCatalogueClientProvider),
-            indexUrl: url.trim(),
+            indexUrl: indexUrl,
             installed: <String, String>{
               for (final ManagedExtension e
                   in ref.read(extensionsProvider).items)

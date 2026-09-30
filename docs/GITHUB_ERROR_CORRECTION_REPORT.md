@@ -32,7 +32,7 @@ Inspected entire Git history for secrets:
 - ✅ No tokens or credentials
 - ✅ No passwords or API keys
 - ✅ No SSH private keys
-- ✅ Private signing key reference points to external location (`H:\specta_signing\`) - never committed
+- ✅ Private signing key reference points to an external offline location - never committed
 
 **Files found with "key" in name:**
 - `lib/core/extensions/verification/trusted_keys.dart` - Contains only PUBLIC Ed25519 key (safe)

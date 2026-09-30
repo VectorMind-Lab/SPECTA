@@ -108,7 +108,7 @@ scan, `.gitignore` hardening (left uncommitted), and the local commit
 | Local `credential.helper=store` | pre-existing machine config; no new credentials written by this pass; push used a transient URL, not the helper |
 
 **Result: CLEAN.** The production Ed25519 private signing key remains outside
-the repository (`H:\specta_signing\`), as documented in the Phase 1 closure
+the repository, in an offline directory, as documented in the Phase 1 closure
 report.
 
 ## What was deliberately excluded

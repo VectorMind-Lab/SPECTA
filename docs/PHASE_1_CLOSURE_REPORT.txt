@@ -143,7 +143,7 @@ A one-off, explicitly approved probe exercised the REAL production key. Rules
 observed: the private key was never copied, moved, persisted, printed, hashed,
 logged or committed; it was read into memory by an external process only, and
 the temporary payload/signature were deleted afterwards. The private key remains
-outside the repository at H:\specta_signing\specta_ed25519_private.pem.
+outside the repository, in an offline directory that is never committed.
 
   Probe extension : com.example.closure-probe (throwaway, never a release)
   Payload bytes   : 367

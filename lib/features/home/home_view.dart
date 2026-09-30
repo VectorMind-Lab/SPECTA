@@ -93,7 +93,7 @@ class HomeView extends ConsumerWidget {
       return SpectaEmptyState(
         icon: unreachable ? Icons.cloud_off_rounded : Icons.explore_outlined,
         message: unreachable
-            ? 'Your extensions could not be reached. Check your connection and '
+            ? 'Your sources could not be reached. Check your connection and '
                   'try again.'
             : data?.message ?? 'Nothing to show yet.',
         actionLabel: retryable ? 'Retry' : null,
@@ -388,8 +388,8 @@ class _PartialNotice extends StatelessWidget {
             Expanded(
               child: Text(
                 failedCount == 1
-                    ? 'One of your extensions could not be reached.'
-                    : '$failedCount of your extensions could not be reached.',
+                    ? 'One of your sources could not be reached.'
+                    : '$failedCount of your sources could not be reached.',
                 style: const TextStyle(
                   fontSize: 11,
                   color: SpectaColors.textSecondary,

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:specta/core/extensions/contract/extension_capability.dart';
 import 'package:specta/core/extensions/manifest.dart';
 
-
 /// Which shape a source file turned out to be.
 enum SourceFormat {
   /// The native `// ==SpectaExtension==` contract. Used as-is, no adaptation.
@@ -12,6 +11,11 @@ enum SourceFormat {
   /// A recognised foreign JavaScript module, adapted into the native
   /// representation.
   adapted,
+
+  /// A JSON document that lists sources rather than being one - a repository
+  /// index. It is not installable, but it is not a mistake either, so it is
+  /// reported as its own kind rather than as unrecognised JavaScript.
+  repositoryIndex,
 
   /// Not a JavaScript source SPECTA can run, with a stated reason.
   unrecognised,
@@ -33,6 +37,7 @@ final class ForeignSourceAnalysis {
     required this.website,
     required this.contentTypeCode,
     required this.entryPoints,
+    required this.operationMembers,
     required this.capabilities,
     required this.usesNetwork,
     required this.usesLogging,
@@ -66,6 +71,14 @@ final class ForeignSourceAnalysis {
   /// The contract operations the file actually implements, discovered by
   /// looking for the corresponding exported member.
   final Set<String> entryPoints;
+
+  /// Contract operation -> the member name the file implements it under.
+  ///
+  /// For a file that already uses SPECTA's own names this maps each operation to
+  /// itself. For a foreign file it maps, for example, `latest` to `getHome` and
+  /// `getSources` to `getVideoSources`, which is what lets the generated shim
+  /// call the author's real function instead of a name that does not exist.
+  final Map<String, String> operationMembers;
 
   /// Capabilities granted to the adapted source, derived from what the code
   /// actually references. Never widened beyond that.
@@ -111,7 +124,73 @@ abstract final class SourceFormatDetector {
   /// Inspects [jsSource] and reports what it is.
   static ForeignSourceAnalysis analyse(String jsSource) {
     if (_isNative(jsSource)) return _analyseNative(jsSource);
+    // A JSON document is checked BEFORE the JavaScript path. Treating it as
+    // JavaScript is what produced "implements none of the operations" for a
+    // perfectly valid index.json listing nine working providers.
+    if (_isJsonDocument(jsSource)) return _analyseRepositoryIndex(jsSource);
     return _analyseForeign(jsSource);
+  }
+
+  /// Whether the payload is a JSON document rather than JavaScript.
+  ///
+  /// Structural only: the first meaningful character decides. No attempt is made
+  /// to decide whether the document is a *useful* index - that is the
+  /// repository reader's job, and it is a separate concern.
+  static bool _isJsonDocument(String jsSource) {
+    final String head = jsSource.trimLeft();
+    if (head.isEmpty) return false;
+    if (!head.startsWith('{') && !head.startsWith('[')) return false;
+    // `{"` and `[{` cannot begin a JavaScript program, whereas a bare `{` can:
+    // `{ a: 1 }` is a valid expression statement. So the opening bracket alone
+    // is not enough - the next non-space character decides.
+    final String rest = head.substring(1).trimLeft();
+    if (rest.isEmpty) return false;
+    return rest.startsWith('"') ||
+        rest.startsWith("'") ||
+        rest.startsWith('{') ||
+        rest.startsWith('[');
+  }
+
+  /// Describes a JSON document that lists sources.
+  ///
+  /// This is not an error to be reported as a broken file. It is a valid
+  /// document of the wrong KIND, and the honest outcome is to send the user to
+  /// the repository browser that can read it.
+  static ForeignSourceAnalysis _analyseRepositoryIndex(String jsSource) {
+    int listed = 0;
+    try {
+      final Object? decoded = jsonDecode(jsSource);
+      if (decoded is List) {
+        listed = decoded.length;
+      } else if (decoded is Map) {
+        for (final String key in const <String>[
+          'sources',
+          'extensions',
+          'addons',
+          'plugins',
+          'providers',
+          'items',
+        ]) {
+          final Object? list = decoded[key];
+          if (list is List) {
+            listed = list.length;
+            break;
+          }
+        }
+      }
+    } on Object {
+      // A malformed document is still a JSON document as far as routing goes;
+      // the repository reader will report the parse problem in detail.
+    }
+
+    final String count = listed > 0
+        ? ' It lists $listed source${listed == 1 ? '' : 's'}.'
+        : '';
+    return _unrecognised(
+      'That link is a repository index — a JSON list of sources — not a '
+      'single source file.$count Open it as a repository to browse and install '
+      'the sources it lists.',
+    );
   }
 
   /// Cheap structural test for the native header.
@@ -151,9 +230,23 @@ abstract final class SourceFormatDetector {
           if (manifest.capabilities.contains(ExtensionCapability.sources))
             'getSources',
         },
+        operationMembers: <String, String>{
+          if (manifest.capabilities.contains(ExtensionCapability.search))
+            'search': 'search',
+          if (manifest.capabilities.contains(ExtensionCapability.latest))
+            'latest': 'latest',
+          if (manifest.capabilities.contains(ExtensionCapability.details))
+            'details': 'details',
+          if (manifest.capabilities.contains(ExtensionCapability.sources))
+            'getSources': 'getSources',
+        },
         capabilities: manifest.capabilities,
-        usesNetwork: manifest.capabilities.contains(ExtensionCapability.network),
-        usesLogging: manifest.capabilities.contains(ExtensionCapability.logging),
+        usesNetwork: manifest.capabilities.contains(
+          ExtensionCapability.network,
+        ),
+        usesLogging: manifest.capabilities.contains(
+          ExtensionCapability.logging,
+        ),
         rejectionReason: null,
       );
     } on ManifestParseException catch (e) {
@@ -198,22 +291,20 @@ abstract final class SourceFormatDetector {
     final Map<String, String> metadata = _extractMetadata(jsSource);
     final String name =
         metadata['name'] ?? metadata['title'] ?? 'Imported source';
-    final bool usesNetwork = _referencesAny(
-      jsSource,
-      const <String>[
-        'fetch(',
-        'XMLHttpRequest',
-        'axios',
-        'request(',
-        'sendMessage',
-        'https://',
-        'http://',
-      ],
-    );
-    final bool usesLogging = _referencesAny(
-      jsSource,
-      const <String>['console.log', 'console.warn', 'console.error'],
-    );
+    final bool usesNetwork = _referencesAny(jsSource, const <String>[
+      'fetch(',
+      'XMLHttpRequest',
+      'axios',
+      'request(',
+      'sendMessage',
+      'https://',
+      'http://',
+    ]);
+    final bool usesLogging = _referencesAny(jsSource, const <String>[
+      'console.log',
+      'console.warn',
+      'console.error',
+    ]);
 
     // Capabilities are derived from what the code actually references. A source
     // is granted neither more authority than it demonstrably needs nor less than
@@ -239,6 +330,7 @@ abstract final class SourceFormatDetector {
         metadata['type'] ?? metadata['types'] ?? metadata['category'],
       ),
       entryPoints: entryPoints,
+      operationMembers: _resolveOperationMembers(jsSource),
       capabilities: capabilities,
       usesNetwork: usesNetwork,
       usesLogging: usesLogging,
@@ -257,6 +349,7 @@ abstract final class SourceFormatDetector {
         website: null,
         contentTypeCode: null,
         entryPoints: const <String>{},
+        operationMembers: const <String, String>{},
         capabilities: const <ExtensionCapability>{},
         usesNetwork: false,
         usesLogging: false,
@@ -270,35 +363,130 @@ abstract final class SourceFormatDetector {
   /// unfamiliar.
   static bool _looksLikeJavaScriptModule(String jsSource) =>
       _referencesAny(jsSource, const <String>[
-            'module.exports',
-            'exports.',
-            'export default',
-            'export const',
-            'export function',
-            'globalThis',
-            'class ',
-            'function ',
-            '=>',
-          ]) ||
+        'module.exports',
+        'exports.',
+        'export default',
+        'export const',
+        'export function',
+        'globalThis',
+        'class ',
+        'function ',
+        '=>',
+      ]) ||
       jsSource.trimLeft().startsWith('{');
 
   /// Finds the contract operations the file implements.
   ///
   /// A member counts as implemented when the file assigns it, defines it as an
-  /// object/class member, or exports it. Several spellings are recognised because
-  /// different hosts name the same operation differently.
+  /// object/class member, exports it, or declares it as a top-level function.
+  ///
+  /// Foreign hosts do not use SPECTA's names. A real provider repository
+  /// (Zangetsu) exports `getHome` where SPECTA wants `latest`, `getDetail`
+  /// where SPECTA wants `details`, and `getVideoSources` where SPECTA wants
+  /// `getSources`. Requiring SPECTA's own spelling made the platform closed in
+  /// practice while claiming to be open, so the operation a contract slot is
+  /// satisfied by is now looked up through an alias table.
+  ///
+  /// The alias table is a mapping of SPELLINGS, not of providers: it says
+  /// "a function called `getDetail` fills the `details` slot", and nothing
+  /// about who wrote it or which site it targets. An unknown author is treated
+  /// exactly like a known one.
   static Set<String> _detectEntryPoints(String jsSource) {
     final Set<String> found = <String>{};
+    for (final MapEntry<String, List<String>> slot
+        in operationAliases.entries) {
+      for (final String alias in slot.value) {
+        if (_definesMember(jsSource, alias)) {
+          found.add(slot.key);
+          break;
+        }
+      }
+    }
+    return found;
+  }
+
+  /// The member name a contract operation is actually implemented by in this
+  /// file, or null when the file does not implement it.
+  ///
+  /// The shim calls THIS name, not the contract name, which is what lets a
+  /// `getVideoSources` provider answer a `getSources` call without SPECTA
+  /// editing a single line of the author's code.
+  static String? _memberForOperation(String jsSource, String operation) {
+    for (final String alias
+        in operationAliases[operation] ?? const <String>[]) {
+      if (_definesMember(jsSource, alias)) return alias;
+    }
+    return null;
+  }
+
+  /// Maps each SPECTA contract operation to the foreign member name that
+  /// satisfies it, for only the operations this file actually implements.
+  ///
+  /// The contract name is listed first for every operation, so a file that
+  /// already uses SPECTA's spelling resolves to itself and behaves exactly as
+  /// it did before aliases existed.
+  static Map<String, String> _resolveOperationMembers(String jsSource) {
+    final Map<String, String> resolved = <String, String>{};
     for (final String operation in const <String>[
       'search',
       'latest',
       'details',
       'getSources',
     ]) {
-      if (_definesMember(jsSource, operation)) found.add(operation);
+      final String? member = _memberForOperation(jsSource, operation);
+      if (member != null) resolved[operation] = member;
     }
-    return found;
+    return resolved;
   }
+
+  /// Aliases that satisfy each contract operation, most specific first.
+  ///
+  /// These are SPELLINGS observed across independent provider ecosystems, not
+  /// a per-provider allowlist: the same table applies to every file, so nothing
+  /// here can decide whether a source is acceptable. Listing a name only makes
+  /// a file ELIGIBLE for adaptation - it still passes the manifest,
+  /// compatibility and Ed25519 trust gates unchanged.
+  static const Map<String, List<String>> operationAliases =
+      <String, List<String>>{
+        'search': <String>[
+          'search',
+          'getSearch',
+          'find',
+          'query',
+          'searchMovies',
+          'searchShows',
+          'browse',
+        ],
+        'latest': <String>[
+          'latest',
+          'getLatest',
+          'getHome',
+          'home',
+          'getRecent',
+          'getPopular',
+          'popular',
+          'trending',
+        ],
+        'details': <String>[
+          'details',
+          'getDetails',
+          'getDetail',
+          'getInfo',
+          'info',
+          'getMovie',
+          'getShow',
+          'getEpisodes',
+        ],
+        'getSources': <String>[
+          'getSources',
+          'getVideoSources',
+          'getStreams',
+          'getStreamLinks',
+          'getLinks',
+          'getPlay',
+          'play',
+        ],
+      };
 
   /// Whether [name] appears as a defined member of the module.
   static bool _definesMember(String jsSource, String name) {
@@ -311,6 +499,12 @@ abstract final class SourceFormatDetector {
       RegExp('\\bfunction\\s+$name\\s*\\('),
       // exports.name = ...
       RegExp('\\bexports\\.$name\\s*='),
+      // module.exports.name = ...
+      RegExp('\\bmodule\\.exports\\.$name\\s*='),
+      // const/let/var name = function / async / arrow
+      RegExp(
+        '\\b(?:const|let|var)\\s+$name\\s*=\\s*(async\\s*)?(function\\b|\\()',
+      ),
     ];
     return shapes.any((RegExp shape) => shape.hasMatch(jsSource));
   }
@@ -325,12 +519,17 @@ abstract final class SourceFormatDetector {
       r'''["']?([A-Za-z_][A-Za-z0-9_]*)["']?\s*:\s*["']([^"'\n]{1,200})["']''',
     );
     for (final String line in jsSource.split('\n')) {
-      final RegExpMatch? match = pair.firstMatch(line);
-      if (match == null) continue;
-      final String key = match.group(1)!.toLowerCase();
-      final String value = match.group(2)!.trim();
-      if (value.isEmpty) continue;
-      found.putIfAbsent(key, () => value);
+      // EVERY match on the line, not just the first. Real providers return
+      // their whole description from one object literal:
+      //   return { name: 'AniKoto', lang: 'en', type: 'anime', version: '1.0.8' };
+      // Reading only the first pair silently dropped the declared version and
+      // left the source showing no version at all.
+      for (final RegExpMatch match in pair.allMatches(line)) {
+        final String key = match.group(1)!.toLowerCase();
+        final String value = match.group(2)!.trim();
+        if (value.isEmpty) continue;
+        found.putIfAbsent(key, () => value);
+      }
     }
     return found;
   }
@@ -345,9 +544,8 @@ abstract final class SourceFormatDetector {
   /// that makes a source list untrustworthy.
   static String? _normaliseVersion(String? raw) {
     if (raw == null) return null;
-    final RegExpMatch? match = RegExp(
-      r'(\d+)(?:\.(\d+))?(?:\.(\d+))?',
-    ).firstMatch(raw);
+    final RegExpMatch? match = RegExp(r'(\d+)(?:\.(\d+))?(?:\.(\d+))?')
+        .firstMatch(raw);
     if (match == null) return null;
     return '${match.group(1)}.${match.group(2) ?? '0'}.${match.group(3) ?? '0'}';
   }
