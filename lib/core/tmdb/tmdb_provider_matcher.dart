@@ -1,5 +1,6 @@
 import 'package:specta/core/discovery/discovery_coordinator.dart';
 import 'package:specta/core/discovery/discovery_models.dart';
+import 'package:specta/core/extensions/contract/result_models.dart';
 import 'package:specta/core/extensions/manager/extension_manager.dart';
 import 'package:specta/core/identity/title_key.dart';
 import 'package:specta/core/tmdb/tmdb_media_identity.dart';
@@ -7,13 +8,17 @@ import 'package:specta/core/tmdb/tmdb_media_identity.dart';
 /// The result of matching a canonical TMDB media item with installed extensions.
 final class TmdbMatchResult {
   const TmdbMatchResult({
-    required this.identity,
     required this.references,
+    this.identity,
     this.matchedDiscoveryItem,
   });
 
   /// The canonical TMDB identity of the target work.
-  final SpectaMediaIdentity identity;
+  ///
+  /// Null when the target was matched by title alone (a catalogue item that
+  /// carries no TMDB id on its [DiscoveryItem]). A title match is still a real
+  /// match — it simply cannot claim a TMDB identity it was never given.
+  final SpectaMediaIdentity? identity;
 
   /// Contributing extension references that match this work.
   final List<DiscoveryReference> references;
@@ -46,12 +51,40 @@ abstract final class TmdbProviderMatcher {
     int? year,
     Duration? timeoutOverride,
   }) async {
+    final TmdbMatchResult result = await matchByTitle(
+      title: title,
+      type: identity.type,
+      extensionManager: extensionManager,
+      year: year,
+      timeoutOverride: timeoutOverride,
+    );
+    return TmdbMatchResult(
+      identity: identity,
+      references: result.references,
+      matchedDiscoveryItem: result.matchedDiscoveryItem,
+    );
+  }
+
+  /// Matches a work by title/type/year alone, for a target that has no TMDB id.
+  ///
+  /// A catalogue rail item (Home "Trending", an AniList row) is a real work the
+  /// user can see, but it never passed through discovery, so it carries NO
+  /// [DiscoveryReference] and therefore cannot be played. This is the entry
+  /// point that gives those items a source: it searches the installed
+  /// extensions for the same work and returns the references found.
+  ///
+  /// The selection rules are exactly [match]'s — this exists so a title-only
+  /// target gets the same quality of match, not a weaker one.
+  static Future<TmdbMatchResult> matchByTitle({
+    required String title,
+    required MediaType type,
+    required ExtensionManager extensionManager,
+    int? year,
+    Duration? timeoutOverride,
+  }) async {
     final SearchRequest request = SearchRequest(query: title);
     if (!request.isValid) {
-      return TmdbMatchResult(
-        identity: identity,
-        references: const <DiscoveryReference>[],
-      );
+      return const TmdbMatchResult(references: <DiscoveryReference>[]);
     }
 
     final DiscoveryResult discovery = await DiscoveryCoordinator.discover(
@@ -61,10 +94,7 @@ abstract final class TmdbProviderMatcher {
     );
 
     if (discovery.items.isEmpty) {
-      return TmdbMatchResult(
-        identity: identity,
-        references: const <DiscoveryReference>[],
-      );
+      return const TmdbMatchResult(references: <DiscoveryReference>[]);
     }
 
     final String targetNormTitle = TitleKey.normalize(title);
@@ -74,7 +104,7 @@ abstract final class TmdbProviderMatcher {
 
     for (final DiscoveryItem item in discovery.items) {
       // Must match media type strictly
-      if (item.type != identity.type) continue;
+      if (item.type != type) continue;
 
       final String itemNormTitle = TitleKey.normalize(item.title);
       if (itemNormTitle != targetNormTitle) {
@@ -116,15 +146,11 @@ abstract final class TmdbProviderMatcher {
 
     if (bestMatch != null && bestScore >= 5) {
       return TmdbMatchResult(
-        identity: identity,
         references: bestMatch.references,
         matchedDiscoveryItem: bestMatch,
       );
     }
 
-    return TmdbMatchResult(
-      identity: identity,
-      references: const <DiscoveryReference>[],
-    );
+    return const TmdbMatchResult(references: <DiscoveryReference>[]);
   }
 }

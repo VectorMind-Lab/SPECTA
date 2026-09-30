@@ -253,8 +253,29 @@ void main() {
         year: 1999,
       );
 
+      // `match` is the identity-carrying entry point, so it always returns the
+      // identity it was given — even when nothing matched.
       expect(result.identity, _movieIdentity);
-      expect(result.identity.code, 'movie:603');
+      expect(result.identity!.code, 'movie:603');
+    });
+
+    test('matchByTitle returns no identity, because none was given', () async {
+      final DiscoveryTestHarness h = await harnessServing(<Object?>[
+        _row('The Matrix', year: 1999),
+      ]);
+
+      // A catalogue rail item has a real title but no TMDB id on it. Claiming a
+      // TMDB identity here would be inventing one.
+      final TmdbMatchResult result = await TmdbProviderMatcher.matchByTitle(
+        title: 'The Matrix',
+        type: MediaType.movie,
+        extensionManager: h.manager,
+        year: 1999,
+      );
+
+      expect(result.identity, isNull);
+      expect(result.hasMatch, isTrue);
+      expect(result.references, hasLength(1));
     });
   });
 }

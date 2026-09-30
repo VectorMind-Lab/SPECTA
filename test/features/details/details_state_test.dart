@@ -125,11 +125,53 @@ Future<void> _waitFor(
   }
 }
 
-ProviderContainer _container(DiscoveryTestHarness h, {TmdbClient? tmdb}) {
+/// A resolver that finds nothing, so a test can exercise the details screen
+/// without an extension subsystem behind it.
+///
+/// This is the DEFAULT for every test in this file. A catalogue-only item with
+/// no installed source is exactly this case: nothing to match, metadata comes
+/// from the catalogue alone, and the screen must still work. Tests that care
+/// about matching override it with [ScriptedCatalogueReferenceResolver].
+class _NoMatchResolver implements CatalogueReferenceResolver {
+  const _NoMatchResolver();
+
+  @override
+  Future<List<DiscoveryReference>> resolve(DiscoveryItem item) async =>
+      const <DiscoveryReference>[];
+}
+
+/// Returns whatever references the test scripted, recording what it was asked.
+class ScriptedCatalogueReferenceResolver implements CatalogueReferenceResolver {
+  ScriptedCatalogueReferenceResolver(this.references);
+
+  final List<DiscoveryReference> references;
+
+  /// Every item the resolver was asked about, in call order.
+  final List<DiscoveryItem> asked = <DiscoveryItem>[];
+
+  /// When set, [resolve] throws it instead of answering.
+  Object? throwInstead;
+
+  @override
+  Future<List<DiscoveryReference>> resolve(DiscoveryItem item) async {
+    asked.add(item);
+    if (throwInstead != null) throw throwInstead!;
+    return references;
+  }
+}
+
+ProviderContainer _container(
+  DiscoveryTestHarness h, {
+  TmdbClient? tmdb,
+  CatalogueReferenceResolver? resolver,
+}) {
   final ProviderContainer container = ProviderContainer(
     overrides: <Override>[
       metadataServiceProvider.overrideWith(
         (Ref ref) => MetadataService(manager: h.manager, tmdb: tmdb),
+      ),
+      catalogueReferenceResolverProvider.overrideWithValue(
+        resolver ?? const _NoMatchResolver(),
       ),
     ],
   );
@@ -479,6 +521,106 @@ void main() {
         container.read(detailsSessionProvider).status,
         DetailsStatus.failure,
       );
+    });
+  });
+
+  t.group('catalogue-only items resolve to a playable source', () {
+    t.test('a matched catalogue item gains the reference that resolves it', () async {
+      final DiscoveryTestHarness h = DiscoveryTestHarness();
+      const String url = 'https://example.com/matrix';
+      final ScriptedCatalogueReferenceResolver resolver =
+          ScriptedCatalogueReferenceResolver(<DiscoveryReference>[
+            const DiscoveryReference(
+              extensionId: 'extA',
+              url: 'https://example.com/matrix',
+            ),
+          ]);
+
+      // The extension can now answer `details` because it was matched.
+      h.sandbox.setAsyncResult(
+        'JSON.stringify(await _spectaInstance.details("$url"))',
+        _moviePayload(url),
+      );
+
+      final ProviderContainer container = _container(
+        h,
+        resolver: resolver,
+        tmdb: TmdbClient(
+          config: const TmdbConfig(apiKey: _testTmdbKey),
+          transport: _RoutingTmdbTransport(),
+        ),
+      );
+
+      await container
+          .read(detailsSessionProvider.notifier)
+          .open(_catalogueOnlyItem('The Matrix', 1999));
+
+      final DetailsState state = container.read(detailsSessionProvider);
+      t.expect(state.status, DetailsStatus.success);
+      // The item the screen now holds carries a reference — this is what makes
+      // "Play" possible for a title that came from the catalogue.
+      t.expect(state.item!.references, t.hasLength(1));
+      t.expect(state.item!.references.single.extensionId, 'extA');
+      t.expect(state.hasExtensionReference, t.isTrue);
+      // The catalogue's own identity is preserved, not replaced.
+      t.expect(state.item!.title, 'The Matrix');
+      t.expect(state.item!.cover, 'https://image.tmdb.org/t/p/w500/rail.jpg');
+    });
+
+    t.test('an item that already has references is never re-matched', () async {
+      final DiscoveryTestHarness h = DiscoveryTestHarness();
+      await h.installExtension(tempDir, 'extA', capabilities: 'search,details');
+      const String url = 'https://example.com/movie/1';
+      h.sandbox.setAsyncResult(
+        'JSON.stringify(await _spectaInstance.details("$url"))',
+        _moviePayload(url),
+      );
+      final ScriptedCatalogueReferenceResolver resolver =
+          ScriptedCatalogueReferenceResolver(const <DiscoveryReference>[]);
+
+      final ProviderContainer container = _container(h, resolver: resolver);
+      await container
+          .read(detailsSessionProvider.notifier)
+          .open(_movieItem('extA', url));
+
+      // Discovery already established provenance; re-matching would risk
+      // overwriting it with a guess.
+      t.expect(resolver.asked, t.isEmpty);
+      t.expect(
+        container
+            .read(detailsSessionProvider)
+            .item!
+            .references
+            .single
+            .extensionId,
+        'extA',
+      );
+    });
+
+    t.test('a throwing resolver does not break the details screen', () async {
+      final DiscoveryTestHarness h = DiscoveryTestHarness();
+      final ScriptedCatalogueReferenceResolver resolver =
+          ScriptedCatalogueReferenceResolver(const <DiscoveryReference>[])
+            ..throwInstead = StateError('registry unavailable');
+
+      final ProviderContainer container = _container(
+        h,
+        resolver: resolver,
+        tmdb: TmdbClient(
+          config: const TmdbConfig(apiKey: _testTmdbKey),
+          transport: _RoutingTmdbTransport(),
+        ),
+      );
+
+      await container
+          .read(detailsSessionProvider.notifier)
+          .open(_catalogueOnlyItem('The Matrix', 1999));
+
+      // A broken source lookup must never become a broken details screen: the
+      // catalogue metadata is still perfectly good.
+      final DetailsState state = container.read(detailsSessionProvider);
+      t.expect(state.status, DetailsStatus.success);
+      t.expect(state.item!.references, t.isEmpty);
     });
   });
 }

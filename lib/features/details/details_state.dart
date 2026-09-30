@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/discovery/discovery_models.dart';
+import '../../core/extensions/manager/extension_manager.dart';
+import '../../core/extensions/manager/extension_providers.dart';
 import '../../core/metadata/catalogue_enricher.dart';
 import '../../core/metadata/metadata_manager.dart';
 import '../../core/metadata/metadata_models.dart';
+import '../../core/tmdb/tmdb_provider_matcher.dart';
 
 /// User-facing details status. Every state the brief requires, with no raw
 /// internal exceptions exposed to the UI.
@@ -105,6 +108,46 @@ final class DetailsState {
   }
 }
 
+/// Resolves a catalogue-only work into a playable one.
+///
+/// Declared as a provider so the details session never depends on a concrete
+/// extension manager: production reads the app's one real manager, and tests
+/// override it with a scripted stand-in instead of opening a real database or
+/// JS engine. Injectable is the point — a details screen must be testable
+/// without standing up the whole extension subsystem.
+final Provider<CatalogueReferenceResolver> catalogueReferenceResolverProvider =
+    Provider<CatalogueReferenceResolver>((Ref ref) {
+      return ExtensionManagerCatalogueReferenceResolver(
+        ref.read(extensionManagerProvider),
+      );
+    });
+
+/// Finds an installed source for a catalogue item that carries no reference.
+abstract interface class CatalogueReferenceResolver {
+  /// Returns references for [item], or an empty list when nothing matched.
+  Future<List<DiscoveryReference>> resolve(DiscoveryItem item);
+}
+
+/// The production resolver: matches the catalogue work against the installed
+/// extensions through [TmdbProviderMatcher].
+final class ExtensionManagerCatalogueReferenceResolver
+    implements CatalogueReferenceResolver {
+  const ExtensionManagerCatalogueReferenceResolver(this._manager);
+
+  final ExtensionManager _manager;
+
+  @override
+  Future<List<DiscoveryReference>> resolve(DiscoveryItem item) async {
+    final TmdbMatchResult result = await TmdbProviderMatcher.matchByTitle(
+      title: item.title,
+      type: item.type,
+      year: item.year,
+      extensionManager: _manager,
+    );
+    return result.references;
+  }
+}
+
 /// Drives details requests over the metadata service.
 ///
 /// Race handling mirrors the search session: a monotonically increasing
@@ -154,9 +197,27 @@ class DetailsSessionNotifier extends Notifier<DetailsState> {
             item: item,
           );
 
+    // A catalogue rail item (Home "Trending", an AniList row) is a real work the
+    // user can see, but it never passed through discovery, so it carries no
+    // reference and can never be played. Resolve one through the installed
+    // extensions BEFORE the metadata round, so everything downstream (metadata,
+    // episodes, Play) sees a playable item instead of a poster with no source.
+    //
+    // Only attempted when there is genuinely nothing to play through. An item
+    // that already has references is never re-matched: its provenance is the
+    // discovery layer's own and must not be overwritten.
+    DiscoveryItem resolved = item;
+    if (item.references.isEmpty) {
+      final DiscoveryItem? matched = await _resolveCatalogueItem(
+        item,
+        generation: gen,
+      );
+      if (matched != null) resolved = matched;
+    }
+
     final MetadataResult result;
     try {
-      result = await ref.read(metadataServiceProvider).metadataFor(item);
+      result = await ref.read(metadataServiceProvider).metadataFor(resolved);
     } on Object {
       // Absolute containment: the UI layer never sees an exception. A failed
       // refresh must also not destroy metadata that is already on screen.
@@ -174,7 +235,7 @@ class DetailsSessionNotifier extends Notifier<DetailsState> {
 
     _applyIfCurrent(
       gen,
-      _merge(state, _stateFrom(result, item, gen), refreshing: refreshing),
+      _merge(state, _stateFrom(result, resolved, gen), refreshing: refreshing),
     );
 
     // Catalogue enrichment (TMDB/TVMaze for movie/series, AniList for anime)
@@ -188,7 +249,7 @@ class DetailsSessionNotifier extends Notifier<DetailsState> {
     try {
       enrichment = await ref
           .read(metadataServiceProvider)
-          .enrichedMetadataFor(item, knownResult: result);
+          .enrichedMetadataFor(resolved, knownResult: result);
     } on Object {
       return; // enrichment is best-effort; the base result already stands
     }
@@ -244,6 +305,49 @@ class DetailsSessionNotifier extends Notifier<DetailsState> {
   /// though a freshly normalised `DiscoveryItem` is a different instance.
   static bool _isSameItem(DiscoveryItem? a, DiscoveryItem b) =>
       a != null && a.key == b.key;
+
+  /// Finds an installed source for a catalogue item that has no reference.
+  ///
+  /// Returns [item] rebuilt with the matched references, or null when nothing
+  /// matched — the caller then proceeds with the original item, so a catalogue
+  /// title with no available source still opens and shows its metadata rather
+  /// than failing. That is the honest outcome: the item exists, the source does
+  /// not.
+  ///
+  /// The matched DISCOVERY item's cover is deliberately NOT copied over. The
+  /// user tapped the catalogue's artwork; substituting a provider's image would
+  /// change what they chose under their finger.
+  Future<DiscoveryItem?> _resolveCatalogueItem(
+    DiscoveryItem item, {
+    required int generation,
+  }) async {
+    final List<DiscoveryReference> references;
+    try {
+      references = await ref
+          .read(catalogueReferenceResolverProvider)
+          .resolve(item);
+    } on Object {
+      // Containment: a failed match is not a failed details screen.
+      return null;
+    }
+
+    // A newer open won while we were searching — this result is stale and must
+    // not be applied to the state the user is now looking at.
+    if (_disposed) return null;
+    if (generation != _generation) return null;
+
+    if (references.isEmpty) return null;
+
+    return DiscoveryItem(
+      key: item.key,
+      title: item.title,
+      type: item.type,
+      year: item.year,
+      cover: item.cover,
+      externalIds: item.externalIds,
+      references: references,
+    );
+  }
 
   /// Folds a finished extension round into what is already on screen.
   ///
